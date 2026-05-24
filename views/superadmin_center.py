@@ -1,0 +1,104 @@
+import streamlit as st
+import pandas as pd
+from core.db import create_hackathon, update_admin_passcode, change_my_passcode, SessionLocal, Hackathon, User
+from sqlalchemy import func
+from core.auth import require_login
+
+# Only superadmin can access this
+require_login('superadmin')
+
+lang = st.session_state.get('language', 'English')
+def t(en, ja): return en if lang == "English" else ja
+
+st.title(t("🌍 Super Admin Console", "🌍 スーパー管理者コンソール"))
+
+col_title, col_btn = st.columns([3, 1])
+with col_title:
+    st.markdown(t("Manage isolated Hackathon tenants and tenant admins.", "ハッカソン（テナント）の作成と管理者アカウントの発行を行います。"))
+with col_btn:
+    with st.popover(t("⚙️ Change Password", "⚙️ パスワード変更")):
+        with st.form("change_my_pass_form"):
+            curr_pass = st.text_input(t("Current Password", "現在のパスワード"), type="password")
+            new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
+            if st.form_submit_button(t("Update", "更新"), type="primary"):
+                if not curr_pass or not new_pass:
+                    st.error(t("All fields required.", "すべて入力してください。"))
+                else:
+                    success = change_my_passcode(st.session_state.team_id, curr_pass, new_pass)
+                    if success:
+                        st.session_state.passcode = new_pass
+                        st.success(t("Password updated!", "パスワードを更新しました！"))
+                    else:
+                        st.error(t("Incorrect current password.", "現在のパスワードが間違っています。"))
+
+st.divider()
+
+col1, col2 = st.columns([1, 1.5])
+
+with col1:
+    st.subheader(t("➕ Create New Hackathon", "➕ 新規ハッカソンの作成"))
+    with st.form("superadmin_create_form"):
+        h_name = st.text_input(t("Hackathon Name", "ハッカソン名"), placeholder="e.g. Summer AI Hackathon 2026")
+        a_id = st.text_input(t("Tenant Admin ID", "テナント管理者 ID"), placeholder="e.g. admin_summer26")
+        a_pass = st.text_input(t("Tenant Admin Password", "テナント管理者パスワード"), type="password")
+        
+        if st.form_submit_button(t("Create Tenant", "テナントを作成"), type="primary"):
+            if not h_name or not a_id or not a_pass:
+                st.error(t("All fields are required.", "すべての項目を入力してください。"))
+            else:
+                try:
+                    new_id = create_hackathon(h_name, a_id, a_pass)
+                    st.success(f"Successfully created Hackathon '{h_name}' (ID: {new_id}) with Admin '{a_id}'!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to create hackathon: {str(e)}")
+
+with col2:
+    st.subheader(t("🏢 Existing Hackathons", "🏢 既存のハッカソン一覧"))
+    
+    db = SessionLocal()
+    try:
+        results = db.query(
+            Hackathon.id, Hackathon.name, Hackathon.created_at, User.team_id.label('admin_id')
+        ).outerjoin(
+            User, (Hackathon.id == User.hackathon_id) & (User.role == 'admin')
+        ).order_by(Hackathon.id.desc()).all()
+        
+        rows = [{'id': r.id, 'name': r.name, 'created_at': r.created_at, 'admin_id': r.admin_id} for r in results]
+        
+        counts = db.query(User.hackathon_id, func.count(User.id).label('team_count')).filter(User.role == 'team').group_by(User.hackathon_id).all()
+        team_counts = {c.hackathon_id: c.team_count for c in counts}
+    finally:
+        db.close()
+    
+    if not rows:
+        st.info(t("No hackathons exist yet.", "まだハッカソンは作成されていません。"))
+    else:
+        data = []
+        for r in rows:
+            data.append({
+                "ID": r['id'],
+                t("Name", "名前"): r['name'],
+                t("Admin ID", "管理者ID"): r['admin_id'],
+                t("Teams", "参加チーム数"): team_counts.get(r['id'], 0),
+                t("Created At", "作成日時"): r['created_at']
+            })
+        st.dataframe(pd.DataFrame(data), use_container_width=True, hide_index=True)
+        
+        st.divider()
+        st.subheader(t("🔑 Reset Admin Password", "🔑 管理者パスワードのリセット"))
+        
+        hackathon_options = {r['id']: f"[{r['id']}] {r['name']} (Admin: {r['admin_id']})" for r in rows if r['admin_id']}
+        
+        if hackathon_options:
+            with st.form("reset_pass_form"):
+                selected_h_id = st.selectbox(t("Select Tenant", "テナントを選択"), options=list(hackathon_options.keys()), format_func=lambda x: hackathon_options[x])
+                new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
+                if st.form_submit_button(t("Reset Password", "パスワードをリセット"), type="primary"):
+                    if not new_pass:
+                        st.error(t("Password cannot be empty.", "パスワードを入力してください。"))
+                    else:
+                        update_admin_passcode(selected_h_id, new_pass)
+                        st.success(t(f"Password reset successfully for tenant ID {selected_h_id}.", f"テナントID {selected_h_id} のパスワードをリセットしました。"))
+        else:
+            st.info(t("No tenants with admin accounts found.", "管理者アカウントを持つテナントが見つかりません。"))
