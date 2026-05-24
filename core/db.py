@@ -159,16 +159,23 @@ def get_setting(hackathon_id: int, key: str) -> str:
         setting = db.query(Setting).filter(Setting.hackathon_id == hackathon_id, Setting.key == key).first()
         return setting.value if setting else None
 
-def set_setting(hackathon_id: int, key: str, value: str):
+def set_setting(hackathon_id: int, key: str, value: str, db=None):
     if hackathon_id is None:
         return
-    with db_session() as db:
-        setting = db.query(Setting).filter(Setting.hackathon_id == hackathon_id, Setting.key == key).first()
+    
+    def _execute(session):
+        setting = session.query(Setting).filter(Setting.hackathon_id == hackathon_id, Setting.key == key).first()
         if setting:
             setting.value = value
         else:
             setting = Setting(hackathon_id=hackathon_id, key=key, value=value)
-            db.add(setting)
+            session.add(setting)
+            
+    if db is not None:
+        _execute(db)
+    else:
+        with db_session() as new_db:
+            _execute(new_db)
 
 def get_criteria(hackathon_id):
     val = get_setting(hackathon_id, 'evaluation_criteria')
@@ -201,8 +208,8 @@ def get_criteria(hackathon_id):
         }
     ]
 
-def set_criteria(hackathon_id, criteria_list):
-    set_setting(hackathon_id, 'evaluation_criteria', json.dumps(criteria_list))
+def set_criteria(hackathon_id, criteria_list, db=None):
+    set_setting(hackathon_id, 'evaluation_criteria', json.dumps(criteria_list), db=db)
 
 def get_personas(hackathon_id):
     val = get_setting(hackathon_id, 'judges_personas')
@@ -231,8 +238,8 @@ def get_personas(hackathon_id):
         }
     ]
 
-def set_personas(hackathon_id, personas_list):
-    set_setting(hackathon_id, 'judges_personas', json.dumps(personas_list))
+def set_personas(hackathon_id, personas_list, db=None):
+    set_setting(hackathon_id, 'judges_personas', json.dumps(personas_list), db=db)
 
 def create_hackathon(name: str, admin_id: str, admin_pass: str) -> int:
     with db_session() as db:
@@ -250,9 +257,9 @@ def create_hackathon(name: str, admin_id: str, admin_pass: str) -> int:
         db.add(admin_user)
         db.flush()
         
-        # Initialize default settings for this hackathon
-        set_personas(hackathon.id, get_personas(None)) # get defaults and save
-        set_criteria(hackathon.id, get_criteria(None))
+        # Initialize default settings for this hackathon using the same transaction session
+        set_personas(hackathon.id, get_personas(None), db=db) # get defaults and save
+        set_criteria(hackathon.id, get_criteria(None), db=db)
         
         return hackathon.id
 
