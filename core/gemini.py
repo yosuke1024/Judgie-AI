@@ -7,6 +7,9 @@ from core.db import get_setting, get_criteria, get_personas
 def configure_gemini(hackathon_id):
     api_key = get_setting(hackathon_id, 'gemini_api_key')
     if not api_key:
+        import os
+        api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
         raise ValueError("Gemini API Key has not been set by the Admin yet. Please contact the organizer.")
     genai.configure(api_key=api_key)
 
