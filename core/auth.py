@@ -1,12 +1,12 @@
 import streamlit as st
 import os
-from streamlit.web.server.websocket_headers import _get_websocket_headers
 from core.db import verify_user, create_session, get_session, delete_session
 
 def verify_ip_address():
     """
     Checks the connection's source IP address against an ALLOWED_IPS whitelist.
     Stops Streamlit execution immediately with an error if the client IP is unauthorized.
+    Supports native Streamlit 1.56.0+ context API and older websocket header fallbacks.
     """
     allowed_ips_str = os.environ.get("ALLOWED_IPS") or st.secrets.get("ALLOWED_IPS", "")
     if not allowed_ips_str:
@@ -16,13 +16,28 @@ def verify_ip_address():
     if not allowed_ips:
         return
         
-    headers = _get_websocket_headers()
     client_ip = None
-    if headers:
-        x_forwarded_for = headers.get("X-Forwarded-For")
-        if x_forwarded_for:
-            client_ip = x_forwarded_for.split(",")[0].strip()
+    
+    # 1. Streamlit 1.56.0+ Native Context API (Safe & Supported)
+    try:
+        if hasattr(st, "context") and hasattr(st.context, "ip_address"):
+            client_ip = st.context.ip_address
+    except Exception:
+        pass
+        
+    # 2. Streamlit >= 1.14.0 and < 1.56.0 Internal Websocket API (Legacy fallback)
+    if not client_ip:
+        try:
+            from streamlit.web.server.websocket_headers import _get_websocket_headers
+            headers = _get_websocket_headers()
+            if headers:
+                x_forwarded_for = headers.get("X-Forwarded-For")
+                if x_forwarded_for:
+                    client_ip = x_forwarded_for.split(",")[0].strip()
+        except Exception:
+            pass
             
+    # Default local fallback
     if not client_ip:
         client_ip = "127.0.0.1"
         
