@@ -1,33 +1,39 @@
 import streamlit as st
-import tempfile
 import os
 import json
-import pandas as pd
 from config import MAX_CONSULTATIONS
-from core.db import get_consultation_count, save_evaluation, get_criteria, get_team_profile, update_team_profile, SessionLocal, User, Hackathon, Evaluation
-from core.file_handler import extract_text_from_zip
-from core.gemini import upload_to_gemini, wait_for_files_active, analyze_submission
+from core.i18n import t
+from core.db import (
+    db_session, 
+    get_consultation_count, 
+    get_criteria, 
+    get_team_profile, 
+    update_team_profile, 
+    change_my_passcode,
+    User, 
+    Hackathon
+)
+from core.services.submission_service import process_submission
+from core.services.evaluation_service import get_team_evaluations, submit_team_objection
 from core.ui_utils import get_avatar_html
+from views.components.charts import render_score_history_chart, render_criteria_radar_chart
+from views.components.feedback_cards import render_judge_feedback_tab
 
 lang = st.session_state.get('language', 'English')
-def t(en, ja): return en if lang == "English" else ja
 role = st.session_state.role
 
 st.set_page_config(layout="wide")
 
-# Determine which team we are viewing
 current_h_id = st.session_state.get('active_hackathon_id')
 
+# Determine which team we are viewing
 if role == 'admin':
-    db = SessionLocal()
-    try:
+    with db_session() as db:
         if current_h_id:
             users = db.query(User.team_id).filter(User.role == 'team', User.hackathon_id == current_h_id).order_by(User.team_id).all()
         else:
             users = db.query(User.team_id).filter(User.role == 'team').order_by(User.team_id).all()
         all_teams = [u.team_id for u in users]
-    finally:
-        db.close()
     
     st.info(t("Admin Mode: Read-Only View", "管理者モード: 閲覧専用"))
     view_team_id = st.selectbox(t("Select Team to View", "閲覧するチームを選択"), all_teams) if all_teams else None
@@ -38,27 +44,8 @@ if not view_team_id:
     st.warning("No teams available in this hackathon.")
     st.stop()
 
-
-# Fetch all evaluations for this team
-db = SessionLocal()
-try:
-    evaluations = db.query(Evaluation).filter(Evaluation.team_id == view_team_id).order_by(Evaluation.id.asc()).all()
-    eval_rows = []
-    for e in evaluations:
-        eval_rows.append({
-            'id': e.id,
-            'team_id': e.team_id,
-            'scores_json': e.scores_json,
-            'impact_score': e.impact_score,
-            'strengths_risks_json': e.strengths_risks_json,
-            'qa_json': e.qa_json,
-            'is_final': e.is_final,
-            'source_text': e.source_text,
-            'gemini_file_ids': e.gemini_file_ids,
-            'evaluated_at': e.evaluated_at
-        })
-finally:
-    db.close()
+# Fetch all evaluations for this team via service
+eval_rows = get_team_evaluations(view_team_id)
 
 consultations_used = sum(1 for r in eval_rows if not r['is_final'])
 is_final_submitted = any(r['is_final'] for r in eval_rows)
@@ -71,12 +58,10 @@ with col1:
     st.title(t("📤 Submission", "📤 成果物の提出"))
     
     # Show Hackathon Name
-    db = SessionLocal()
-    try:
+    with db_session() as db:
         result = db.query(Hackathon.name).join(User, User.hackathon_id == Hackathon.id).filter(User.team_id == view_team_id).first()
         h_row = {'name': result.name} if result else None
-    finally:
-        db.close()
+        
     if h_row:
         st.caption(f"🏆 {h_row['name']}")
         
@@ -107,7 +92,6 @@ with col1:
                     curr_pass = st.text_input(t("Current Password", "現在のパスワード"), type="password")
                     new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
                     if st.form_submit_button(t("Update", "更新"), type="primary"):
-                        from core.db import change_my_passcode
                         if not curr_pass or not new_pass:
                             st.error(t("All fields required.", "すべて入力してください。"))
                         else:
@@ -158,48 +142,21 @@ with col1:
             # Prepare previous feedback as context
             prev_json_str = None
             if eval_rows:
-                # pass the last one
                 last_fb = json.loads(eval_rows[-1]['strengths_risks_json'])
                 prev_json_str = json.dumps(last_fb.get('judges_feedback', []))
             
             with st.status(t("🤖 AI Expert Panel is reviewing...", "🤖 AI専門家パネルが審査中..."), expanded=True) as status:
                 try:
-                    st.write(t("📦 Extracting submitted files...", "📦 提出ファイルを展開中..."))
-                    text_content = ""
-                    gemini_media_files = []
-                    for uf in uploaded_files:
-                        if uf.name.endswith(".zip"):
-                            text_content += extract_text_from_zip(uf)
-                        elif uf.name.endswith((".mp4", ".mov", ".pdf")):
-                            ext = os.path.splitext(uf.name)[1]
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-                                tmp.write(uf.read())
-                                tmp_path = tmp.name
-                            mime_map = {".mp4": "video/mp4", ".mov": "video/quicktime", ".pdf": "application/pdf"}
-                            mime_type = mime_map.get(ext.lower(), "application/octet-stream")
-                            g_file = upload_to_gemini(tmp_path, mime_type=mime_type)
-                            gemini_media_files.append(g_file)
-                            os.unlink(tmp_path)
+                    # Execute evaluation flow via service layer
+                    st.write(t("📦 Processing files and running AI panel...", "📦 ファイルを処理し、AIパネルを実行中..."))
                     
-                    if gemini_media_files:
-                        st.write(t("📹 Processing media files...", "📹 メディアファイルを処理中..."))
-                        wait_for_files_active(gemini_media_files)
-                    
-                    # Labor Illusion / Entertainment effect
-                    import time
-                    from core.db import get_personas
-                    personas_list = get_personas(current_h_id)
-                    active_judges = [p for p in personas_list if p.get('active', True)]
-                    
-                    for judge in active_judges:
-                        st.write(f"{judge.get('avatar', '🧑‍⚖️')} **{judge['name']}** {t('is evaluating the submission...', 'が提出物を精査しています...')}")
-                        time.sleep(1)
-                    
-                    st.write(t("🧠 Generating final scores and feedback...", "🧠 スコアとフィードバックを取りまとめています..."))
-                    result_json = analyze_submission(current_h_id, text_content, gemini_media_files, previous_evaluations_json=prev_json_str, is_final=is_final_flag)
-                    
-                    g_file_names = [f.name for f in gemini_media_files] if gemini_media_files else []
-                    save_evaluation(view_team_id, result_json, is_final=is_final_flag, source_text=text_content, gemini_file_ids=g_file_names)
+                    process_submission(
+                        hackathon_id=current_h_id,
+                        team_id=view_team_id,
+                        uploaded_files=uploaded_files,
+                        prev_evaluations_json=prev_json_str,
+                        is_final=is_final_flag
+                    )
                     
                     status.update(label=t("✅ Analysis complete!", "✅ 解析完了！"), state="complete", expanded=False)
                     st.rerun()
@@ -215,16 +172,13 @@ with col2:
         st.info(t("No feedback history yet.", "まだフィードバック履歴がありません。"))
     else:
         # History selector
-        eval_dict_map = {}
+        eval_dict_map = {r['id']: r for r in eval_rows}
         history_options = []
         for i, r in enumerate(eval_rows):
-            r_dict = dict(r)
-            e_id = r_dict['id']
-            eval_dict_map[e_id] = r_dict
-            if r_dict['is_final']:
-                history_options.append((e_id, f"⭐ Final Submission"))
+            if r['is_final']:
+                history_options.append((r['id'], f"⭐ {t('Final Submission', '最終提出')}"))
             else:
-                history_options.append((e_id, f"🔄 Consultation {i+1}"))
+                history_options.append((r['id'], f"🔄 {t('Consultation', '相談')} {i+1}"))
                 
         # Reverse to show latest first
         history_options.reverse()
@@ -240,7 +194,7 @@ with col2:
         fb = json.loads(selected_eval['strengths_risks_json'])
         scores = json.loads(selected_eval['scores_json'])
         
-        # Identify previous evaluation for delta
+        # Identify previous evaluation for delta calculation
         current_idx = next((i for i, r in enumerate(eval_rows) if r['id'] == selected_eval['id']), 0)
         prev_scores = None
         if current_idx > 0:
@@ -279,43 +233,11 @@ with col2:
             
         st.markdown("---")
         
-        import altair as alt
+        # Render score history line chart (Altair Component)
+        render_score_history_chart(eval_rows, criteria, total_weight)
         
-        # Visualize Score History (Line Chart) if multiple evaluations exist
-        if len(eval_rows) > 1:
-            st.markdown(f"#### 📈 {t('Score History (Evolution)', 'スコア推移（進化の軌跡）')}")
-            history_data = []
-            for idx, r in enumerate(eval_rows):
-                r_scores = json.loads(r['scores_json'])
-                step_name = f"Consult {idx+1}" if not r['is_final'] else "Final"
-                
-                # Total Score
-                total_s = sum(r_scores.get(c['name'], 0) * (c['weight'] / total_weight) for c in criteria)
-                history_data.append({"Step": step_name, "Criteria": "⭐ Total Score", "Score": total_s, "Order": idx})
-                
-                for c in criteria:
-                    history_data.append({"Step": step_name, "Criteria": c['name'], "Score": r_scores.get(c['name'], 0), "Order": idx})
-                    
-            df_hist = pd.DataFrame(history_data)
-            line_chart = alt.Chart(df_hist).mark_line(point=True).encode(
-                x=alt.X('Step:N', sort=alt.EncodingSortField(field='Order', order='ascending'), title='Evaluation Phase', axis=alt.Axis(labelAngle=0)),
-                y=alt.Y('Score:Q', scale=alt.Scale(domain=[0, 5])),
-                color=alt.Color('Criteria:N', legend=alt.Legend(title="Metrics")),
-                tooltip=['Step', 'Criteria', 'Score']
-            ).properties(height=300)
-            st.altair_chart(line_chart, use_container_width=True)
-            st.markdown("---")
-
-        # Visualize current strengths with Altair Bar Chart
-        st.markdown(f"#### 📊 {t('Current Radar', '現在の評価バランス')}")
-        df_chart = pd.DataFrame(chart_data)
-        chart = alt.Chart(df_chart).mark_bar().encode(
-            x=alt.X('Score:Q', scale=alt.Scale(domain=[0, 5])),
-            y=alt.Y('Criteria:N', sort=None),
-            color=alt.Color('Score:Q', scale=alt.Scale(scheme='tealblues'), legend=None),
-            tooltip=['Criteria', 'Score']
-        ).properties(height=250)
-        st.altair_chart(chart, use_container_width=True)
+        # Render current metrics horizontal bar chart (Altair Component)
+        render_criteria_radar_chart(chart_data)
         
         st.markdown("---")
             
@@ -338,27 +260,7 @@ with col2:
             st.markdown("#### 🧠 AI Product Understanding")
             st.write(fb.get('product_understanding_en', fb.get('summary_en', '')))
             st.markdown("#### 🧑‍⚖️ Judges Feedback")
-            judges = fb.get('judges_feedback', [])
-            for j in judges:
-                j_name = j.get('judge_name', 'Judge')
-                j_icon = avatar_map.get(j_name, '🧑‍⚖️')
-                with st.expander(f"{j_name} - {j.get('judge_role', 'Expert')}", expanded=True):
-                    avatar_html = get_avatar_html(j_name, j_icon, size=40)
-                    st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{avatar_html}<div><strong style="font-size: 1.1em;">{j_name}</strong><br><span style="font-size: 0.8em; color: gray;">{j.get("judge_persona", "")}</span></div></div>', unsafe_allow_html=True)
-                    
-                    # Display individual judge scores
-                    j_scores = j.get('judge_scores', [])
-                    if j_scores:
-                        score_html = '<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; padding: 10px; background-color: rgba(255,255,255,0.05); border-radius: 5px;">'
-                        for s_item in j_scores:
-                            c_name = s_item.get('criteria_name', '')
-                            s_val = s_item.get('score', 0)
-                            color = "#4CAF50" if s_val >= 4 else "#FF9800" if s_val >= 3 else "#F44336"
-                            score_html += f'<div style="flex: 1; min-width: 120px;"><div style="font-size: 0.75em; color: gray;">{c_name}</div><div style="font-weight: bold; color: {color};">{s_val} / 5.0</div></div>'
-                        score_html += '</div>'
-                        st.markdown(score_html, unsafe_allow_html=True)
-                        
-                    st.write(j.get('feedback_en', ''))
+            render_judge_feedback_tab(fb, avatar_map, lang="English")
             
         with tab_ja:
             st.markdown("#### 🔥 最優先アクション (Next Steps)")
@@ -372,27 +274,7 @@ with col2:
             st.markdown("#### 🧠 プロダクト理解")
             st.write(fb.get('product_understanding_ja', fb.get('summary_ja', '')))
             st.markdown("#### 🧑‍⚖️ 審査員フィードバック")
-            judges = fb.get('judges_feedback', [])
-            for j in judges:
-                j_name = j.get('judge_name', 'Judge')
-                j_icon = avatar_map.get(j_name, '🧑‍⚖️')
-                with st.expander(f"{j_name} - {j.get('judge_role', 'Expert')}", expanded=True):
-                    avatar_html = get_avatar_html(j_name, j_icon, size=40)
-                    st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{avatar_html}<div><strong style="font-size: 1.1em;">{j_name}</strong><br><span style="font-size: 0.8em; color: gray;">{j.get("judge_persona", "")}</span></div></div>', unsafe_allow_html=True)
-                    
-                    # Display individual judge scores
-                    j_scores = j.get('judge_scores', [])
-                    if j_scores:
-                        score_html = '<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; padding: 10px; background-color: rgba(255,255,255,0.05); border-radius: 5px;">'
-                        for s_item in j_scores:
-                            c_name = s_item.get('criteria_name', '')
-                            s_val = s_item.get('score', 0)
-                            color = "#4CAF50" if s_val >= 4 else "#FF9800" if s_val >= 3 else "#F44336"
-                            score_html += f'<div style="flex: 1; min-width: 120px;"><div style="font-size: 0.75em; color: gray;">{c_name}</div><div style="font-weight: bold; color: {color};">{s_val} / 5.0</div></div>'
-                        score_html += '</div>'
-                        st.markdown(score_html, unsafe_allow_html=True)
-                        
-                    st.write(j.get('feedback_ja', ''))
+            render_judge_feedback_tab(fb, avatar_map, lang="Japanese")
 
         st.markdown("---")
         st.subheader(t("🙋 Objection! / Q&A", "🙋 異議あり！ / 審査員への質問"))
@@ -400,7 +282,6 @@ with col2:
         qa_data_str = selected_eval.get('qa_json')
         
         if qa_data_str:
-            # Show QA history
             qa_data = json.loads(qa_data_str)
             st.info(t("You have already used your one-time objection for this evaluation.", "この評価に対する1回限りの「反論・質問」権は使用済みです。"))
             
@@ -443,22 +324,17 @@ with col2:
                         if not obj_text.strip():
                             st.warning(t("Please enter your message.", "メッセージを入力してください。"))
                         else:
-                            from core.gemini import object_to_judges
-                            from core.db import save_objection_qa
-                            
                             with st.status(t("⚖️ Judges are discussing your point...", "⚖️ 審査員があなたの意見を議論中..."), expanded=True) as status:
                                 try:
-                                    # Fetch original content to pass as context (not extracting media again for speed, just text)
-                                    # Actually, since we don't have the media cached locally, we only pass the previous JSON.
-                                    # This is usually enough for the AI to reason about the feedback it gave.
                                     prev_eval_json_str = selected_eval['strengths_risks_json']
                                     
-                                    qa_result = object_to_judges(current_h_id, "", None, prev_eval_json_str, obj_text)
-                                    
-                                    # Append the user's text to the result so we can display it later
-                                    qa_result['user_objection'] = obj_text
-                                    
-                                    save_objection_qa(selected_eval['id'], qa_result)
+                                    # Execute objection flow via service layer
+                                    submit_team_objection(
+                                        hackathon_id=current_h_id,
+                                        eval_id=selected_eval['id'],
+                                        prev_eval_json=prev_eval_json_str,
+                                        objection_text=obj_text
+                                    )
                                     
                                     status.update(label=t("✅ Judges have reached a conclusion!", "✅ 審査員からの回答が届きました！"), state="complete", expanded=False)
                                     st.rerun()

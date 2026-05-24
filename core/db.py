@@ -2,6 +2,7 @@ import json
 import uuid
 import os
 from datetime import datetime
+from contextlib import contextmanager
 from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, ForeignKey, Text, DateTime, func, UniqueConstraint
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy.exc import IntegrityError
@@ -76,30 +77,34 @@ class AdminChat(Base):
     created_at = Column(DateTime, default=func.now())
 
 
-def get_db():
+@contextmanager
+def db_session():
+    """Provide a transactional scope around a series of operations."""
     db = SessionLocal()
     try:
         yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
+def get_db():
+    with db_session() as db:
+        yield db
+
 def init_db():
     Base.metadata.create_all(bind=engine)
-    
-    db = SessionLocal()
-    try:
+    with db_session() as db:
         # Seed SuperAdmin User
         superadmin = db.query(User).filter(User.role == 'superadmin').first()
         if not superadmin:
             superadmin = User(team_id='superadmin', passcode='superadmin123', role='superadmin')
             db.add(superadmin)
-            db.commit()
-    finally:
-        db.close()
 
-def verify_user(team_id, passcode, hackathon_id=None):
-    db = SessionLocal()
-    try:
+def verify_user(team_id: str, passcode: str, hackathon_id: int = None) -> dict:
+    with db_session() as db:
         query = db.query(User).filter(User.team_id == team_id, User.passcode == passcode)
         if team_id == 'superadmin':
             user = query.filter(User.role == 'superadmin').first()
@@ -110,20 +115,14 @@ def verify_user(team_id, passcode, hackathon_id=None):
         if user:
             return {'role': user.role, 'hackathon_id': user.hackathon_id}
         return None
-    finally:
-        db.close()
 
-def get_consultation_count(hackathon_id, team_id):
-    db = SessionLocal()
-    try:
+def get_consultation_count(hackathon_id: int, team_id: str) -> int:
+    with db_session() as db:
         count = db.query(Evaluation).filter(Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == team_id).count()
         return count
-    finally:
-        db.close()
 
-def save_evaluation(hackathon_id, team_id, result_json, is_final=False, source_text=None, gemini_file_ids=None):
-    db = SessionLocal()
-    try:
+def save_evaluation(hackathon_id: int, team_id: str, result_json: dict, is_final: bool = False, source_text: str = None, gemini_file_ids: list = None):
+    with db_session() as db:
         scores_json = json.dumps(result_json.get("scores", {}))
         impact_score = result_json.get("impact_score", 0.0)
         
@@ -146,44 +145,30 @@ def save_evaluation(hackathon_id, team_id, result_json, is_final=False, source_t
             gemini_file_ids=file_ids_json
         )
         db.add(eval_record)
-        db.commit()
-    finally:
-        db.close()
 
-def save_objection_qa(evaluation_id, qa_json):
-    db = SessionLocal()
-    try:
+def save_objection_qa(evaluation_id: int, qa_json: dict):
+    with db_session() as db:
         eval_record = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
         if eval_record:
             eval_record.qa_json = json.dumps(qa_json)
-            db.commit()
-    finally:
-        db.close()
 
-def get_setting(hackathon_id, key):
+def get_setting(hackathon_id: int, key: str) -> str:
     if hackathon_id is None:
         return None
-    db = SessionLocal()
-    try:
+    with db_session() as db:
         setting = db.query(Setting).filter(Setting.hackathon_id == hackathon_id, Setting.key == key).first()
         return setting.value if setting else None
-    finally:
-        db.close()
 
-def set_setting(hackathon_id, key, value):
+def set_setting(hackathon_id: int, key: str, value: str):
     if hackathon_id is None:
         return
-    db = SessionLocal()
-    try:
+    with db_session() as db:
         setting = db.query(Setting).filter(Setting.hackathon_id == hackathon_id, Setting.key == key).first()
         if setting:
             setting.value = value
         else:
             setting = Setting(hackathon_id=hackathon_id, key=key, value=value)
             db.add(setting)
-        db.commit()
-    finally:
-        db.close()
 
 def get_criteria(hackathon_id):
     val = get_setting(hackathon_id, 'evaluation_criteria')
@@ -249,9 +234,8 @@ def get_personas(hackathon_id):
 def set_personas(hackathon_id, personas_list):
     set_setting(hackathon_id, 'judges_personas', json.dumps(personas_list))
 
-def create_hackathon(name, admin_id, admin_pass):
-    db = SessionLocal()
-    try:
+def create_hackathon(name: str, admin_id: str, admin_pass: str) -> int:
+    with db_session() as db:
         hackathon = Hackathon(name=name)
         db.add(hackathon)
         db.flush() # flush to get the ID
@@ -264,101 +248,72 @@ def create_hackathon(name, admin_id, admin_pass):
             role='admin'
         )
         db.add(admin_user)
-        db.commit()
+        db.flush()
         
         # Initialize default settings for this hackathon
         set_personas(hackathon.id, get_personas(None)) # get defaults and save
         set_criteria(hackathon.id, get_criteria(None))
         
         return hackathon.id
-    finally:
-        db.close()
 
-def update_admin_passcode(hackathon_id, new_passcode):
-    db = SessionLocal()
-    try:
+def update_admin_passcode(hackathon_id: int, new_passcode: str):
+    with db_session() as db:
         admin_user = db.query(User).filter(User.hackathon_id == hackathon_id, User.role == 'admin').first()
         if admin_user:
             admin_user.passcode = new_passcode
-            db.commit()
-    finally:
-        db.close()
 
-def change_my_passcode(hackathon_id, team_id, current_passcode, new_passcode):
-    db = SessionLocal()
-    try:
+def change_my_passcode(hackathon_id: int, team_id: str, current_passcode: str, new_passcode: str) -> bool:
+    with db_session() as db:
         query = db.query(User).filter(User.team_id == team_id)
         if team_id != 'superadmin':
             query = query.filter(User.hackathon_id == hackathon_id)
         user = query.first()
         if user and user.passcode == current_passcode:
             user.passcode = new_passcode
-            db.commit()
             return True
         return False
-    finally:
-        db.close()
 
-def get_team_profile(hackathon_id, team_id):
-    db = SessionLocal()
-    try:
+def get_team_profile(hackathon_id: int, team_id: str) -> dict:
+    with db_session() as db:
         user = db.query(User).filter(User.hackathon_id == hackathon_id, User.team_id == team_id).first()
         if user:
             return {'product_name': user.product_name, 'team_name': user.team_name, 'one_liner': user.one_liner}
         return {'product_name': None, 'team_name': None, 'one_liner': None}
-    finally:
-        db.close()
 
-def update_team_profile(hackathon_id, team_id, product_name, team_name, one_liner):
-    db = SessionLocal()
-    try:
+def update_team_profile(hackathon_id: int, team_id: str, product_name: str, team_name: str, one_liner: str):
+    with db_session() as db:
         user = db.query(User).filter(User.hackathon_id == hackathon_id, User.team_id == team_id).first()
         if user:
             user.product_name = product_name
             user.team_name = team_name
             user.one_liner = one_liner
-            db.commit()
-    finally:
-        db.close()
 
-def create_session(team_id, role, hackathon_id):
-    db = SessionLocal()
-    try:
+def create_session(team_id: str, role: str, hackathon_id: int) -> str:
+    with db_session() as db:
         session_id = str(uuid.uuid4())
         session_record = Session(session_id=session_id, team_id=team_id, role=role, hackathon_id=hackathon_id)
         db.add(session_record)
-        db.commit()
         return session_id
-    finally:
-        db.close()
 
-def get_session(session_id):
+def get_session(session_id: str) -> dict:
     if not session_id:
         return None
-    db = SessionLocal()
-    try:
+    with db_session() as db:
         session_record = db.query(Session).filter(Session.session_id == session_id).first()
         if session_record:
             return {'team_id': session_record.team_id, 'role': session_record.role, 'hackathon_id': session_record.hackathon_id}
         return None
-    finally:
-        db.close()
 
-def delete_session(session_id):
+def delete_session(session_id: str):
     if not session_id:
         return
-    db = SessionLocal()
-    try:
+    with db_session() as db:
         session_record = db.query(Session).filter(Session.session_id == session_id).first()
         if session_record:
             db.delete(session_record)
-            db.commit()
-    finally:
-        db.close()
 
-def save_admin_chat(evaluation_id, question_en, question_ja, answer_en, answer_ja):
-    db = SessionLocal()
-    try:
+def save_admin_chat(evaluation_id: int, question_en: str, question_ja: str, answer_en: str, answer_ja: str) -> AdminChat:
+    with db_session() as db:
         chat = AdminChat(
             evaluation_id=evaluation_id,
             question_en=question_en,
@@ -367,14 +322,11 @@ def save_admin_chat(evaluation_id, question_en, question_ja, answer_en, answer_j
             answer_ja=answer_ja
         )
         db.add(chat)
-        db.commit()
+        db.flush()
         return chat
-    finally:
-        db.close()
 
-def get_admin_chats(evaluation_id):
-    db = SessionLocal()
-    try:
+def get_admin_chats(evaluation_id: int) -> list[dict]:
+    with db_session() as db:
         chats = db.query(AdminChat).filter(AdminChat.evaluation_id == evaluation_id).order_by(AdminChat.created_at.asc()).all()
         return [{
             'id': c.id,
@@ -384,5 +336,3 @@ def get_admin_chats(evaluation_id):
             'answer_ja': c.answer_ja,
             'created_at': c.created_at
         } for c in chats]
-    finally:
-        db.close()
