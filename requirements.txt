@@ -3,3 +3,4 @@ google-generativeai>=0.4.0
 pandas>=2.2.1
 plotly
 SQLAlchemy>=2.0.0
+psycopg2-binary
