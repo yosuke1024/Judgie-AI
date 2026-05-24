@@ -269,10 +269,18 @@ def update_admin_passcode(hackathon_id: int, new_passcode: str):
         if admin_user:
             admin_user.passcode = new_passcode
 
-def change_my_passcode(hackathon_id: int, team_id: str, current_passcode: str, new_passcode: str) -> bool:
+def change_my_passcode(hackathon_id: int = None, team_id: str = None, current_passcode: str = None, new_passcode: str = None) -> bool:
+    # Robust fallback: If hackathon_id is a string, it means the older 3-argument signature 
+    # (team_id, current_passcode, new_passcode) was called due to hot-reload cache mismatch.
+    if isinstance(hackathon_id, str):
+        new_passcode = current_passcode
+        current_passcode = team_id
+        team_id = hackathon_id
+        hackathon_id = None
+
     with db_session() as db:
         query = db.query(User).filter(User.team_id == team_id)
-        if team_id != 'superadmin':
+        if team_id != 'superadmin' and hackathon_id is not None:
             query = query.filter(User.hackathon_id == hackathon_id)
         user = query.first()
         if user and user.passcode == current_passcode:
