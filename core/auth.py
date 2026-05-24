@@ -1,5 +1,34 @@
 import streamlit as st
+import os
+from streamlit.web.server.websocket_headers import _get_websocket_headers
 from core.db import verify_user, create_session, get_session, delete_session
+
+def verify_ip_address():
+    """
+    Checks the connection's source IP address against an ALLOWED_IPS whitelist.
+    Stops Streamlit execution immediately with an error if the client IP is unauthorized.
+    """
+    allowed_ips_str = os.environ.get("ALLOWED_IPS") or st.secrets.get("ALLOWED_IPS", "")
+    if not allowed_ips_str:
+        return
+        
+    allowed_ips = [ip.strip() for ip in allowed_ips_str.split(",") if ip.strip()]
+    if not allowed_ips:
+        return
+        
+    headers = _get_websocket_headers()
+    client_ip = None
+    if headers:
+        x_forwarded_for = headers.get("X-Forwarded-For")
+        if x_forwarded_for:
+            client_ip = x_forwarded_for.split(",")[0].strip()
+            
+    if not client_ip:
+        client_ip = "127.0.0.1"
+        
+    if client_ip not in allowed_ips:
+        st.error(f"🚫 Access Denied. Your IP address ({client_ip}) is not authorized to access this application.")
+        st.stop()
 
 def init_session():
     """Initialize required session state variables."""

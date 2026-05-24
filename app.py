@@ -1,6 +1,9 @@
 import streamlit as st
 from core.db import init_db
-from core.auth import init_session
+from core.auth import init_session, verify_ip_address
+
+# Enforce IP address firewall if ALLOWED_IPS is set in environment/secrets
+verify_ip_address()
 
 st.set_page_config(page_title="Judgie-AI | Hackathon Platform", page_icon="⚖️", layout="wide")
 
