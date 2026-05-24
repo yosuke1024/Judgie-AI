@@ -24,7 +24,7 @@ with col_btn:
                 if not curr_pass or not new_pass:
                     st.error(t("All fields required.", "すべて入力してください。"))
                 else:
-                    success = change_my_passcode(st.session_state.team_id, curr_pass, new_pass)
+                    success = change_my_passcode(None, st.session_state.team_id, curr_pass, new_pass)
                     if success:
                         st.session_state.passcode = new_pass
                         st.success(t("Password updated!", "パスワードを更新しました！"))
