@@ -25,24 +25,53 @@ def test_sanitize_evaluation_response():
     }
 
     res = sanitize_evaluation_response(input_data)
-    assert res["product_understanding_en"] == "understanding"
-    assert res["action_items_en"] == ["item1"]
+    assert res["product_understanding_english"] == "understanding"
+    assert res["action_items_english"] == ["item1"]
     assert res["judges_feedback"][0]["judge_name"] == "Lisa"
+    assert res["judges_feedback"][0]["feedback_english"] == "Great UI"
 
     # Sanitize invalid or missing values
     bad_input = {
-        "action_items_en": "not_a_list",
+        "action_items_english": "not_a_list",
         "judges_feedback": [
             "not_a_dict",
             {"judge_name": "David"}  # Partial missing keys
         ]
     }
     res_bad = sanitize_evaluation_response(bad_input)
-    assert isinstance(res_bad["action_items_en"], list)
-    assert res_bad["action_items_en"] == ["not_a_list"]
+    assert isinstance(res_bad["action_items_english"], list)
+    assert res_bad["action_items_english"] == ["not_a_list"]
     assert len(res_bad["judges_feedback"]) == 1
     assert res_bad["judges_feedback"][0]["judge_name"] == "David"
     assert res_bad["judges_feedback"][0]["judge_role"] == "Expert Panelist" # Default fallback
+
+    # Dynamic multi-language case
+    custom_langs = ["English", "Spanish", "Kansai-ben"]
+    input_multilang = {
+        "product_understanding_en": "understanding",
+        "product_understanding_es": "comprehension",
+        "product_understanding_kansai_ben": "wakatta",
+        "action_items_en": ["item1"],
+        "action_items_es": ["item1_es"],
+        "action_items_kansai_ben": ["item1_kb"],
+        "scores": {"Innovation": 4.5},
+        "impact_score": 4.0,
+        "judges_feedback": [
+            {
+                "judge_name": "Lisa",
+                "feedback_en": "Great UI",
+                "feedback_es": "Buen UI",
+                "feedback_kansai_ben": "Eee UI"
+            }
+        ]
+    }
+    res_multi = sanitize_evaluation_response(input_multilang, custom_langs)
+    assert res_multi["product_understanding_english"] == "understanding"
+    assert res_multi["product_understanding_spanish"] == "comprehension"
+    assert res_multi["product_understanding_kansai_ben"] == "wakatta"
+    assert res_multi["action_items_kansai_ben"] == ["item1_kb"]
+    assert res_multi["judges_feedback"][0]["feedback_spanish"] == "Buen UI"
+    assert res_multi["judges_feedback"][0]["feedback_kansai_ben"] == "Eee UI"
 
 def test_process_submission_with_zip_and_media(mocker):
     # Simulate uploading a ZIP file and an MP4 video file
@@ -87,4 +116,4 @@ def test_process_submission_with_zip_and_media(mocker):
     mock_analysis.assert_called_once_with(1, "print('hello')", [mock_file_obj], previous_evaluations_json="{}", is_final=False)
     mock_save.assert_called_once_with(1, "teamA", ANY, is_final=False, source_text="print('hello')", gemini_file_ids=["files/mock-media-id"])
 
-    assert res["product_understanding_en"] == "nice"
+    assert res["product_understanding_english"] == "nice"

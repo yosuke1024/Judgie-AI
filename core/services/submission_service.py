@@ -71,16 +71,26 @@ def sanitize_evaluation_response(data: dict, languages: list[str] = None) -> dic
         "judges_feedback": data.get("judges_feedback", [])
     }
 
+    # Compatibility mapping for legacy keys
+    compat_map = {
+        "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en",
+        "spanish": "es", "french": "fr", "german": "de", "korean": "ko",
+        "chinese": "zh", "vietnamese": "vi", "thai": "th", "indonesian": "id"
+    }
+
     # Dynamically populate product_understanding and action_items for each language
     for lang in languages:
         lang_key = normalize_lang_to_key(lang)
-        sanitized[f"product_understanding_{lang_key}"] = data.get(
-            f"product_understanding_{lang_key}",
-            f"No product understanding provided in {lang}."
-        )
+        
+        pu_val = data.get(f"product_understanding_{lang_key}")
+        if pu_val is None and lang_key in compat_map:
+            pu_val = data.get(f"product_understanding_{compat_map[lang_key]}")
+        sanitized[f"product_understanding_{lang_key}"] = pu_val or f"No product understanding provided in {lang}."
         
         action_items_key = f"action_items_{lang_key}"
-        items = data.get(action_items_key, [])
+        items = data.get(action_items_key)
+        if items is None and lang_key in compat_map:
+            items = data.get(f"action_items_{compat_map[lang_key]}")
         if not isinstance(items, list):
             items = [str(items)] if items else []
         sanitized[action_items_key] = items
@@ -105,10 +115,10 @@ def sanitize_evaluation_response(data: dict, languages: list[str] = None) -> dic
         # Dynamically populate feedback for each language
         for lang in languages:
             lang_key = normalize_lang_to_key(lang)
-            normalized_j[f"feedback_{lang_key}"] = j.get(
-                f"feedback_{lang_key}", 
-                f"No detailed feedback in {lang}."
-            )
+            fb_val = j.get(f"feedback_{lang_key}")
+            if fb_val is None and lang_key in compat_map:
+                fb_val = j.get(f"feedback_{compat_map[lang_key]}")
+            normalized_j[f"feedback_{lang_key}"] = fb_val or f"No detailed feedback in {lang}."
 
         normalized_feedback.append(normalized_j)
 

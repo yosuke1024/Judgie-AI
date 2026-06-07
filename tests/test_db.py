@@ -318,9 +318,9 @@ def test_ai_response_languages(db_session_fixture):
 
     # 3. Key normalization test
     from core.db import normalize_lang_to_key
-    assert normalize_lang_to_key("English") == "en"
-    assert normalize_lang_to_key("日本語") == "ja"
-    assert normalize_lang_to_key("Spanish") == "es"
+    assert normalize_lang_to_key("English") == "english"
+    assert normalize_lang_to_key("日本語") == "日本語"
+    assert normalize_lang_to_key("Spanish") == "spanish"
     assert normalize_lang_to_key("Kansai-ben") == "kansai_ben"
     assert normalize_lang_to_key("ギャル語") == "ギャル語"
 

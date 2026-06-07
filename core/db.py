@@ -21,39 +21,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from config import DATABASE_URL
 from core.security import hash_passcode, verify_passcode
 
-LANGUAGES_MAP = {
-    "English": "en",
-    "Japanese": "ja",
-    "Spanish": "es",
-    "French": "fr",
-    "German": "de",
-    "Chinese (Simplified)": "zh_cn",
-    "Chinese (Traditional)": "zh_tw",
-    "Korean": "ko",
-    "Vietnamese": "vi",
-    "Thai": "th",
-    "Indonesian": "id"
-}
-
 def normalize_lang_to_key(lang_name: str) -> str:
-    normalized = lang_name.strip().lower()
-    special_map = {
-        "english": "en",
-        "japanese": "ja",
-        "日本語": "ja",
-        "英語": "en",
-        "spanish": "es",
-        "french": "fr",
-        "german": "de",
-        "korean": "ko",
-        "chinese": "zh",
-        "vietnamese": "vi",
-        "thai": "th",
-        "indonesian": "id"
-    }
-    if normalized in special_map:
-        return special_map[normalized]
-    
     # Replace hyphens with spaces first so they become underscores
     cleaned = lang_name.replace('-', ' ')
     # Generate clean key by keeping word characters and basic multilingual characters

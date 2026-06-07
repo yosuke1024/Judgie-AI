@@ -313,7 +313,13 @@ with col2:
                 st.markdown(f"#### 🔥 {t('Top Priorities (Next Steps)', '最優先アクション (Next Steps)')}")
                 action_items = fb.get(f'action_items_{lang_key}')
                 if action_items is None:
-                    action_items = fb.get('action_items_en' if lang_key == 'en' else 'action_items_ja', [])
+                    compat_map = {
+                        "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en",
+                        "spanish": "es", "french": "fr", "german": "de", "korean": "ko",
+                        "chinese": "zh", "vietnamese": "vi", "thai": "th", "indonesian": "id"
+                    }
+                    compat_key = compat_map.get(lang_key, 'en')
+                    action_items = fb.get(f'action_items_{compat_key}', [])
                 
                 if action_items:
                     for item in action_items:
@@ -324,8 +330,13 @@ with col2:
                 st.markdown(f"#### 🧠 {t('AI Product Understanding', 'プロダクト理解')}")
                 pu_text = fb.get(f'product_understanding_{lang_key}', fb.get(f'summary_{lang_key}'))
                 if pu_text is None:
-                    pu_text = fb.get('product_understanding_en' if lang_key == 'en' else 'product_understanding_ja',
-                                     fb.get('summary_en' if lang_key == 'en' else 'summary_ja', ''))
+                    compat_map = {
+                        "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en",
+                        "spanish": "es", "french": "fr", "german": "de", "korean": "ko",
+                        "chinese": "zh", "vietnamese": "vi", "thai": "th", "indonesian": "id"
+                    }
+                    compat_key = compat_map.get(lang_key, 'en')
+                    pu_text = fb.get(f'product_understanding_{compat_key}', fb.get(f'summary_{compat_key}', ''))
                 st.write(pu_text)
 
                 st.markdown(f"#### 🧑‍⚖️ {t('Judges Feedback', '審査員フィードバック')}")
@@ -352,7 +363,13 @@ with col2:
                 with qa_tabs[idx]:
                     qa_summary = qa_data.get(f'qa_summary_{lang_key}')
                     if qa_summary is None:
-                        qa_summary = qa_data.get('qa_summary_en' if lang_key == 'en' else 'qa_summary_ja', '')
+                        compat_map = {
+                            "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en",
+                            "spanish": "es", "french": "fr", "german": "de", "korean": "ko",
+                            "chinese": "zh", "vietnamese": "vi", "thai": "th", "indonesian": "id"
+                        }
+                        compat_key = compat_map.get(lang_key, 'en')
+                        qa_summary = qa_data.get(f'qa_summary_{compat_key}', '')
                     st.info(qa_summary)
                     
                     for j in qa_data.get('judges_responses', []):
@@ -362,7 +379,13 @@ with col2:
                         
                         j_resp = j.get(f'response_{lang_key}')
                         if j_resp is None:
-                            j_resp = j.get('response_en' if lang_key == 'en' else 'response_ja', '')
+                            compat_map = {
+                                "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en",
+                                "spanish": "es", "french": "fr", "german": "de", "korean": "ko",
+                                "chinese": "zh", "vietnamese": "vi", "thai": "th", "indonesian": "id"
+                            }
+                            compat_key = compat_map.get(lang_key, 'en')
+                            j_resp = j.get(f'response_{compat_key}', '')
                         st.write(j_resp)
                         st.divider()
 
