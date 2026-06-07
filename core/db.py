@@ -352,3 +352,28 @@ def get_admin_chats(evaluation_id: int) -> list[dict]:
             'answer_ja': c.answer_ja,
             'created_at': c.created_at
         } for c in chats]
+
+def delete_hackathon(hackathon_id: int):
+    with db_session() as db:
+        # 1. AdminChat (Chat history linked to evaluations)
+        eval_ids = [e.id for e in db.query(Evaluation).filter(Evaluation.hackathon_id == hackathon_id).all()]
+        if eval_ids:
+            db.query(AdminChat).filter(AdminChat.evaluation_id.in_(eval_ids)).delete(synchronize_session=False)
+        
+        # 2. Evaluation
+        db.query(Evaluation).filter(Evaluation.hackathon_id == hackathon_id).delete(synchronize_session=False)
+        
+        # 3. Submission
+        db.query(Submission).filter(Submission.hackathon_id == hackathon_id).delete(synchronize_session=False)
+        
+        # 4. Setting
+        db.query(Setting).filter(Setting.hackathon_id == hackathon_id).delete(synchronize_session=False)
+        
+        # 5. Session
+        db.query(Session).filter(Session.hackathon_id == hackathon_id).delete(synchronize_session=False)
+        
+        # 6. User
+        db.query(User).filter(User.hackathon_id == hackathon_id).delete(synchronize_session=False)
+        
+        # 7. Hackathon
+        db.query(Hackathon).filter(Hackathon.id == hackathon_id).delete(synchronize_session=False)

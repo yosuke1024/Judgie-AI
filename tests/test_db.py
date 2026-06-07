@@ -7,6 +7,7 @@ from core.db import (
     get_personas, set_personas, create_hackathon, update_admin_passcode,
     change_my_passcode, get_team_profile, update_team_profile,
     create_session, get_session, delete_session, save_admin_chat, get_admin_chats,
+    delete_hackathon,
     User, Session, Hackathon, Evaluation, Setting, AdminChat
 )
 
@@ -199,3 +200,62 @@ def test_admin_chat(db_session_fixture):
     assert chats[0]["answer_ja"] == "回答!"
     
     assert len(get_admin_chats(999)) == 0
+
+def test_delete_hackathon(db_session_fixture):
+    init_db()
+    
+    # 1. Create a tenant (Hackathon)
+    hid = create_hackathon("HackToDelete", "del_admin", "pass123")
+    
+    # 2. Create related dummy data
+    # Team user
+    team_user = User(hackathon_id=hid, team_id="teamDel", passcode="teampass", role="team")
+    db_session_fixture.add(team_user)
+    db_session_fixture.commit()
+    
+    # Submission
+    from core.db import Submission
+    submission = Submission(hackathon_id=hid, team_id="teamDel", files_json="[]")
+    db_session_fixture.add(submission)
+    db_session_fixture.commit()
+    
+    # Evaluation data
+    result_data = {
+        "scores": {"Innovation & Creativity": 4.0},
+        "impact_score": 4.0,
+        "three_line_summary_en": "summary",
+        "three_line_summary_ja": "概要",
+        "judges_feedback": []
+    }
+    save_evaluation(hid, "teamDel", result_data, is_final=True, source_text="code", gemini_file_ids=["fileX"])
+    eval_rec = db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid).first()
+    assert eval_rec is not None
+    eval_id = eval_rec.id
+    
+    # Chat history
+    chat_obj = save_admin_chat(eval_id, "Q", "問", "A", "答")
+    
+    # Session
+    sid = create_session("teamDel", "team", hid)
+    
+    # Verify each data exists
+    assert db_session_fixture.query(Hackathon).filter(Hackathon.id == hid).first() is not None
+    assert db_session_fixture.query(User).filter(User.hackathon_id == hid).count() == 2 # admin + team
+    assert db_session_fixture.query(Setting).filter(Setting.hackathon_id == hid).count() > 0
+    assert db_session_fixture.query(Submission).filter(Submission.hackathon_id == hid).first() is not None
+    assert db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid).first() is not None
+    assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is not None
+    assert db_session_fixture.query(Session).filter(Session.hackathon_id == hid).first() is not None
+    
+    # 3. Delete the tenant
+    delete_hackathon(hid)
+    
+    # 4. Verify that all associated data has been deleted
+    db_session_fixture.expire_all()
+    assert db_session_fixture.query(Hackathon).filter(Hackathon.id == hid).first() is None
+    assert db_session_fixture.query(User).filter(User.hackathon_id == hid).count() == 0
+    assert db_session_fixture.query(Setting).filter(Setting.hackathon_id == hid).count() == 0
+    assert db_session_fixture.query(Submission).filter(Submission.hackathon_id == hid).first() is None
+    assert db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid).first() is None
+    assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is None
+    assert db_session_fixture.query(Session).filter(Session.hackathon_id == hid).first() is None
