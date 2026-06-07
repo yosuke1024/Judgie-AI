@@ -233,7 +233,7 @@ with col2:
             unsafe_allow_html=True
         )
         
-        st.markdown(f"#### 📊 {t('Score Breakdown (Raw Score × Weight = Contribution)', 'スコア内訳 (素点 × ウェイト = 貢献スコア)')}")
+        st.markdown(f"#### 📊 {t('Score Breakdown & Contributions', 'スコア内訳（貢献スコア）')}")
         score_cols = st.columns(3)
         
         chart_data = []
@@ -243,6 +243,7 @@ with col2:
             s = scores.get(crit['name'], 0)
             weight_pct = crit['weight']
             contribution = s * 20.0 * (weight_pct / total_weight)
+            max_contrib = 100.0 * (weight_pct / total_weight)
             
             delta_str = None
             if prev_scores is not None:
@@ -253,7 +254,9 @@ with col2:
                 else:
                     delta_str = "±0"
             
-            col.metric(crit['name'], f"{s} / 5.0", delta_str, delta_color="normal")
+            with col:
+                st.metric(crit['name'], f"{s} / 5.0", delta_str, delta_color="normal")
+                st.caption(t(f"Contribution: {contribution:.1f} / {max_contrib:.1f} pts", f"貢献スコア: {contribution:.1f} / {max_contrib:.1f}点"))
             
             chart_data.append({
                 "Criteria": crit['name'],
