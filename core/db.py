@@ -500,20 +500,20 @@ def seed_demo_data():
                 {
                     "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
                     "judge_persona": "Cares about market fit and monetization.",
-                    "feedback_en": "Interesting hook, but how do you monetize? Dream analysis is a vitamin, not a painkiller.",
-                    "feedback_ja": "面白い切り口ですが、どのように収益化する予定ですか？夢分析は「あれば嬉しいもの」であり、必須な解決策になりにくい。"
+                    "feedback_en": "Interesting hook, but how do you monetize? Dream analysis is a wellness vitamin, not a painkiller. You need a clear hook for daily active users. Who is going to pay for this monthly?",
+                    "feedback_ja": "面白い切り口ですが、どのように収益化する予定ですか？夢分析は「あれば嬉しいもの（ビタミン）」であり、必須の解決策（ペインキラー）になりにくい。月額課金してくれる明確なターゲットが必要です。"
                 },
                 {
                     "judge_name": "David", "judge_role": "Principal Software Engineer",
                     "judge_persona": "Cares about architecture and security.",
-                    "feedback_en": "The concept is fun, but the database connection has no encryption for sensitive user logs. Security awareness is low.",
-                    "feedback_ja": "コンセプトは楽しいですが、機密性の高いユーザーログに対するデータベースの暗号化が施されていません。セキュリティ意識が低いです。"
+                    "feedback_en": "The concept is fun, but the database connection has no encryption for sensitive user logs. Security awareness is low. Also, writing raw SQL for user queries makes this highly vulnerable to SQL injection.",
+                    "feedback_ja": "コンセプトは面白いですが、デリケートな夢のログを保存するデータベース接続が暗号化されていません。セキュリティ意識が低いです。また、生のSQLでクエリを組み立てており、SQLインジェクションの脆弱性があります。"
                 },
                 {
                     "judge_name": "Lisa", "judge_role": "Head of Product Design",
                     "judge_persona": "Cares about user flow and delight.",
-                    "feedback_en": "The UI is a simple text input form. It needs to feel more dreamlike, immersive, and visually engaging.",
-                    "feedback_ja": "UIが単純なテキスト入力フォームです。もっと夢のようで、没入感があり、視覚的に惹きつけられるデザインにする必要があります。"
+                    "feedback_en": "The UI is a simple text input form. It needs to feel more dreamlike, immersive, and visually engaging. A dark mode by default, smooth transitions, and a cleaner input interface would drastically reduce cognitive load.",
+                    "feedback_ja": "UIが単なる無機質なテキスト入力フォームになっています。夢を扱うなら、もっと没入感があり、視覚的に心地よいデザインにするべきです。デフォルトのダークモード化、スムーズな遷移、そしてシンプルな入力UIで認知負荷を下げてください。"
                 }
             ]
         }
@@ -538,20 +538,20 @@ def seed_demo_data():
                 {
                     "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
                     "judge_persona": "Cares about market fit and monetization.",
-                    "feedback_en": "Visualization adds distinct value, but the business model is still a bit fuzzy. The market feels small.",
-                    "feedback_ja": "ビジュアル化は明確な価値を加えますが、ビジネスモデルが依然として不透明です。市場が少し小さく感じられます。"
+                    "feedback_en": "Visualization adds distinct value and could drive organic viral growth, but the business model is still a bit fuzzy. Have you thought about pivoting to a B2B model, like partnering with corporate wellness programs or sleep clinics?",
+                    "feedback_ja": "画像による可視化は明確な価値を生み出しており、SNSでのバイラル効果が期待できますが、ビジネスモデルが依然として不透明です。睡眠クリニックや企業のウェルネスプログラムと提携するB2Bモデルへのピボットは検討しましたか？"
                 },
                 {
                     "judge_name": "David", "judge_role": "Principal Software Engineer",
                     "judge_persona": "Cares about architecture and security.",
-                    "feedback_en": "Good job patching the db connection. However, the image generation API calls are synchronous and block the main event loop.",
-                    "feedback_ja": "DB接続のパッチ適用は評価できます。しかし、画像生成API呼び出しが同期処理のため、メインのイベントループをブロックしています。"
+                    "feedback_en": "Good job patching the database connection and using parameterized queries. However, the image generation API calls are synchronous and block the main event loop. If multiple users request images simultaneously, the application will hang. You need an async task queue.",
+                    "feedback_ja": "DB接続のセキュリティ対策とパラメータ化クエリへの移行は評価できます。しかし、画像生成APIの呼び出しが同期処理のままで、メインのイベントループをブロックしています。複数ユーザーが同時にリクエストするとサーバーがハングします。非同期のタスクキューを導入してください。"
                 },
                 {
                     "judge_name": "Lisa", "judge_role": "Head of Product Design",
                     "judge_persona": "Cares about user flow and delight.",
-                    "feedback_en": "The generated gallery is wonderful! The color palette choice makes it look much more premium.",
-                    "feedback_ja": "生成されたギャラリーは素晴らしいです！カラーパレットの選択により、非常にプレミアムな印象になりました。"
+                    "feedback_en": "The generated dream gallery is wonderful! The color palette choice makes it look much more premium. However, the loading state while waiting for image generation is just a blank screen. You need a loading skeleton or a micro-animation to keep the user engaged.",
+                    "feedback_ja": "生成された夢ギャラリーは素晴らしい出来栄えです！カラーパレットの選択により、非常にプレミアムな印象になりました。ただし、画像生成を待つ間のローディング画面が真っ白です。ユーザーが離脱しないよう、スケルトンスクリーンやローディング用のマイクロアニメーションを追加してください。"
                 }
             ]
         }
@@ -594,14 +594,20 @@ def seed_demo_data():
                 {
                     "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
                     "judge_persona": "Cares about market fit.",
-                    "feedback_en": "Excellent strategic shift. The API approach for clinics makes sense.",
-                    "feedback_ja": "優れた戦略的シフトです。クリニック向けのAPIアプローチは非常に合理的です。"
+                    "feedback_en": "Excellent strategic shift. The API approach for sleep clinics makes perfect sense. It transforms this from a niche novelty app into an enterprise-grade utility. You are now targeting a real budget holder.",
+                    "feedback_ja": "優れた戦略的シフトです。クリニック向けのAPIアプローチは非常に合理的です。これにより、エンタメアプリからエンタープライズ向けの実用ツールへと昇華されました。これで予算を持つ顧客をターゲットにできます。"
                 },
                 {
                     "judge_name": "David", "judge_role": "Principal Software Engineer",
                     "judge_persona": "Cares about architecture.",
-                    "feedback_en": "Async architecture works flawlessly. Very clean codebase now.",
-                    "feedback_ja": "非同期アーキテクチャが完璧に動作しています。非常にクリーンなコードベースになりました。"
+                    "feedback_en": "The new async task queue architecture works flawlessly. The main process is no longer blocked. The codebase is highly modular, and unit test coverage is up to 75%. Solid improvement.",
+                    "feedback_ja": "非同期タスクキューの導入は完璧に機能しています。画像生成中もメインプロセスがブロックされなくなりました。コードは非常にモジュール化されており、テストカバー率も75%まで向上しています。素晴らしい改善です。"
+                },
+                {
+                    "judge_name": "Lisa", "judge_role": "Head of Product Design",
+                    "judge_persona": "Cares about user flow and delight.",
+                    "feedback_en": "The loading states are beautiful now. The gallery card flip transition feels incredibly satisfying. Just ensure the B2B dashboard for clinic admins maintains the same high level of usability and doesn't get cluttered with too many technical metrics.",
+                    "feedback_ja": "ローディング中のアニメーションが見事に改善されました。ギャラリーカードのフリップアニメーションも触っていて非常に気持ちが良いです。クリニックの管理者向けダッシュボード（B2B）でも、情報が複雑にならずにこの高いUX品質を維持できるよう注意してください。"
                 }
             ]
         }
@@ -625,18 +631,18 @@ def seed_demo_data():
             "judges_feedback": [
                 {
                     "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
-                    "feedback_en": "Incredible progress throughout the hackathon. This is a viable business opportunity.",
-                    "feedback_ja": "ハッカソンを通じて素晴らしい進歩を遂げました。これは実現可能なビジネスチャンスです。"
+                    "feedback_en": "Incredible progress throughout the hackathon. You validated a B2B market, defined a clear monetization path via clinic subscriptions, and built a working API. This is a highly viable business opportunity. Outstanding execution!",
+                    "feedback_ja": "ハッカソンを通じて素晴らしい進歩を遂げました。B2B市場を検証し、クリニック向けのサブスクリプションという明確なマネタイズ動線を定義し、実際に動くAPIを構築しました。これは非常に有望なスタートアップの機会です。お見事！"
                 },
                 {
                     "judge_name": "David", "judge_role": "Principal Software Engineer",
-                    "feedback_en": "Security standards are met. Zero complaints on the repository hygiene.",
-                    "feedback_ja": "セキュリティ基準が満たされています。リポジトリの衛生面において不満は一切ありません。"
+                    "feedback_en": "Security standards are fully met. The implementation of AES-256 for local dream logs and proper secret management is exemplary. CI/CD pipelines are passing, and code is ready for staging deployment. Zero complaints.",
+                    "feedback_ja": "セキュリティ基準が完全に満たされています。夢ログのAES-256暗号化と適切なシークレット管理の実装はお見事です。CI/CDパイプラインもすべてパスしており、ステージング環境に今すぐデプロイできる品質です。言うことありません。"
                 },
                 {
                     "judge_name": "Lisa", "judge_role": "Head of Product Design",
-                    "feedback_en": "Beautiful, responsive, dark-mode design that represents dreams perfectly.",
-                    "feedback_ja": "夢の世界を完璧に表現した、美しくレスポンシブなダークモードのデザインです。"
+                    "feedback_en": "Beautiful, responsive, dark-mode design that represents dreams perfectly. The accessibility scores are close to 100 with clear contrast and ARIA labels. The micro-interactions and transitions create a truly premium, seamless user journey.",
+                    "feedback_ja": "夢の世界観を完璧に表現した、美しくレスポンシブなダークモードのデザインです。コントラスト比の確保や適切なARIAラベル付与により、アクセシビリティスコアも100に近いです。マイクロインタラクションと遷移アニメーションが、極めてプレミアムでシームレスな体験を実現しています。"
                 }
             ]
         }
@@ -672,8 +678,18 @@ def seed_demo_data():
             "judges_feedback": [
                 {
                     "judge_name": "David", "judge_role": "Principal Software Engineer",
-                    "feedback_en": "Basic simulation works, but there is no integration pathway.",
-                    "feedback_ja": "基本的なシミュレーションは動きますが、実際の統合パスが示されていません。"
+                    "feedback_en": "The simulator core runs, but it relies on static CSV data for grid state. There is no real-time data streaming pipeline. For a grid optimizer, we need to see how you plan to handle high-frequency sensor streams and model drift.",
+                    "feedback_ja": "シミュレータのコアは動いていますが、静的なCSVデータに依存しています。リアルタイムのデータストリーミング用パイプラインがありません。グリッド最適化システムとして、高頻度のセンサーデータやモデルドリフトにどう対処するかの設計が必要です。"
+                },
+                {
+                    "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
+                    "feedback_en": "Who is the customer? National grids are notoriously difficult to sell to. The sales cycles are measured in years. If you want this to survive, target micro-grids, local renewable farms, or EV charging stations where you can run quick PoCs.",
+                    "feedback_ja": "顧客は誰ですか？国家規模の電力網（送電事業者）への営業は極めて困難で、サイクルに数年かかります。生き残りたいなら、迅速なPoCが可能なマイクログリッド、地方の再生可能エネルギー発電所、またはEV充電ステーションをターゲットにすべきです。"
+                },
+                {
+                    "judge_name": "Lisa", "judge_role": "Head of Product Design",
+                    "feedback_en": "The configuration page has over 30 unorganized input fields for physical parameters. This is a UX nightmare for grid operators. Use sensible defaults and group them into progressive disclosure panels.",
+                    "feedback_ja": "設定ページに整理されていない入力フィールドが30以上も並んでいます。これはオペレーターにとってUXの悪夢です。妥当なデフォルト値を設定し、折りたたみ式パネル等で段階的に開示するUIに整理してください。"
                 }
             ]
         }
@@ -697,8 +713,23 @@ def seed_demo_data():
             "judges_feedback": [
                 {
                     "judge_name": "Lisa", "judge_role": "Head of Product Design",
-                    "feedback_en": "Dashboard is readable, but visual density is too high.",
-                    "feedback_ja": "ダッシュボードは見やすいですが、情報の密度が高すぎます。"
+                    "feedback_en": "The live monitoring dashboard is readable and displays all necessary real-time parameters, but the visual density is too high. Graphs, progress bars, and raw numbers are competing for attention. Use clearer layout hierarchies, reduce non-essential borders, and use color purely to draw attention to critical threshold breaches.",
+                    "feedback_ja": "リアルタイム監視ダッシュボードは必要十分なパラメータを表示できていますが、視覚的な情報密度が高すぎます。グラフやプログレスバー、生の数値が互いに注意を引き合っています。レイアウトの階層構造を整理し、不要な枠線を減らし、危険な閾値を超えた警告にのみ色を使うようにしてください。"
+                },
+                {
+                    "judge_name": "David", "judge_role": "Principal Software Engineer",
+                    "feedback_en": "PPO reinforcement learning model shows good convergence. However, I noticed that the WebSocket connection that feeds the dashboard lacks automatic reconnection logic. If the server drops for a second, the frontend hangs indefinitely. Implement exponential backoff reconnection.",
+                    "feedback_ja": "PPO強化学習モデルは良好な収束を示しています。しかし、ダッシュボードにデータを流すWebSocket接続に自動再接続ロジックがありません。サーバーが一瞬切断されるとフロントエンドがハングします。指数バックオフを伴う再接続処理を入れてください。"
+                },
+                {
+                    "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
+                    "feedback_en": "Focusing on localized corporate micro-grids is a smart pivot. It makes the monetization story much more credible. You need to show a clear ROI projection: how many thousands of dollars does a corporate campus save on electricity bills by deploying GreenGrid?",
+                    "feedback_ja": "ローカルな企業向けマイクログリッドにフォーカスしたのは賢いピボットです。収益化のストーリーが格段に現実的になりました。次は具体的なROI（投資対効果）の予測を示す必要があります。GreenGridを導入することで、企業のキャンパスが電気代を年間何ドル削減できるのかを数値化してください。"
+                },
+                {
+                    "judge_name": "Marcus", "judge_role": "Venture Capitalist",
+                    "feedback_en": "The technical demo is impressive, but your pitch is getting bogged down in reinforcement learning algorithms. Investors care about the unit economics and market size. Frame the pitch around grid stability risks under high renewable penetration and how GreenGrid captures that value.",
+                    "feedback_ja": "技術デモは素晴らしいですが、ピッチが強化学習のアルゴリズム説明に終始してしまっています。投資家が知りたいのはユニットエコノミクスと市場規模です。再生可能エネルギー導入拡大に伴うグリッドの不安定化リスクと、GreenGridが提供する経済的価値を軸にピッチを再構成してください。"
                 }
             ]
         }
@@ -723,8 +754,23 @@ def seed_demo_data():
             "judges_feedback": [
                 {
                     "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
-                    "feedback_en": "Extremely high market demand and very clear UX flow.",
-                    "feedback_ja": "市場の需要が極めて高く、UXフローも非常に明快です。"
+                    "feedback_en": "Extremely high market demand for contactless health screening. By targeting corporate wellness programs first, you have a clear, low-friction go-to-market strategy. The self-serve onboarding flow is well thought out.",
+                    "feedback_ja": "非接触ヘルススクリーニングに対する市場の需要は極めて高いです。まず企業のウェルネスプログラムをターゲットにする戦略は、障壁が低く賢明なアプローチです。セルフサーブ型のオンボーディングフローもよく考えられています。"
+                },
+                {
+                    "judge_name": "David", "judge_role": "Principal Software Engineer",
+                    "feedback_en": "Running the computer vision models entirely client-side using WebAssembly (WASM) is a brilliant architectural decision. It completely solves privacy concerns (no biometric data sent to servers) and minimizes server infrastructure costs. Code quality is high with clean separation of logic.",
+                    "feedback_ja": "WASMを使用してコンピュータビジョンモデルを完全にクライアント側で実行する設計は、素晴らしいアーキテクチャの決定です。生体データをサーバーに送信しないためプライバシー懸念を完璧に解決し、サーバーコストも最小化できます。コードのモジュール化も美しく高品質です。"
+                },
+                {
+                    "judge_name": "Lisa", "judge_role": "Head of Product Design",
+                    "feedback_en": "The mobile-first UX is exceptionally clean. The face alignment guide overlay during scanning is highly intuitive. The glassmorphic design and subtle pulse animations give a soothing, clinical-yet-friendly aesthetic that perfectly suits a health app.",
+                    "feedback_ja": "モバイルファーストのUXは非常によく洗練されています。スキャン中の顔位置合わせ用ガイド（オーバーレイ）は極めて直感的です。グラスモーフィズムデザインと微細なパルスアニメーションが、健康的で親しみやすい美しさを醸し出しており、ヘルスケアアプリに完璧にマッチしています。"
+                },
+                {
+                    "judge_name": "Marcus", "judge_role": "Venture Capitalist",
+                    "feedback_en": "Outstanding presentation and demo execution. You clearly demonstrated the value proposition within the first minute and handled technical questions with absolute confidence. The ROI story for HR managers (reducing burnout/absenteeism) is highly compelling.",
+                    "feedback_ja": "プレゼンテーションとデモの実行は圧巻でした。最初の1分で明確なバリュープロポジションを示し、投資家に対する技術的な質問に対しても確固たる自信で回答していました。HR担当者向けのROIストーリー（燃え尽き症候群や欠勤率の低下）は極めて説得力があります。"
                 }
             ]
         }
