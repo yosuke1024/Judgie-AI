@@ -34,7 +34,7 @@ if active_personas:
     for i, p in enumerate(active_personas):
         with cols[i]:
             with st.container(border=True):
-                avatar_html = get_avatar_html(p['name'], p.get('avatar', '🧑‍⚖️'), size=50)
+                avatar_html = get_avatar_html(p['name'], p.get('avatar_image') or p.get('avatar', '🧑‍⚖️'), size=50)
                 st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{avatar_html}<h3 style="margin: 0;">{p["name"]}</h3></div>', unsafe_allow_html=True)
                 st.caption(f"{p['role']}")
                 with st.popover("🧠 View Persona"):

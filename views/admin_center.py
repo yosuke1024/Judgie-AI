@@ -8,6 +8,8 @@ from core.db import (
     save_admin_chat, get_admin_chats
 )
 from core.security import hash_passcode
+from core.ui_utils import encode_image_to_base64
+
 
 lang = st.session_state.get('language', 'English')
 def t(en, ja): return en if lang == "English" else ja
@@ -259,6 +261,20 @@ with tab4:
             p_name = st.text_input("Judge Name (e.g. Yoh)", value=selected_p['name'])
             p_role = st.text_input("Judge Role/Title (e.g. Chief Architect)", value=selected_p.get('role', ''))
             p_avatar = st.text_input("Avatar (Emoji)", value=selected_p.get('avatar', '🧑‍⚖️'))
+            
+            # Custom avatar image preview and uploader
+            avatar_image_val = selected_p.get('avatar_image')
+            remove_avatar = False
+            if avatar_image_val:
+                st.markdown(t("Current Custom Avatar:", "現在のカスタムアバター:"))
+                st.markdown(f'<img src="{avatar_image_val}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-bottom: 10px;">', unsafe_allow_html=True)
+                remove_avatar = st.checkbox(t("Remove custom avatar image (fallback to emoji)", "カスタムアバター画像を削除する (絵文字表示に戻す)"))
+            
+            uploaded_avatar_file = st.file_uploader(
+                t("Upload New Avatar Image (PNG/JPG, Max 500KB)", "新しいアバター画像をアップロード (PNG/JPG, 最大500KB)"), 
+                type=["png", "jpg", "jpeg"]
+            )
+            
             p_active = st.checkbox("Active (Participates in evaluation)", value=selected_p.get('active', False))
             p_prompt = st.text_area("Detailed Persona Prompt", value=selected_p.get('prompt', ''), height=300, help="Write dozens of lines detailing their background, tone of voice, and what they care about.")
             
@@ -268,7 +284,29 @@ with tab4:
                     if p_active and not selected_p.get('active') and active_count >= 5:
                         st.error("Cannot exceed 5 active judges.")
                     else:
-                        new_p = {"id": selected_p.get('id', str(uuid.uuid4())), "name": p_name, "role": p_role, "avatar": p_avatar, "prompt": p_prompt, "active": p_active}
+                        p_avatar_image = selected_p.get('avatar_image')
+                        if remove_avatar:
+                            p_avatar_image = None
+                        elif uploaded_avatar_file is not None:
+                            file_bytes = uploaded_avatar_file.getvalue()
+                            if len(file_bytes) > 500 * 1024:
+                                st.error(t("Image size exceeds 500KB limit. Please optimize the image before uploading.", "画像サイズが500KBを超えています。アップロード前に画像を最適化してください。"))
+                                st.stop()
+                            else:
+                                mime = "image/png"
+                                if uploaded_avatar_file.name.lower().endswith((".jpg", ".jpeg")):
+                                    mime = "image/jpeg"
+                                p_avatar_image = encode_image_to_base64(file_bytes, mime)
+                                
+                        new_p = {
+                            "id": selected_p.get('id', str(uuid.uuid4())), 
+                            "name": p_name, 
+                            "role": p_role, 
+                            "avatar": p_avatar, 
+                            "avatar_image": p_avatar_image,
+                            "prompt": p_prompt, 
+                            "active": p_active
+                        }
                         if idx_p >= 0:
                             personas[idx_p] = new_p
                         else:

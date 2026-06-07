@@ -1,7 +1,7 @@
 import os
 import shutil
 import pytest
-from core.ui_utils import get_avatar_html
+from core.ui_utils import get_avatar_html, encode_image_to_base64
 
 @pytest.fixture
 def setup_temp_avatar():
@@ -44,3 +44,21 @@ def test_get_avatar_html_fallback():
     # Verify fallback to DiceBear API url 
     assert "https://api.dicebear.com/7.x/micah/svg?seed=NonExistentJudge" in html
     assert "width: 60px" in html
+
+def test_get_avatar_html_with_base64_data_uri():
+    # Test when default_avatar is a Base64 data URI
+    base64_avatar = "data:image/png;base64,ZmFrZV9wbmc="
+    html = get_avatar_html("Test Judge", default_avatar=base64_avatar, size=45)
+    
+    # Verify that it uses the Base64 data URI directly
+    assert f'src="{base64_avatar}"' in html
+    assert "width: 45px" in html
+
+def test_encode_image_to_base64():
+    # Test encoding helper function
+    fake_data = b"hello world"
+    mime = "image/png"
+    result = encode_image_to_base64(fake_data, mime)
+    
+    assert result == "data:image/png;base64,aGVsbG8gd29ybGQ="
+
