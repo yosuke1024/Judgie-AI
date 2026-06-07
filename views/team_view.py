@@ -204,6 +204,35 @@ with col2:
         criteria = get_criteria(current_h_id)
         total_weight = sum(c['weight'] for c in criteria) if criteria else 1
         
+        # Calculate 100-point scaled total score
+        total_score = sum(scores.get(crit['name'], 0) * 20.0 * (crit['weight'] / total_weight) for crit in criteria)
+        
+        # Display prominent Total Score Card
+        st.markdown(
+            f"""
+            <div style='
+                background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                padding: 20px;
+                border-radius: 12px;
+                border: 1px solid #334155;
+                margin-bottom: 25px;
+                text-align: center;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            '>
+                <span style='font-size: 0.95em; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8;'>
+                    {t('Total Score', '総合スコア')}
+                </span><br>
+                <span style='font-size: 2.8em; font-weight: 800; color: #38bdf8; line-height: 1.2;'>
+                    {total_score:.1f}
+                </span>
+                <span style='font-size: 1.4em; font-weight: 600; color: #64748b;'>
+                    / 100.0
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        
         st.markdown(f"#### 📊 {t('Score Breakdown (Raw Score × Weight = Contribution)', 'スコア内訳 (素点 × ウェイト = 貢献スコア)')}")
         score_cols = st.columns(3)
         
@@ -213,7 +242,7 @@ with col2:
             col = score_cols[i % 3]
             s = scores.get(crit['name'], 0)
             weight_pct = crit['weight']
-            contribution = s * (weight_pct / total_weight)
+            contribution = s * 20.0 * (weight_pct / total_weight)
             
             delta_str = None
             if prev_scores is not None:
