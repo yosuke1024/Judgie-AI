@@ -436,3 +436,302 @@ def delete_hackathon(hackathon_id: int):
 
         # 7. Hackathon
         db.query(Hackathon).filter(Hackathon.id == hackathon_id).delete(synchronize_session=False)
+
+
+def seed_demo_data():
+    """Seeds rich mock data for the Guest Demo Mode (Hackathon ID 9999)."""
+    with db_session() as db:
+        # 1. Check if demo hackathon already exists
+        demo_h = db.query(Hackathon).filter(Hackathon.id == 9999).first()
+        if demo_h:
+            return # Already seeded
+
+        # Create Hackathon
+        demo_h = Hackathon(id=9999, name="Judgie Demo Hackathon")
+        db.add(demo_h)
+        db.flush()
+
+        # Create Settings
+        set_personas(9999, get_personas(None), db=db)
+        set_criteria(9999, get_criteria(None), db=db)
+        set_setting(9999, 'gemini_api_key', 'DEMO_MOCK_KEY', db=db)
+        set_setting(9999, 'gemini_model', 'demo-mock-model', db=db)
+
+        # Create Admin
+        demo_admin = User(
+            hackathon_id=9999,
+            team_id="demo_admin",
+            passcode=hash_passcode("demo123"),
+            role="admin"
+        )
+        db.add(demo_admin)
+
+        # Create Teams
+        teams_data = [
+            ("demo_team", "PixelCraft Labs", "DreamStream AI", "AI-driven dream analysis and visualization platform"),
+            ("demo_team2", "EcoLoop", "GreenGrid", "Smart energy grid optimizer using reinforcement learning"),
+            ("demo_team3", "HealthFlow", "AuraScan", "Mobile vitals assessment via edge computer vision")
+        ]
+        for tid, tname, pname, oliner in teams_data:
+            user = User(
+                hackathon_id=9999,
+                team_id=tid,
+                passcode=hash_passcode("demo123"),
+                role="team",
+                team_name=tname,
+                product_name=pname,
+                one_liner=oliner
+            )
+            db.add(user)
+        db.flush()
+
+        # Seed submissions & evaluations for demo_team (PixelCraft Labs / DreamStream AI)
+        # Consultation 1 (Low Score: ~62.0)
+        c1_scores = {
+            "Innovation & Creativity": 3.0, "Technical Implementation": 2.5,
+            "Problem Solving & Impact": 3.0, "Product & UX": 3.0,
+            "Working Prototype": 3.0, "Presentation": 3.5
+        }
+        c1_strengths_risks = {
+            "summary_en": "Initial prototype of DreamStream AI. A system to log dreams and analyze recurring themes using basic NLP.",
+            "summary_ja": "DreamStream AIの初期プロトタイプ。基本的な自然言語処理を用いて夢を記録し、頻出するテーマを分析するシステム。",
+            "judges_feedback": [
+                {
+                    "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
+                    "judge_persona": "Cares about market fit and monetization.",
+                    "feedback_en": "Interesting hook, but how do you monetize? Dream analysis is a vitamin, not a painkiller.",
+                    "feedback_ja": "面白い切り口ですが、どのように収益化する予定ですか？夢分析は「あれば嬉しいもの」であり、必須な解決策になりにくい。"
+                },
+                {
+                    "judge_name": "David", "judge_role": "Principal Software Engineer",
+                    "judge_persona": "Cares about architecture and security.",
+                    "feedback_en": "The concept is fun, but the database connection has no encryption for sensitive user logs. Security awareness is low.",
+                    "feedback_ja": "コンセプトは楽しいですが、機密性の高いユーザーログに対するデータベースの暗号化が施されていません。セキュリティ意識が低いです。"
+                },
+                {
+                    "judge_name": "Lisa", "judge_role": "Head of Product Design",
+                    "judge_persona": "Cares about user flow and delight.",
+                    "feedback_en": "The UI is a simple text input form. It needs to feel more dreamlike, immersive, and visually engaging.",
+                    "feedback_ja": "UIが単純なテキスト入力フォームです。もっと夢のようで、没入感があり、視覚的に惹きつけられるデザインにする必要があります。"
+                }
+            ]
+        }
+        eval_c1 = Evaluation(
+            hackathon_id=9999, team_id="demo_team",
+            scores_json=json.dumps(c1_scores), impact_score=3.0,
+            strengths_risks_json=json.dumps(c1_strengths_risks),
+            is_final=False, source_text="Demo Team Consultation 1 Source Code"
+        )
+        db.add(eval_c1)
+
+        # Consultation 2 (Mid Score: ~74.0 with Objection QA)
+        c2_scores = {
+            "Innovation & Creativity": 3.5, "Technical Implementation": 3.5,
+            "Problem Solving & Impact": 3.5, "Product & UX": 3.5,
+            "Working Prototype": 4.0, "Presentation": 4.0
+        }
+        c2_strengths_risks = {
+            "summary_en": "DreamStream AI V2. Added dream visualization using generated imagery and fixed database security issues.",
+            "summary_ja": "DreamStream AI V2。画像生成による夢のビジュアル化を追加し、データベースのセキュリティ問題を修正。",
+            "judges_feedback": [
+                {
+                    "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
+                    "judge_persona": "Cares about market fit and monetization.",
+                    "feedback_en": "Visualization adds distinct value, but the business model is still a bit fuzzy. The market feels small.",
+                    "feedback_ja": "ビジュアル化は明確な価値を加えますが、ビジネスモデルが依然として不透明です。市場が少し小さく感じられます。"
+                },
+                {
+                    "judge_name": "David", "judge_role": "Principal Software Engineer",
+                    "judge_persona": "Cares about architecture and security.",
+                    "feedback_en": "Good job patching the db connection. However, the image generation API calls are synchronous and block the main event loop.",
+                    "feedback_ja": "DB接続のパッチ適用は評価できます。しかし、画像生成API呼び出しが同期処理のため、メインのイベントループをブロックしています。"
+                },
+                {
+                    "judge_name": "Lisa", "judge_role": "Head of Product Design",
+                    "judge_persona": "Cares about user flow and delight.",
+                    "feedback_en": "The generated gallery is wonderful! The color palette choice makes it look much more premium.",
+                    "feedback_ja": "生成されたギャラリーは素晴らしいです！カラーパレットの選択により、非常にプレミアムな印象になりました。"
+                }
+            ]
+        }
+        c2_qa = {
+            "user_objection": "We believe dream analysis can be a painkiller for sleep clinics and therapy. Can you re-evaluate the market impact?",
+            "qa_summary_en": "The panel acknowledges the potential B2B pivot to sleep clinics, which transforms the app from a wellness tool to a clinical utility.",
+            "qa_summary_ja": "睡眠クリニックへのB2Bピボットの可能性について、審査員団は合意しました。これにより、アプリは単なるウェルネスツールから臨床的な実用ツールへと昇華されます。",
+            "judges_responses": [
+                {
+                    "judge_name": "Alex",
+                    "response_en": "Great pivot! Targeting clinics changes the monetization completely. I increase my impact score potential.",
+                    "response_ja": "素晴らしいピボットです！クリニックをターゲットにすることで収益化手段がガラリと変わります。インパクトの評価を上げます。"
+                },
+                {
+                    "judge_name": "David",
+                    "response_en": "Good explanation, but ensure HIPAA/GDPR compliance for clinic integration.",
+                    "response_ja": "納得の説明です。ただし、クリニック統合の際はHIPAA/GDPRコンプライアンスを徹底してください。"
+                }
+            ]
+        }
+        eval_c2 = Evaluation(
+            hackathon_id=9999, team_id="demo_team",
+            scores_json=json.dumps(c2_scores), impact_score=3.5,
+            strengths_risks_json=json.dumps(c2_strengths_risks),
+            qa_json=json.dumps(c2_qa),
+            is_final=False, source_text="Demo Team Consultation 2 Source Code"
+        )
+        db.add(eval_c2)
+
+        # Consultation 3 (High Score: ~82.0)
+        c3_scores = {
+            "Innovation & Creativity": 4.0, "Technical Implementation": 4.0,
+            "Problem Solving & Impact": 4.0, "Product & UX": 4.0,
+            "Working Prototype": 4.0, "Presentation": 4.5
+        }
+        c3_strengths_risks = {
+            "summary_en": "DreamStream AI V3. Refined UI/UX with async task queueing for image generation and initial drafts of sleep clinic API.",
+            "summary_ja": "DreamStream AI V3。画像生成のための非同期タスクキューイングによるUI/UXの洗練、および睡眠クリニックAPIの初期ドラフトの実装。",
+            "judges_feedback": [
+                {
+                    "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
+                    "judge_persona": "Cares about market fit.",
+                    "feedback_en": "Excellent strategic shift. The API approach for clinics makes sense.",
+                    "feedback_ja": "優れた戦略的シフトです。クリニック向けのAPIアプローチは非常に合理的です。"
+                },
+                {
+                    "judge_name": "David", "judge_role": "Principal Software Engineer",
+                    "judge_persona": "Cares about architecture.",
+                    "feedback_en": "Async architecture works flawlessly. Very clean codebase now.",
+                    "feedback_ja": "非同期アーキテクチャが完璧に動作しています。非常にクリーンなコードベースになりました。"
+                }
+            ]
+        }
+        eval_c3 = Evaluation(
+            hackathon_id=9999, team_id="demo_team",
+            scores_json=json.dumps(c3_scores), impact_score=4.0,
+            strengths_risks_json=json.dumps(c3_strengths_risks),
+            is_final=False, source_text="Demo Team Consultation 3 Source Code"
+        )
+        db.add(eval_c3)
+
+        # Final Submission (Top Score: ~89.0 with Admin Chat)
+        final_scores = {
+            "Innovation & Creativity": 4.5, "Technical Implementation": 4.5,
+            "Problem Solving & Impact": 4.0, "Product & UX": 4.5,
+            "Working Prototype": 4.5, "Presentation": 4.5
+        }
+        final_strengths_risks = {
+            "summary_en": "DreamStream AI Final. Complete integration with mock clinic database, fully secure AES-256 local dream logs storage, and polished mobile-first interface.",
+            "summary_ja": "DreamStream AI 最終提出。模擬クリニックデータベースとの完全な統合、AES-256による完全に保護されたローカル夢ログストレージ、洗練されたモバイルファーストインターフェースの提供。",
+            "judges_feedback": [
+                {
+                    "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
+                    "feedback_en": "Incredible progress throughout the hackathon. This is a viable business opportunity.",
+                    "feedback_ja": "ハッカソンを通じて素晴らしい進歩を遂げました。これは実現可能なビジネスチャンスです。"
+                },
+                {
+                    "judge_name": "David", "judge_role": "Principal Software Engineer",
+                    "feedback_en": "Security standards are met. Zero complaints on the repository hygiene.",
+                    "feedback_ja": "セキュリティ基準が満たされています。リポジトリの衛生面において不満は一切ありません。"
+                },
+                {
+                    "judge_name": "Lisa", "judge_role": "Head of Product Design",
+                    "feedback_en": "Beautiful, responsive, dark-mode design that represents dreams perfectly.",
+                    "feedback_ja": "夢の世界を完璧に表現した、美しくレスポンシブなダークモードのデザインです。"
+                }
+            ]
+        }
+        eval_final = Evaluation(
+            hackathon_id=9999, team_id="demo_team",
+            scores_json=json.dumps(final_scores), impact_score=4.5,
+            strengths_risks_json=json.dumps(final_strengths_risks),
+            is_final=True, source_text="Demo Team Final Submission Source Code"
+        )
+        db.add(eval_final)
+        db.flush()
+
+        # Seed Admin Chat for the final evaluation
+        admin_chat = AdminChat(
+            evaluation_id=eval_final.id,
+            question_en="Explain the security measures implemented in the final repository for storing user generated dream descriptions.",
+            question_ja="ユーザーが生成した夢の記述を保存するために、最終リポジトリに実装されたセキュリティ対策を説明してください。",
+            answer_en="The project implements AES-256 encryption at rest for the `dream_content` database column and uses strict session tokens with short expiry to prevent session hijacking.",
+            answer_ja="プロジェクトは、`dream_content`データベースカラムに対してAES-256による保存時暗号化を実装しており、セッションハイジャックを防ぐために有効期限の短い厳格なセッションキーを使用しています。"
+        )
+        db.add(admin_chat)
+
+        # Seed evaluations for demo_team2 (EcoLoop / GreenGrid)
+        # Consultation 1 (Low Score: ~58.0)
+        t2_c1_scores = {
+            "Innovation & Creativity": 3.0, "Technical Implementation": 3.0,
+            "Problem Solving & Impact": 2.5, "Product & UX": 2.5,
+            "Working Prototype": 3.0, "Presentation": 3.0
+        }
+        t2_c1_strengths_risks = {
+            "summary_en": "Initial grid optimization simulation setup.",
+            "summary_ja": "スマートグリッド最適化の初期シミュレーションセットアップ。",
+            "judges_feedback": [
+                {
+                    "judge_name": "David", "judge_role": "Principal Software Engineer",
+                    "feedback_en": "Basic simulation works, but there is no integration pathway.",
+                    "feedback_ja": "基本的なシミュレーションは動きますが、実際の統合パスが示されていません。"
+                }
+            ]
+        }
+        eval_t2_c1 = Evaluation(
+            hackathon_id=9999, team_id="demo_team2",
+            scores_json=json.dumps(t2_c1_scores), impact_score=2.8,
+            strengths_risks_json=json.dumps(t2_c1_strengths_risks),
+            is_final=False, source_text="Demo Team 2 Consultation 1"
+        )
+        db.add(eval_t2_c1)
+
+        # Consultation 2 (Mid Score: ~71.0)
+        t2_c2_scores = {
+            "Innovation & Creativity": 3.5, "Technical Implementation": 3.5,
+            "Problem Solving & Impact": 3.5, "Product & UX": 3.5,
+            "Working Prototype": 3.5, "Presentation": 3.5
+        }
+        t2_c2_strengths_risks = {
+            "summary_en": "Improved reinforcement learning algorithm and real-time dashboard UI.",
+            "summary_ja": "強化学習アルゴリズムの改善とリアルタイムダッシュボードUIの追加。",
+            "judges_feedback": [
+                {
+                    "judge_name": "Lisa", "judge_role": "Head of Product Design",
+                    "feedback_en": "Dashboard is readable, but visual density is too high.",
+                    "feedback_ja": "ダッシュボードは見やすいですが、情報の密度が高すぎます。"
+                }
+            ]
+        }
+        eval_t2_c2 = Evaluation(
+            hackathon_id=9999, team_id="demo_team2",
+            scores_json=json.dumps(t2_c2_scores), impact_score=3.5,
+            strengths_risks_json=json.dumps(t2_c2_strengths_risks),
+            is_final=False, source_text="Demo Team 2 Consultation 2"
+        )
+        db.add(eval_t2_c2)
+
+        # Seed evaluation for demo_team3 (HealthFlow / AuraScan)
+        # Final Submission only (Score: ~85.0)
+        t3_final_scores = {
+            "Innovation & Creativity": 4.5, "Technical Implementation": 4.0,
+            "Problem Solving & Impact": 4.5, "Product & UX": 4.0,
+            "Working Prototype": 4.0, "Presentation": 4.5
+        }
+        t3_final_strengths_risks = {
+            "summary_en": "AuraScan Final submission. Runs image processing locally using WASM and gives immediate stress levels evaluation.",
+            "summary_ja": "AuraScan最終提出。WASMを使用してローカルで画像処理を実行し、即座にストレスレベル評価を提供します。",
+            "judges_feedback": [
+                {
+                    "judge_name": "Alex", "judge_role": "Serial Entrepreneur",
+                    "feedback_en": "Extremely high market demand and very clear UX flow.",
+                    "feedback_ja": "市場の需要が極めて高く、UXフローも非常に明快です。"
+                }
+            ]
+        }
+        eval_t3_final = Evaluation(
+            hackathon_id=9999, team_id="demo_team3",
+            scores_json=json.dumps(t3_final_scores), impact_score=4.2,
+            strengths_risks_json=json.dumps(t3_final_strengths_risks),
+            is_final=True, source_text="Demo Team 3 Final Submission"
+        )
+        db.add(eval_t3_final)
+
