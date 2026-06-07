@@ -7,6 +7,8 @@
 
 **Judgie-AI** is a multi-tenant AI hackathon platform that automates and enhances the judging and feedback process. Leveraging Google Gemini's multimodal capabilities, it evaluates team submissions (source code ZIPs, demo videos, PDF slides) from the diverse perspectives of a customizable panel of AI expert personas, providing actionable coaching and scoring.
 
+> 💡 **Judgie-AI** is part of the **[PixApps](https://pixapps.ai/)** suite — a collection of innovative, AI-powered applications. Explore our other projects and support our work at [pixapps.ai](https://pixapps.ai/).
+
 ---
 
 ## ✨ Core Features
