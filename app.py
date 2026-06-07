@@ -25,6 +25,9 @@ with st.sidebar:
             logout()
 
 # Define Pages
+def t_nav(en, ja):
+    return en if st.session_state.language == 'English' else ja
+
 login_page = st.Page("views/login.py", title="Login", icon="🔑")
 super_login_page = st.Page("views/super_login.py", title="Super Admin Login", icon="🌍")
 leaderboard_page = st.Page("views/leaderboard.py", title="Leaderboard", icon="🏆")
@@ -32,20 +35,21 @@ team_page = st.Page("views/team_view.py", title="Team Dashboard", icon="🧑‍�
 admin_page = st.Page("views/admin_center.py", title="Admin Command Center", icon="👑")
 settings_page = st.Page("views/system_settings.py", title="System Settings", icon="⚙️")
 superadmin_page = st.Page("views/superadmin_center.py", title="Super Admin Console", icon="🌍")
+manual_page = st.Page("views/user_manual.py", title=t_nav("User Manual", "ユーザーマニュアル"), icon="📖")
 
 # Dynamic Navigation based on role
 pages = []
 if not st.session_state.logged_in:
     if st.query_params.get("admin") == "true":
-        pages = [super_login_page]
+        pages = [super_login_page, manual_page]
     else:
-        pages = [login_page]
+        pages = [login_page, manual_page]
 elif st.session_state.role == 'superadmin':
-    pages = [superadmin_page]
+    pages = [superadmin_page, manual_page]
 elif st.session_state.role == 'admin':
-    pages = [admin_page, team_page, leaderboard_page, settings_page]
+    pages = [admin_page, team_page, leaderboard_page, settings_page, manual_page]
 elif st.session_state.role == 'team':
-    pages = [team_page, leaderboard_page]
+    pages = [team_page, leaderboard_page, manual_page]
 
 pg = st.navigation(pages)
 pg.run()

@@ -4,11 +4,30 @@ import json
 import time
 from core.db import get_setting, get_criteria, get_personas
 
-def configure_gemini(hackathon_id):
-    api_key = get_setting(hackathon_id, 'gemini_api_key')
+def configure_gemini(hackathon_id, api_key_override=None):
+    api_key = api_key_override if api_key_override else get_setting(hackathon_id, 'gemini_api_key')
     if not api_key:
         raise ValueError("Gemini API Key has not been set by the Admin yet. Please contact the organizer.")
     genai.configure(api_key=api_key)
+
+def list_available_gemini_models(hackathon_id, api_key_override=None):
+    """
+    Fetches the dynamically available Gemini models from the API.
+    Optionally overrides the API key (used for validation before saving).
+    """
+    configure_gemini(hackathon_id, api_key_override=api_key_override)
+    try:
+        models = genai.list_models()
+        gemini_models = []
+        for m in models:
+            if 'generateContent' in m.supported_generation_methods:
+                name = m.name.replace("models/", "")
+                if name.startswith("gemini-"):
+                    gemini_models.append(name)
+        gemini_models.sort()
+        return gemini_models
+    except Exception as e:
+        raise ValueError(f"Failed to fetch models from Gemini API: {str(e)}")
 
 def upload_to_gemini(hackathon_id, file_path, mime_type=None):
     """Uploads the given file to Gemini."""
@@ -34,8 +53,9 @@ def analyze_submission(hackathon_id, text_content, gemini_media_files=None, prev
     """
     configure_gemini(hackathon_id)
     
+    model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
+        model_name=model_name,
         generation_config={
             "response_mime_type": "application/json",
             "temperature": 0.4,
@@ -139,8 +159,9 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
     """
     configure_gemini(hackathon_id)
     
+    model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
+        model_name=model_name,
         generation_config={
             "response_mime_type": "application/json",
             "temperature": 0.4,
@@ -204,8 +225,9 @@ def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json,
     """
     configure_gemini(hackathon_id)
     
+    model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
+        model_name=model_name,
         generation_config={
             "response_mime_type": "application/json",
             "temperature": 0.4,
