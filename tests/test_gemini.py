@@ -85,6 +85,7 @@ def test_wait_for_files_active_failed(mocker):
 
 def test_analyze_submission(mocker):
     mocker.patch("core.gemini.get_setting", return_value="test_api_key")
+    mocker.patch("core.gemini.get_ai_response_languages", return_value=["English", "Japanese"])
 
     # Mock criteria & personas settings
     mocker.patch("core.gemini.get_criteria", return_value=[{"name": "Innovation", "weight": 50, "description": "desc"}])
@@ -114,6 +115,7 @@ def test_analyze_submission(mocker):
 
 def test_object_to_judges(mocker):
     mocker.patch("core.gemini.get_setting", return_value="test_api_key")
+    mocker.patch("core.gemini.get_ai_response_languages", return_value=["English", "Japanese"])
     mocker.patch("core.gemini.get_personas", return_value=[{"name": "Alex", "active": True, "prompt": "prompt1"}])
 
     mock_response = MagicMock()
@@ -134,6 +136,7 @@ def test_object_to_judges(mocker):
 
 def test_admin_chat_about_submission(mocker):
     mocker.patch("core.gemini.get_setting", return_value="test_api_key")
+    mocker.patch("core.gemini.get_ai_response_languages", return_value=["English", "Japanese"])
 
     # Mock genai.Client instance and files.get
     mock_file = MagicMock()

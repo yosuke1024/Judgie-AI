@@ -45,7 +45,9 @@ def process_submission(hackathon_id: int, team_id: str, uploaded_files: list, pr
     )
 
     # Defensive programming: ensure the JSON structure conforms to what UI expects
-    result_json = sanitize_evaluation_response(result_json)
+    from core.db import get_ai_response_languages
+    languages = get_ai_response_languages(hackathon_id)
+    result_json = sanitize_evaluation_response(result_json, languages)
 
     # Save the normalized evaluation to database
     g_file_names = [f.name for f in gemini_media_files] if gemini_media_files else []
@@ -53,28 +55,46 @@ def process_submission(hackathon_id: int, team_id: str, uploaded_files: list, pr
 
     return result_json
 
-def sanitize_evaluation_response(data: dict) -> dict:
+def sanitize_evaluation_response(data: dict, languages: list[str] = None) -> dict:
     """
     Sanitizes LLM response to ensure essential keys and safe fallback structures are present.
     """
+    if languages is None:
+        languages = ["English", "Japanese"]
+    from core.db import normalize_lang_to_key
     if not isinstance(data, dict):
         data = {}
 
     sanitized = {
-        "product_understanding_en": data.get("product_understanding_en", "No product understanding provided."),
-        "product_understanding_ja": data.get("product_understanding_ja", "プロダクトの理解が提供されていません。"),
-        "action_items_en": data.get("action_items_en", []),
-        "action_items_ja": data.get("action_items_ja", []),
         "scores": data.get("scores", {}),
         "impact_score": float(data.get("impact_score", 0.0)),
         "judges_feedback": data.get("judges_feedback", [])
     }
 
-    # Ensure lists are strictly lists
-    if not isinstance(sanitized["action_items_en"], list):
-        sanitized["action_items_en"] = [str(sanitized["action_items_en"])] if sanitized["action_items_en"] else []
-    if not isinstance(sanitized["action_items_ja"], list):
-        sanitized["action_items_ja"] = [str(sanitized["action_items_ja"])] if sanitized["action_items_ja"] else []
+    # Compatibility mapping for legacy keys
+    compat_map = {
+        "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en",
+        "spanish": "es", "french": "fr", "german": "de", "korean": "ko",
+        "chinese": "zh", "vietnamese": "vi", "thai": "th", "indonesian": "id"
+    }
+
+    # Dynamically populate product_understanding and action_items for each language
+    for lang in languages:
+        lang_key = normalize_lang_to_key(lang)
+
+        pu_val = data.get(f"product_understanding_{lang_key}")
+        if pu_val is None and lang_key in compat_map:
+            pu_val = data.get(f"product_understanding_{compat_map[lang_key]}")
+        sanitized[f"product_understanding_{lang_key}"] = pu_val or f"No product understanding provided in {lang}."
+
+        action_items_key = f"action_items_{lang_key}"
+        items = data.get(action_items_key)
+        if items is None and lang_key in compat_map:
+            items = data.get(f"action_items_{compat_map[lang_key]}")
+        if not isinstance(items, list):
+            items = [str(items)] if items else []
+        sanitized[action_items_key] = items
+
     if not isinstance(sanitized["judges_feedback"], list):
         sanitized["judges_feedback"] = []
 
@@ -87,12 +107,18 @@ def sanitize_evaluation_response(data: dict) -> dict:
             "judge_name": j.get("judge_name", "Judge"),
             "judge_role": j.get("judge_role", "Expert Panelist"),
             "judge_persona": j.get("judge_persona", ""),
-            "judge_scores": j.get("judge_scores", []),
-            "feedback_en": j.get("feedback_en", "No detailed feedback in English."),
-            "feedback_ja": j.get("feedback_ja", "日本語のフィードバックがありません。")
+            "judge_scores": j.get("judge_scores", [])
         }
         if not isinstance(normalized_j["judge_scores"], list):
             normalized_j["judge_scores"] = []
+
+        # Dynamically populate feedback for each language
+        for lang in languages:
+            lang_key = normalize_lang_to_key(lang)
+            fb_val = j.get(f"feedback_{lang_key}")
+            if fb_val is None and lang_key in compat_map:
+                fb_val = j.get(f"feedback_{compat_map[lang_key]}")
+            normalized_j[f"feedback_{lang_key}"] = fb_val or f"No detailed feedback in {lang}."
 
         normalized_feedback.append(normalized_j)
 

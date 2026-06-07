@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 from contextlib import contextmanager
 
@@ -19,6 +20,17 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from config import DATABASE_URL
 from core.security import hash_passcode, verify_passcode
+
+
+def normalize_lang_to_key(lang_name: str) -> str:
+    # Replace hyphens with spaces first so they become underscores
+    cleaned = lang_name.replace('-', ' ')
+    # Generate clean key by keeping word characters and basic multilingual characters
+    safe_name = re.sub(r'[^\w\s\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]', '', cleaned)
+    safe_name = re.sub(r'\s+', '_', safe_name).strip().lower()
+    if not safe_name:
+        safe_name = "lang_" + str(hash(lang_name) % 1000)
+    return safe_name
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -138,11 +150,18 @@ def save_evaluation(hackathon_id: int, team_id: str, result_json: dict, is_final
         scores_json = json.dumps(result_json.get("scores", {}))
         impact_score = result_json.get("impact_score", 0.0)
 
+        # Dynamic mapping for languages to support free-form languages
+        # Keep backward compatibility by storing summary_<lang_key> in strengths_risks
         strengths_risks = {
-            "summary_en": result_json.get("product_understanding_en", result_json.get("three_line_summary_en", "")),
-            "summary_ja": result_json.get("product_understanding_ja", result_json.get("three_line_summary_ja", "")),
             "judges_feedback": result_json.get("judges_feedback", [])
         }
+        for k, v in result_json.items():
+            if k.startswith("product_understanding_"):
+                lang_key = k.replace("product_understanding_", "")
+                strengths_risks[f"summary_{lang_key}"] = v
+            elif k.startswith("three_line_summary_"):
+                lang_key = k.replace("three_line_summary_", "")
+                strengths_risks[f"summary_{lang_key}"] = v
 
         file_ids_json = json.dumps(gemini_file_ids) if gemini_file_ids else None
 
@@ -188,6 +207,23 @@ def set_setting(hackathon_id: int, key: str, value: str, db=None):
     else:
         with db_session() as new_db:
             _execute(new_db)
+
+def get_ai_response_languages(hackathon_id: int) -> list[str]:
+    """
+    Returns the configured languages for AI responses.
+    Defaults to ["English", "Japanese"] if not configured.
+    """
+    val = get_setting(hackathon_id, 'ai_response_languages')
+    if val:
+        try:
+            return json.loads(val)
+        except Exception:
+            pass
+    return ["English", "Japanese"]
+
+def set_ai_response_languages(hackathon_id: int, languages: list[str], db=None):
+    set_setting(hackathon_id, 'ai_response_languages', json.dumps(languages), db=db)
+
 
 def get_criteria(hackathon_id):
     val = get_setting(hackathon_id, 'evaluation_criteria')
@@ -272,6 +308,7 @@ def create_hackathon(name: str, admin_id: str, admin_pass: str) -> int:
         # Initialize default settings for this hackathon using the same transaction session
         set_personas(hackathon.id, get_personas(None), db=db) # get defaults and save
         set_criteria(hackathon.id, get_criteria(None), db=db)
+        set_ai_response_languages(hackathon.id, ["English", "Japanese"], db=db)
 
         return hackathon.id
 

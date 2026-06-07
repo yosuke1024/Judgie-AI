@@ -4,7 +4,7 @@ import time
 from google import genai
 from google.genai import types
 
-from core.db import get_criteria, get_personas, get_setting
+from core.db import get_ai_response_languages, get_criteria, get_personas, get_setting, normalize_lang_to_key
 
 
 def get_gemini_client(hackathon_id, api_key_override=None):
@@ -96,6 +96,24 @@ This team is submitting a revised version. You MUST carefully review the action 
     else:
         final_str = "<submission_type>This is a CONSULTATION (work in progress). Provide constructive, coaching-focused feedback to help them improve before the final deadline.</submission_type>"
 
+    # AIレスポンス言語設定を取得
+    languages = get_ai_response_languages(hackathon_id)
+
+    # 動的にJSONスキーマ指示文を構築
+    pu_fields = []
+    ai_fields = []
+    fb_fields = []
+
+    for lang in languages:
+        lang_key = normalize_lang_to_key(lang)
+        pu_fields.append(f'    "product_understanding_{lang_key}": "Detailed explanation of how the AI understands the product\'s problem, solution, and core value in {lang}."')
+        ai_fields.append(f'    "action_items_{lang_key}": [\n        "Top priority action item 1 in {lang}",\n        "Top priority action item 2 in {lang}",\n        "Top priority action item 3 in {lang}"\n    ]')
+        fb_fields.append(f'            "feedback_{lang_key}": "Deeply detailed, highly informative feedback in {lang} based on their persona and previous context."')
+
+    pu_fields_str = ",\n".join(pu_fields)
+    ai_fields_str = ",\n".join(ai_fields)
+    fb_fields_str = ",\n".join(fb_fields)
+
     prompt = f"""You are orchestrating an AI Expert Panel for a Hackathon.
 Analyze the provided source code, pitch materials, and demo video.
 
@@ -110,21 +128,15 @@ You must evaluate the submission from the perspectives of the following judges. 
 {personas_str}
 </expert_judges>
 
+<critical_instructions>
+- You MUST evaluate the submission and provide all explanation texts in the following languages: {", ".join(languages)}.
+</critical_instructions>
+
 <output_instructions format="json">
 Output a strictly valid JSON object with the following structure:
 {{
-    "product_understanding_en": "Detailed explanation of how the AI understands the product's problem, solution, and core value.",
-    "product_understanding_ja": "AIがこのプロダクトの課題・解決策・コア価値をどう解釈したかの詳細な説明（日本語）。",
-    "action_items_en": [
-        "Top priority action item 1",
-        "Top priority action item 2",
-        "Top priority action item 3"
-    ],
-    "action_items_ja": [
-        "最優先アクションアイテム1（日本語）",
-        "最優先アクションアイテム2（日本語）",
-        "最優先アクションアイテム3（日本語）"
-    ],
+{pu_fields_str},
+{ai_fields_str},
     "scores": {{
         // Provide an OVERALL consensus float score (0.0 to 5.0) for each criteria listed above. The keys must exactly match the criteria names.
     }},
@@ -141,8 +153,7 @@ Output a strictly valid JSON object with the following structure:
                 }}
                 // Provide a score for EVERY criteria from this specific judge's perspective
             ],
-            "feedback_en": "Deeply detailed, highly informative feedback in English based on their persona and previous context.",
-            "feedback_ja": "十分な情報量を持った、専門的なフィードバックの日本語訳。"
+{fb_fields_str}
         }}
         // Repeat for EACH active judge
     ]
@@ -177,6 +188,20 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
     active_personas = [p for p in get_personas(hackathon_id) if p.get('active', False)]
     personas_str = "\n".join([f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n" for p in active_personas])
 
+    # AIレスポンス言語設定を取得
+    languages = get_ai_response_languages(hackathon_id)
+
+    qa_summary_fields = []
+    response_fields = []
+
+    for lang in languages:
+        lang_key = normalize_lang_to_key(lang)
+        qa_summary_fields.append(f'    "qa_summary_{lang_key}": "A brief 2-3 sentence summary of the panel\'s overall stance on the objection in {lang}."')
+        response_fields.append(f'            "response_{lang_key}": "Direct, persona-driven response to the team\'s objection in {lang}."')
+
+    qa_summary_str = ",\n".join(qa_summary_fields)
+    response_fields_str = ",\n".join(response_fields)
+
     prompt = f"""You are orchestrating an AI Expert Panel for a Hackathon.
 The team has submitted a question or an objection regarding your PREVIOUS evaluation.
 
@@ -193,21 +218,20 @@ The team has submitted a question or an objection regarding your PREVIOUS evalua
 </expert_judges>
 
 <critical_instructions>
-You must directly address the team's objection or question based on your specific persona.
-If the team makes a valid point, acknowledge it. If they missed something, explain why your original evaluation stands.
-Provide constructive, direct, and persona-driven responses.
+- You must directly address the team's objection or question based on your specific persona.
+- If the team makes a valid point, acknowledge it. If they missed something, explain why your original evaluation stands.
+- Provide constructive, direct, and persona-driven responses.
+- You MUST answer and summarize in the following languages: {", ".join(languages)}.
 </critical_instructions>
 
 <output_instructions format="json">
 Output a strictly valid JSON object with the following structure:
 {{
-    "qa_summary_en": "A brief 2-3 sentence summary of the panel's overall stance on the objection.",
-    "qa_summary_ja": "パネル全体の回答要約（日本語）。",
+{qa_summary_str},
     "judges_responses": [
         {{
             "judge_name": "<Name of the judge>",
-            "response_en": "Direct, persona-driven response to the team's objection.",
-            "response_ja": "反論・質問に対する審査員からの直接的な回答の日本語訳。"
+{response_fields_str}
         }}
         // Repeat for EACH active judge
     ]
@@ -254,6 +278,20 @@ def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json,
         except Exception:
             pass
 
+    # AIレスポンス言語設定を取得
+    languages = get_ai_response_languages(hackathon_id)
+
+    question_fields = []
+    answer_fields = []
+
+    for lang in languages:
+        lang_key = normalize_lang_to_key(lang)
+        question_fields.append(f'  "question_{lang_key}": "Translation or original of the administrator\'s question in {lang}"')
+        answer_fields.append(f'  "answer_{lang_key}": "Detailed response in {lang} based on the source code and files"')
+
+    question_str = ",\n".join(question_fields)
+    answer_str = ",\n".join(answer_fields)
+
     prompt = f"""You are an AI Expert Panelist assisting a Hackathon Administrator.
 The Admin has a specific question regarding a team's submission.
 
@@ -273,17 +311,14 @@ Please reference the attached source code and media files for ground truth to av
 - Answer the Admin's question directly, clearly, and honestly.
 - Base your answer strictly on the provided source code, media files, and previous evaluation.
 - If the answer cannot be found in the provided context, state clearly that you don't know or the information is missing. DO NOT hallucinate.
-- Translate the original question into English and Japanese respectively.
-- Answer the question in both English and Japanese respectively.
+- Translate the original question and write the answer in the following languages: {", ".join(languages)}.
 </critical_instructions>
 
 <output_instructions format="json">
 Output a strictly valid JSON object with the following structure:
 {{
-  "question_en": "English translation or original of the administrator's question",
-  "question_ja": "日本語訳または原文 of the administrator's question",
-  "answer_en": "Detailed response in English based on the source code and files",
-  "answer_ja": "詳細な日本語の回答"
+{question_str},
+{answer_str}
 }}
 </output_instructions>
 """

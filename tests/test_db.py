@@ -13,6 +13,7 @@ from core.db import (
     delete_hackathon,
     delete_session,
     get_admin_chats,
+    get_ai_response_languages,
     get_consultation_count,
     get_criteria,
     get_personas,
@@ -23,6 +24,7 @@ from core.db import (
     save_admin_chat,
     save_evaluation,
     save_objection_qa,
+    set_ai_response_languages,
     set_criteria,
     set_personas,
     set_setting,
@@ -301,6 +303,26 @@ def test_delete_hackathon(db_session_fixture):
     assert db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid).first() is None
     assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is None
     assert db_session_fixture.query(Session).filter(Session.hackathon_id == hid).first() is None
+
+def test_ai_response_languages(db_session_fixture):
+    # Test setting and getting languages
+    hid = create_hackathon("Hack1", "admin1", "pass123")
+
+    # 1. Default languages when not set
+    assert get_ai_response_languages(hid) == ["English", "Japanese"]
+
+    # 2. Set custom languages
+    custom_langs = ["English", "Japanese", "Spanish", "French"]
+    set_ai_response_languages(hid, custom_langs)
+    assert get_ai_response_languages(hid) == custom_langs
+
+    # 3. Key normalization test
+    from core.db import normalize_lang_to_key
+    assert normalize_lang_to_key("English") == "english"
+    assert normalize_lang_to_key("日本語") == "日本語"
+    assert normalize_lang_to_key("Spanish") == "spanish"
+    assert normalize_lang_to_key("French") == "french"
+    assert normalize_lang_to_key("Korean") == "korean"
 
 
 def test_seed_demo_data(db_session_fixture):
