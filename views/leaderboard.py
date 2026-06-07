@@ -21,46 +21,13 @@ if not current_h_id:
     st.stop()
 
 # ------------------
-# Meet the AI Judges
+# Data Gathering
 # ------------------
-st.subheader(t("🤖 Meet the AI Jury Panel", "🤖 審査員パネルの紹介"))
-st.markdown(t("This expert panel will evaluate your submissions.", "このハッカソンでは、以下の5名のAI審査員が容赦のない評価を行います。"))
-
 personas = get_personas(current_h_id)
 active_personas = [p for p in personas if p.get('active', True)]
 
-if active_personas:
-    cols = st.columns(len(active_personas))
-    for i, p in enumerate(active_personas):
-        with cols[i]:
-            with st.container(border=True):
-                avatar_html = get_avatar_html(p['name'], p.get('avatar_image') or p.get('avatar', '🧑‍⚖️'), size=50)
-                st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{avatar_html}<h3 style="margin: 0;">{p["name"]}</h3></div>', unsafe_allow_html=True)
-                st.caption(f"{p['role']}")
-                with st.popover("🧠 View Persona"):
-                    st.markdown(p.get('prompt', '').replace('\n', '\n\n'))
-
-# ------------------
-# The Rules of the Game
-# ------------------
-st.subheader(t("⚖️ The Rules of the Game", "⚖️ 評価基準とウェイト"))
 criteria = get_criteria(current_h_id)
 total_weight = sum(c['weight'] for c in criteria) if criteria else 1
-
-if criteria:
-    for i in range(0, len(criteria), 2):
-        r_cols = st.columns(2)
-        for j in range(2):
-            if i + j < len(criteria):
-                c = criteria[i + j]
-                with r_cols[j]:
-                    with st.container(border=True):
-                        st.markdown(f"#### {c['name']} \n **Weight: {c['weight']}%**")
-                        st.markdown(c['description'].replace('\n', '\n\n'))
-
-st.divider()
-
-st.subheader(t("🚀 Current Rankings", "🚀 最新ランキング"))
 
 db = SessionLocal()
 try:
@@ -120,6 +87,11 @@ for team_id, u_row in all_teams.items():
 
     data.append(row_data)
 
+# ------------------
+# 1. Current Rankings
+# ------------------
+st.subheader(t("🚀 Current Rankings", "🚀 最新ランキング"))
+
 if data:
     df = pd.DataFrame(data).sort_values(by=[t("Total Score", "総合スコア"), t("Product / Team", "プロダクト / チーム")], ascending=[False, True])
     
@@ -136,7 +108,7 @@ if data:
     st.dataframe(df, use_container_width=True, hide_index=True, column_config=col_config)
     
     # ------------------
-    # Category Leaders
+    # 2. Category Leaders
     # ------------------
     st.divider()
     st.subheader(t("🏅 Category Leaders", "🏅 カテゴリ別リーダー"))
@@ -162,4 +134,39 @@ if data:
                 })
 
 else:
-    st.info("No teams yet.")
+    st.info(t("No teams yet.", "チームがまだ登録されていません。"))
+
+# ------------------
+# 3. Meet the AI Jury Panel
+# ------------------
+st.divider()
+st.subheader(t("🤖 Meet the AI Jury Panel", "🤖 審査員パネルの紹介"))
+st.markdown(t("This expert panel will evaluate your submissions.", "このハッカソンでは、以下の5名のAI審査員が容赦のない評価を行います。"))
+
+if active_personas:
+    cols = st.columns(len(active_personas))
+    for i, p in enumerate(active_personas):
+        with cols[i]:
+            with st.container(border=True):
+                avatar_html = get_avatar_html(p['name'], p.get('avatar_image') or p.get('avatar', '🧑‍⚖️'), size=50)
+                st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{avatar_html}<h3 style="margin: 0;">{p["name"]}</h3></div>', unsafe_allow_html=True)
+                st.caption(f"{p['role']}")
+                with st.popover("🧠 View Persona"):
+                    st.markdown(p.get('prompt', '').replace('\n', '\n\n'))
+
+# ------------------
+# 4. The Rules of the Game
+# ------------------
+st.divider()
+st.subheader(t("⚖️ The Rules of the Game", "⚖️ 評価基準とウェイト"))
+
+if criteria:
+    for i in range(0, len(criteria), 2):
+        r_cols = st.columns(2)
+        for j in range(2):
+            if i + j < len(criteria):
+                c = criteria[i + j]
+                with r_cols[j]:
+                    with st.container(border=True):
+                        st.markdown(f"#### {c['name']} \n **Weight: {c['weight']}%**")
+                        st.markdown(c['description'].replace('\n', '\n\n'))
