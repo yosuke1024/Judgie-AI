@@ -1,6 +1,7 @@
 import streamlit as st
-from core.db import init_db
+
 from core.auth import init_session, verify_ip_address
+from core.db import init_db
 from core.i18n import t
 
 # Enforce IP address firewall if ALLOWED_IPS is set in environment/secrets

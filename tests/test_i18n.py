@@ -1,6 +1,7 @@
-import pytest
 import streamlit as st
+
 from core.i18n import t
+
 
 def test_t_default_english(mock_streamlit):
     # Fallback to English when session_state has no language set

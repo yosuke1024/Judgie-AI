@@ -1,8 +1,10 @@
-import streamlit as st
-import pandas as pd
 import json
-from core.db import get_criteria, get_personas, SessionLocal, User, Evaluation
+
+import pandas as pd
+import streamlit as st
+
 from core.auth import require_login
+from core.db import Evaluation, SessionLocal, User, get_criteria, get_personas
 from core.ui_utils import get_avatar_html
 
 # Require login, but accessible by both 'admin' and 'team'
@@ -35,10 +37,10 @@ try:
         users = db.query(User).filter(User.role == 'team', User.hackathon_id == current_h_id).order_by(User.team_id).all()
     else:
         users = db.query(User).filter(User.role == 'team').order_by(User.team_id).all()
-        
+
     all_teams = {u.team_id: {'team_id': u.team_id, 'product_name': u.product_name, 'team_name': u.team_name, 'one_liner': u.one_liner} for u in users}
     team_ids = list(all_teams.keys())
-    
+
     evaluations = db.query(Evaluation).filter(Evaluation.team_id.in_(team_ids)).all() if team_ids else []
     eval_rows = []
     for tid in team_ids:
@@ -69,26 +71,26 @@ for team_id, u_row in all_teams.items():
     else:
         product_disp = team_id
     one_liner_disp = u_row['one_liner'] if u_row['one_liner'] else ""
-    
+
     row_data = {
         t("Product / Team", "プロダクト / チーム"): product_disp,
         t("One-liner", "一言アピール"): one_liner_disp
     }
-    
+
     if team_id in eval_dict:
         r = eval_dict[team_id]
         scores = json.loads(r['scores_json'])
         total_score = sum(scores.get(crit["name"], 0) * 20.0 * (crit["weight"] / total_weight) for crit in criteria)
-        
+
         if r['is_final']:
             status = t("✅ Final", "✅ 最終提出")
         else:
             status = t(f"⏳ Cons ({r['consults']}/3)", f"⏳ 構築中 ({r['consults']}/3)")
-            
+
         row_data[t("Status", "状態")] = status
         row_data[t("Total Score", "総合スコア")] = round(total_score, 1)
         row_data[t("Consults", "相談回数")] = r['consults']
-            
+
     else:
         row_data[t("Status", "状態")] = t("Not Submitted", "未提出")
         row_data[t("Total Score", "総合スコア")] = 0.0
@@ -103,7 +105,7 @@ st.subheader(t("🚀 Current Rankings", "🚀 最新ランキング"))
 
 if data:
     df = pd.DataFrame(data).sort_values(by=[t("Total Score", "総合スコア"), t("Product / Team", "プロダクト / チーム")], ascending=[False, True])
-    
+
     col_config = {
         t("Total Score", "総合スコア"): st.column_config.ProgressColumn(
             t("Total Score", "総合スコア"),
@@ -113,9 +115,9 @@ if data:
             max_value=100.0,
         )
     }
-        
+
     st.dataframe(df, use_container_width=True, hide_index=True, column_config=col_config)
-    
+
     # ------------------
     # 2. Category Leaders
     # ------------------
@@ -131,7 +133,7 @@ if data:
                     if team_id in eval_dict:
                         scores = json.loads(eval_dict[team_id]['scores_json'])
                         s = float(scores.get(c['name'], 0.0))
-                    
+
                     p_name = u_row['product_name']
                     t_name = u_row['team_name']
                     if p_name and t_name:
@@ -143,7 +145,7 @@ if data:
                     else:
                         product_disp = team_id
                     cat_data.append({"Team": product_disp, "Score": s})
-                
+
                 df_cat = pd.DataFrame(cat_data).sort_values(by="Score", ascending=False).head(5)
                 st.dataframe(df_cat, use_container_width=True, hide_index=True, column_config={
                     "Score": st.column_config.ProgressColumn(

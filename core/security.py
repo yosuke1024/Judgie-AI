@@ -1,5 +1,6 @@
 import bcrypt
 
+
 def hash_passcode(passcode: str) -> str:
     """平文のパスコードをハッシュ化する"""
     salt = bcrypt.gensalt()

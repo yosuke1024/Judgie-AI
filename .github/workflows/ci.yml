@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, public ]
+  pull_request:
+    branches: [ main, public ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt -r requirements-dev.txt
+
+    - name: Run Ruff Lint Check
+      run: |
+        ruff check .
+
+    - name: Run tests with coverage
+      run: |
+        pytest --cov=core --cov=views --cov-report=term-missing | tee pytest-coverage.txt
+        echo "### 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo '```text' >> $GITHUB_STEP_SUMMARY
+        cat pytest-coverage.txt | grep -E "Name|TOTAL|core/|views/" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY

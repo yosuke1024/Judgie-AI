@@ -1,12 +1,23 @@
 import json
 import uuid
-import os
-from datetime import datetime
 from contextlib import contextmanager
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, ForeignKey, Text, DateTime, func, UniqueConstraint
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from sqlalchemy.exc import IntegrityError
-from config import DATABASE_URL, TEAM_COUNT_FOR_SEED
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    create_engine,
+    func,
+)
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+from config import DATABASE_URL
 from core.security import hash_passcode, verify_passcode
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
@@ -126,15 +137,15 @@ def save_evaluation(hackathon_id: int, team_id: str, result_json: dict, is_final
     with db_session() as db:
         scores_json = json.dumps(result_json.get("scores", {}))
         impact_score = result_json.get("impact_score", 0.0)
-        
+
         strengths_risks = {
             "summary_en": result_json.get("product_understanding_en", result_json.get("three_line_summary_en", "")),
             "summary_ja": result_json.get("product_understanding_ja", result_json.get("three_line_summary_ja", "")),
             "judges_feedback": result_json.get("judges_feedback", [])
         }
-        
+
         file_ids_json = json.dumps(gemini_file_ids) if gemini_file_ids else None
-        
+
         eval_record = Evaluation(
             hackathon_id=hackathon_id,
             team_id=team_id,
@@ -163,7 +174,7 @@ def get_setting(hackathon_id: int, key: str) -> str:
 def set_setting(hackathon_id: int, key: str, value: str, db=None):
     if hackathon_id is None:
         return
-    
+
     def _execute(session):
         setting = session.query(Setting).filter(Setting.hackathon_id == hackathon_id, Setting.key == key).first()
         if setting:
@@ -171,7 +182,7 @@ def set_setting(hackathon_id: int, key: str, value: str, db=None):
         else:
             setting = Setting(hackathon_id=hackathon_id, key=key, value=value)
             session.add(setting)
-            
+
     if db is not None:
         _execute(db)
     else:
@@ -184,27 +195,27 @@ def get_criteria(hackathon_id):
         return json.loads(val)
     return [
         {
-            "name": "Innovation & Creativity", "weight": 20, 
+            "name": "Innovation & Creativity", "weight": 20,
             "description": "What judges evaluate:\n- Novelty of the idea or approach (not a copy of an existing solution)\n- Creative use of AI/technology to solve the problem\n- Clear differentiation vs. obvious/standard implementations\n\nSignals of a strong submission:\n- A unique angle or insight\n- A clever, simple approach to a hard problem\n- Clear explanation of 'what’s new'"
         },
         {
-            "name": "Technical Implementation", "weight": 20, 
+            "name": "Technical Implementation", "weight": 20,
             "description": "What judges evaluate:\n- Technical soundness (architecture, correctness, reliability)\n- Security/compliance awareness (data handling, permissions, secrets)\n- Maintainability (readable code, reasonable structure, documentation)\n\nSignals of a strong submission:\n- Clear architecture and tradeoffs\n- Evidence of testing or validation\n- Good engineering hygiene (setup steps, configs, error handling)"
         },
         {
-            "name": "Problem Solving & Impact", "weight": 20, 
+            "name": "Problem Solving & Impact", "weight": 20,
             "description": "What judges evaluate:\n- Clarity of the problem statement and target users\n- Size of the benefit (time saved, cost reduced, risk reduced, revenue potential, customer value)\n- Likelihood of adoption in the real world\n\nSignals of a strong submission:\n- Specific use case and measurable outcome\n- Clear 'before vs after' narrative\n- Realistic plan for next steps after the hackathon"
         },
         {
-            "name": "Product & UX", "weight": 15, 
+            "name": "Product & UX", "weight": 15,
             "description": "What judges evaluate:\n- Usability and clarity of the user flow\n- Quality of interaction design (even if minimal)\n- How easily someone can understand and try the product\n\nSignals of a strong submission:\n- Intuitive UI/CLI/API with clear instructions\n- Thoughtful edge cases and error messages\n- Cohesive user journey"
         },
         {
-            "name": "Working Prototype", "weight": 15, 
+            "name": "Working Prototype", "weight": 15,
             "description": "What judges evaluate:\n- Does the core experience work end-to-end?\n- Stability during demo\n- Completeness relative to the scope claimed\n\nSignals of a strong submission:\n- Reliable demo path (repeatable)\n- A runnable build or accessible environment\n- Clear scope boundaries (what works vs. what’s planned)"
         },
         {
-            "name": "Presentation", "weight": 10, 
+            "name": "Presentation", "weight": 10,
             "description": "What judges evaluate:\n- Clarity and structure of the pitch\n- Demo storytelling (problem -> solution -> impact)\n- Ability to answer questions and defend choices\n\nSignals of a strong submission:\n- Simple, compelling narrative\n- Concise demo with no unnecessary steps\n- Clear callout of impact and future roadmap"
         }
     ]
@@ -247,7 +258,7 @@ def create_hackathon(name: str, admin_id: str, admin_pass: str) -> int:
         hackathon = Hackathon(name=name)
         db.add(hackathon)
         db.flush() # flush to get the ID
-        
+
         # Create the tenant admin
         admin_user = User(
             hackathon_id=hackathon.id,
@@ -257,11 +268,11 @@ def create_hackathon(name: str, admin_id: str, admin_pass: str) -> int:
         )
         db.add(admin_user)
         db.flush()
-        
+
         # Initialize default settings for this hackathon using the same transaction session
         set_personas(hackathon.id, get_personas(None), db=db) # get defaults and save
         set_criteria(hackathon.id, get_criteria(None), db=db)
-        
+
         return hackathon.id
 
 def update_admin_passcode(hackathon_id: int, new_passcode: str):
@@ -283,7 +294,7 @@ def update_team_passcode(hackathon_id: int, team_id: str, new_passcode: str) -> 
         return False
 
 def change_my_passcode(hackathon_id: int = None, team_id: str = None, current_passcode: str = None, new_passcode: str = None) -> bool:
-    # Robust fallback: If hackathon_id is a string, it means the older 3-argument signature 
+    # Robust fallback: If hackathon_id is a string, it means the older 3-argument signature
     # (team_id, current_passcode, new_passcode) was called due to hot-reload cache mismatch.
     if isinstance(hackathon_id, str):
         new_passcode = current_passcode
@@ -371,21 +382,21 @@ def delete_hackathon(hackathon_id: int):
         eval_ids = [e.id for e in db.query(Evaluation).filter(Evaluation.hackathon_id == hackathon_id).all()]
         if eval_ids:
             db.query(AdminChat).filter(AdminChat.evaluation_id.in_(eval_ids)).delete(synchronize_session=False)
-        
+
         # 2. Evaluation
         db.query(Evaluation).filter(Evaluation.hackathon_id == hackathon_id).delete(synchronize_session=False)
-        
+
         # 3. Submission
         db.query(Submission).filter(Submission.hackathon_id == hackathon_id).delete(synchronize_session=False)
-        
+
         # 4. Setting
         db.query(Setting).filter(Setting.hackathon_id == hackathon_id).delete(synchronize_session=False)
-        
+
         # 5. Session
         db.query(Session).filter(Session.hackathon_id == hackathon_id).delete(synchronize_session=False)
-        
+
         # 6. User
         db.query(User).filter(User.hackathon_id == hackathon_id).delete(synchronize_session=False)
-        
+
         # 7. Hackathon
         db.query(Hackathon).filter(Hackathon.id == hackathon_id).delete(synchronize_session=False)
