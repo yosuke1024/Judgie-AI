@@ -339,7 +339,7 @@ with col2:
                     }
                     compat_key = compat_map.get(lang_key, 'en')
                     action_items = fb.get(f'action_items_{compat_key}', [])
-                
+
                 if action_items:
                     for item in action_items:
                         st.info(f"👉 {item}")
@@ -390,12 +390,12 @@ with col2:
                         compat_key = compat_map.get(lang_key, 'en')
                         qa_summary = qa_data.get(f'qa_summary_{compat_key}', '')
                     st.info(qa_summary)
-                    
+
                     for j in qa_data.get('judges_responses', []):
                         j_name = j.get('judge_name', 'Judge')
                         j_icon = avatar_map.get(j_name, '🧑‍⚖️')
                         st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{get_avatar_html(j_name, j_icon, size=30)}<strong style="font-size: 1.1em;">{j_name}</strong></div>', unsafe_allow_html=True)
-                        
+
                         j_resp = j.get(f'response_{lang_key}')
                         if j_resp is None:
                             compat_map = {

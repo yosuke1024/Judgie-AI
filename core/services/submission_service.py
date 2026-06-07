@@ -81,12 +81,12 @@ def sanitize_evaluation_response(data: dict, languages: list[str] = None) -> dic
     # Dynamically populate product_understanding and action_items for each language
     for lang in languages:
         lang_key = normalize_lang_to_key(lang)
-        
+
         pu_val = data.get(f"product_understanding_{lang_key}")
         if pu_val is None and lang_key in compat_map:
             pu_val = data.get(f"product_understanding_{compat_map[lang_key]}")
         sanitized[f"product_understanding_{lang_key}"] = pu_val or f"No product understanding provided in {lang}."
-        
+
         action_items_key = f"action_items_{lang_key}"
         items = data.get(action_items_key)
         if items is None and lang_key in compat_map:

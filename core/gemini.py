@@ -4,7 +4,7 @@ import time
 from google import genai
 from google.genai import types
 
-from core.db import get_criteria, get_personas, get_setting, get_ai_response_languages, normalize_lang_to_key
+from core.db import get_ai_response_languages, get_criteria, get_personas, get_setting, normalize_lang_to_key
 
 
 def get_gemini_client(hackathon_id, api_key_override=None):
@@ -98,18 +98,18 @@ This team is submitting a revised version. You MUST carefully review the action 
 
     # AIレスポンス言語設定を取得
     languages = get_ai_response_languages(hackathon_id)
-    
+
     # 動的にJSONスキーマ指示文を構築
     pu_fields = []
     ai_fields = []
     fb_fields = []
-    
+
     for lang in languages:
         lang_key = normalize_lang_to_key(lang)
         pu_fields.append(f'    "product_understanding_{lang_key}": "Detailed explanation of how the AI understands the product\'s problem, solution, and core value in {lang}."')
         ai_fields.append(f'    "action_items_{lang_key}": [\n        "Top priority action item 1 in {lang}",\n        "Top priority action item 2 in {lang}",\n        "Top priority action item 3 in {lang}"\n    ]')
         fb_fields.append(f'            "feedback_{lang_key}": "Deeply detailed, highly informative feedback in {lang} based on their persona and previous context."')
-        
+
     pu_fields_str = ",\n".join(pu_fields)
     ai_fields_str = ",\n".join(ai_fields)
     fb_fields_str = ",\n".join(fb_fields)
@@ -190,15 +190,15 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
 
     # AIレスポンス言語設定を取得
     languages = get_ai_response_languages(hackathon_id)
-    
+
     qa_summary_fields = []
     response_fields = []
-    
+
     for lang in languages:
         lang_key = normalize_lang_to_key(lang)
         qa_summary_fields.append(f'    "qa_summary_{lang_key}": "A brief 2-3 sentence summary of the panel\'s overall stance on the objection in {lang}."')
         response_fields.append(f'            "response_{lang_key}": "Direct, persona-driven response to the team\'s objection in {lang}."')
-        
+
     qa_summary_str = ",\n".join(qa_summary_fields)
     response_fields_str = ",\n".join(response_fields)
 
@@ -280,15 +280,15 @@ def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json,
 
     # AIレスポンス言語設定を取得
     languages = get_ai_response_languages(hackathon_id)
-    
+
     question_fields = []
     answer_fields = []
-    
+
     for lang in languages:
         lang_key = normalize_lang_to_key(lang)
         question_fields.append(f'  "question_{lang_key}": "Translation or original of the administrator\'s question in {lang}"')
         answer_fields.append(f'  "answer_{lang_key}": "Detailed response in {lang} based on the source code and files"')
-        
+
     question_str = ",\n".join(question_fields)
     answer_str = ",\n".join(answer_fields)
 
