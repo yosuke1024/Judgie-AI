@@ -28,8 +28,8 @@ By participating in this project, you are expected to uphold our [Code of Conduc
 
 1. Clone the repository
 2. Install requirements: `pip install -r requirements.txt`
-3. Set your `GEMINI_API_KEY` in `.env`
-4. Run the app: `streamlit run app.py`
+3. Run the app: `streamlit run app.py`
+4. Log in as `superadmin` (passcode: `superadmin123`) to create a hackathon tenant, then log in as the tenant admin and set your Gemini API key in the **System Settings** UI.
 
 ## Coding Guidelines
 Please refer to the existing code style. We encourage clear variable names, concise functions, and documenting complex logic ("Why" over "What").
