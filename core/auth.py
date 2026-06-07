@@ -8,7 +8,12 @@ def verify_ip_address():
     Stops Streamlit execution immediately with an error if the client IP is unauthorized.
     Supports native Streamlit 1.56.0+ context API and older websocket header fallbacks.
     """
-    allowed_ips_str = os.environ.get("ALLOWED_IPS") or st.secrets.get("ALLOWED_IPS", "")
+    allowed_ips_str = os.environ.get("ALLOWED_IPS")
+    if not allowed_ips_str:
+        try:
+            allowed_ips_str = st.secrets.get("ALLOWED_IPS", "")
+        except Exception:
+            allowed_ips_str = ""
     if not allowed_ips_str:
         return
         
