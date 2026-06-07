@@ -3,6 +3,7 @@
 ![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 ![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.50+-red.svg)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://judgie-ai.streamlit.app)
 
 **Judgie-AI** is a multi-tenant AI hackathon platform that automates and enhances the judging and feedback process. Leveraging Google Gemini's multimodal capabilities, it evaluates team submissions (source code ZIPs, demo videos, PDF slides) from the diverse perspectives of a customizable panel of AI expert personas, providing actionable coaching and scoring.
 
