@@ -9,10 +9,7 @@ from core.db import (
 )
 from core.security import hash_passcode
 from core.ui_utils import encode_image_to_base64
-
-
-lang = st.session_state.get('language', 'English')
-def t(en, ja): return en if lang == "English" else ja
+from core.i18n import t
 
 st.title(t("👑 Admin Command Center", "👑 管理者コマンドセンター"))
 
