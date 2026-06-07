@@ -3,3 +3,6 @@ toolbarMode = "minimal"
 
 [server]
 fileWatcherType = "none"
+enableXsrfProtection = false
+enableCORS = false
+
