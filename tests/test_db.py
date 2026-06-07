@@ -30,6 +30,8 @@ from core.db import (
     update_team_passcode,
     update_team_profile,
     verify_user,
+    get_ai_response_languages,
+    set_ai_response_languages,
 )
 from core.security import hash_passcode, verify_passcode
 
@@ -301,3 +303,24 @@ def test_delete_hackathon(db_session_fixture):
     assert db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid).first() is None
     assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is None
     assert db_session_fixture.query(Session).filter(Session.hackathon_id == hid).first() is None
+
+def test_ai_response_languages(db_session_fixture):
+    # Test setting and getting languages
+    hid = create_hackathon("Hack1", "admin1", "pass123")
+    
+    # 1. Default languages when not set
+    assert get_ai_response_languages(hid) == ["English", "Japanese"]
+
+    # 2. Set custom languages
+    custom_langs = ["English", "Japanese", "Spanish", "Kansai-ben"]
+    set_ai_response_languages(hid, custom_langs)
+    assert get_ai_response_languages(hid) == custom_langs
+
+    # 3. Key normalization test
+    from core.db import normalize_lang_to_key
+    assert normalize_lang_to_key("English") == "en"
+    assert normalize_lang_to_key("日本語") == "ja"
+    assert normalize_lang_to_key("Spanish") == "es"
+    assert normalize_lang_to_key("Kansai-ben") == "kansai_ben"
+    assert normalize_lang_to_key("ギャル語") == "ギャル語"
+

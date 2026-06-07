@@ -283,40 +283,53 @@ with col2:
 
         st.markdown("---")
 
-        # Tabs for Bilingual
-        tab_en, tab_ja = st.tabs(["🇺🇸 English", "🇯🇵 日本語"])
+        # Get configured AI response languages
+        from core.db import get_ai_response_languages, normalize_lang_to_key
+        languages = get_ai_response_languages(current_h_id)
+
+        emoji_map = {
+            "English": "🇺🇸",
+            "Japanese": "🇯🇵",
+            "Spanish": "🇪🇸",
+            "French": "🇫🇷",
+            "German": "🇩🇪",
+            "Chinese (Simplified)": "🇨🇳",
+            "Chinese (Traditional)": "🇹🇼",
+            "Korean": "🇰🇷",
+            "Vietnamese": "🇻🇳",
+            "Thai": "🇹🇭",
+            "Indonesian": "🇮🇩"
+        }
+        tab_titles = [f"{emoji_map.get(lang, '🌐')} {lang}" for lang in languages]
+        lang_tabs = st.tabs(tab_titles)
 
         from core.db import get_personas
         personas = get_personas(current_h_id)
         avatar_map = {p['name']: p.get('avatar_image') or p.get('avatar', '🧑‍⚖️') for p in personas}
 
-        with tab_en:
-            st.markdown("#### 🔥 Top Priorities (Next Steps)")
-            action_items_en = fb.get('action_items_en', [])
-            if action_items_en:
-                for item in action_items_en:
-                    st.info(f"👉 {item}")
-            else:
-                st.write("No specific action items provided.")
+        for idx, lang_name in enumerate(languages):
+            lang_key = normalize_lang_to_key(lang_name)
+            with lang_tabs[idx]:
+                st.markdown(f"#### 🔥 {t('Top Priorities (Next Steps)', '最優先アクション (Next Steps)')}")
+                action_items = fb.get(f'action_items_{lang_key}')
+                if action_items is None:
+                    action_items = fb.get('action_items_en' if lang_key == 'en' else 'action_items_ja', [])
+                
+                if action_items:
+                    for item in action_items:
+                        st.info(f"👉 {item}")
+                else:
+                    st.write(t("No specific action items provided.", "具体的なアクションアイテムは提供されていません。"))
 
-            st.markdown("#### 🧠 AI Product Understanding")
-            st.write(fb.get('product_understanding_en', fb.get('summary_en', '')))
-            st.markdown("#### 🧑‍⚖️ Judges Feedback")
-            render_judge_feedback_tab(fb, avatar_map, lang="English")
+                st.markdown(f"#### 🧠 {t('AI Product Understanding', 'プロダクト理解')}")
+                pu_text = fb.get(f'product_understanding_{lang_key}', fb.get(f'summary_{lang_key}'))
+                if pu_text is None:
+                    pu_text = fb.get('product_understanding_en' if lang_key == 'en' else 'product_understanding_ja',
+                                     fb.get('summary_en' if lang_key == 'en' else 'summary_ja', ''))
+                st.write(pu_text)
 
-        with tab_ja:
-            st.markdown("#### 🔥 最優先アクション (Next Steps)")
-            action_items_ja = fb.get('action_items_ja', [])
-            if action_items_ja:
-                for item in action_items_ja:
-                    st.info(f"👉 {item}")
-            else:
-                st.write("具体的なアクションアイテムは提供されていません。")
-
-            st.markdown("#### 🧠 プロダクト理解")
-            st.write(fb.get('product_understanding_ja', fb.get('summary_ja', '')))
-            st.markdown("#### 🧑‍⚖️ 審査員フィードバック")
-            render_judge_feedback_tab(fb, avatar_map, lang="Japanese")
+                st.markdown(f"#### 🧑‍⚖️ {t('Judges Feedback', '審査員フィードバック')}")
+                render_judge_feedback_tab(fb, avatar_map, lang=lang_name)
 
         st.markdown("---")
         st.subheader(t("🙋 Objection! / Q&A", "🙋 異議あり！ / 審査員への質問"))
@@ -332,25 +345,26 @@ with col2:
                 st.write(qa_data.get('user_objection', ''))
 
             st.markdown("#### ⚖️ Panel Response")
-            tab_qa_en, tab_qa_ja = st.tabs(["🇺🇸 English", "🇯🇵 日本語"])
+            qa_tabs = st.tabs(tab_titles)
 
-            with tab_qa_en:
-                st.info(qa_data.get('qa_summary_en', ''))
-                for j in qa_data.get('judges_responses', []):
-                    j_name = j.get('judge_name', 'Judge')
-                    j_icon = avatar_map.get(j_name, '🧑‍⚖️')
-                    st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{get_avatar_html(j_name, j_icon, size=30)}<strong style="font-size: 1.1em;">{j_name}</strong></div>', unsafe_allow_html=True)
-                    st.write(j.get('response_en', ''))
-                    st.divider()
-
-            with tab_qa_ja:
-                st.info(qa_data.get('qa_summary_ja', ''))
-                for j in qa_data.get('judges_responses', []):
-                    j_name = j.get('judge_name', 'Judge')
-                    j_icon = avatar_map.get(j_name, '🧑‍⚖️')
-                    st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{get_avatar_html(j_name, j_icon, size=30)}<strong style="font-size: 1.1em;">{j_name}</strong></div>', unsafe_allow_html=True)
-                    st.write(j.get('response_ja', ''))
-                    st.divider()
+            for idx, lang_name in enumerate(languages):
+                lang_key = normalize_lang_to_key(lang_name)
+                with qa_tabs[idx]:
+                    qa_summary = qa_data.get(f'qa_summary_{lang_key}')
+                    if qa_summary is None:
+                        qa_summary = qa_data.get('qa_summary_en' if lang_key == 'en' else 'qa_summary_ja', '')
+                    st.info(qa_summary)
+                    
+                    for j in qa_data.get('judges_responses', []):
+                        j_name = j.get('judge_name', 'Judge')
+                        j_icon = avatar_map.get(j_name, '🧑‍⚖️')
+                        st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{get_avatar_html(j_name, j_icon, size=30)}<strong style="font-size: 1.1em;">{j_name}</strong></div>', unsafe_allow_html=True)
+                        
+                        j_resp = j.get(f'response_{lang_key}')
+                        if j_resp is None:
+                            j_resp = j.get('response_en' if lang_key == 'en' else 'response_ja', '')
+                        st.write(j_resp)
+                        st.divider()
 
         else:
             if role == 'team':

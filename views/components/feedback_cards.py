@@ -7,8 +7,9 @@ from core.ui_utils import get_avatar_html
 def render_judge_feedback_tab(feedback_data: dict, avatar_map: dict, lang: str):
     """
     Renders judge feedback cards, scores breakdown for each judge, and detailed evaluations.
-    Supports bilingual English/Japanese rendering dynamically.
+    Supports dynamic multilingual rendering based on configured languages.
     """
+    from core.db import normalize_lang_to_key
     judges = feedback_data.get('judges_feedback', [])
     if not judges:
         st.write(t("No specific judges feedback provided.", "審査員からの詳細なフィードバックはありません。"))
@@ -20,8 +21,22 @@ def render_judge_feedback_tab(feedback_data: dict, avatar_map: dict, lang: str):
         j_role = j.get('judge_role', 'Expert Panelist')
         j_persona = j.get('judge_persona', '')
 
-        # Determine language-specific feedback
-        feedback_text = j.get('feedback_en', '') if lang == "English" else j.get('feedback_ja', '')
+        # Determine language-specific feedback key dynamically
+        lang_key = normalize_lang_to_key(lang)
+        feedback_text = j.get(f'feedback_{lang_key}')
+        if feedback_text is None:
+            fallback_keys = ['feedback_en', 'feedback_ja']
+            for fk in fallback_keys:
+                feedback_text = j.get(fk)
+                if feedback_text:
+                    break
+            if not feedback_text:
+                for k, v in j.items():
+                    if k.startswith("feedback_"):
+                        feedback_text = v
+                        break
+            if not feedback_text:
+                feedback_text = f"No detailed feedback available in {lang}."
 
         with st.expander(f"{j_name} - {j_role}", expanded=True):
             # Render avatar and persona summary
