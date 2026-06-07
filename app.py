@@ -26,6 +26,16 @@ with st.sidebar:
             from core.auth import logout
             logout()
 
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style='text-align: center; font-size: 0.85em; color: #888888; margin-top: 15px;'>
+            Built with ❤️ by <a href='https://pixapps.ai' target='_blank' style='color: #38bdf8; text-decoration: none; font-weight: bold;'>PixApps.ai</a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 # Define Pages
 login_page = st.Page("views/login.py", title="Login", icon="🔑")
 super_login_page = st.Page("views/super_login.py", title="Super Admin Login", icon="🌍")
