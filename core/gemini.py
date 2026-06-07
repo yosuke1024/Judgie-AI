@@ -30,7 +30,7 @@ def list_available_gemini_models(hackathon_id, api_key_override=None):
         models = client.models.list()
         gemini_models = []
         for m in models:
-            if m.supported_generation_methods and 'generateContent' in m.supported_generation_methods:
+            if m.supported_actions and 'generateContent' in m.supported_actions:
                 name = m.name.replace("models/", "")
                 if name.startswith("gemini-"):
                     gemini_models.append(name)
