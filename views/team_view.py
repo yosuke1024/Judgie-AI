@@ -67,7 +67,16 @@ with col1:
         
     # Team Profile Section
     profile = get_team_profile(current_h_id, view_team_id)
-    display_name = profile.get('product_name') or profile.get('team_name') or view_team_id
+    p_name = profile.get('product_name')
+    t_name = profile.get('team_name')
+    if t_name and p_name:
+        display_name = f"{t_name} / {p_name}"
+    elif t_name:
+        display_name = t_name
+    elif p_name:
+        display_name = p_name
+    else:
+        display_name = view_team_id
     
     st.markdown(f"**{t('Team / Product:', 'チーム / プロダクト:')}** `{display_name}`")
     if profile.get('one_liner'):
