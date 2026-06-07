@@ -32,3 +32,8 @@ personas/*.md
 # AI Agent / Local Configs
 .ai-conventions.md
 
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
