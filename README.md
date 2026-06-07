@@ -48,12 +48,10 @@
 └── requirements.txt      # Python dependencies
 ```
 
-## 🔐 Security Note for Production
+## 🔐 Security Note
 
-> **Warning**
-> This project was developed as a rapid prototype for a hackathon. In the current MVP version, **team passcodes and admin passcodes are stored in plaintext in the SQLite database** for simplicity. 
-> 
-> If you plan to use this in a production environment or over the public internet, it is strongly recommended to implement password hashing (e.g., using `bcrypt` or `argon2`) in `core/db.py` before deployment.
+> **Note**
+> Team passcodes and admin passcodes are safely hashed using `bcrypt` before being stored in the database. Plaintext passcodes are never saved in the database, protecting user credentials even in case of data exposure.
 
 ## 📦 Setup
 

@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, F
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy.exc import IntegrityError
 from config import DATABASE_URL, TEAM_COUNT_FOR_SEED
+from core.security import hash_passcode, verify_passcode
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -100,19 +101,19 @@ def init_db():
         # Seed SuperAdmin User
         superadmin = db.query(User).filter(User.role == 'superadmin').first()
         if not superadmin:
-            superadmin = User(team_id='superadmin', passcode='superadmin123', role='superadmin')
+            superadmin = User(team_id='superadmin', passcode=hash_passcode('superadmin123'), role='superadmin')
             db.add(superadmin)
 
 def verify_user(team_id: str, passcode: str, hackathon_id: int = None) -> dict:
     with db_session() as db:
-        query = db.query(User).filter(User.team_id == team_id, User.passcode == passcode)
+        query = db.query(User).filter(User.team_id == team_id)
         if team_id == 'superadmin':
             user = query.filter(User.role == 'superadmin').first()
         else:
             if not hackathon_id:
                 return None
             user = query.filter(User.hackathon_id == hackathon_id).first()
-        if user:
+        if user and verify_passcode(passcode, user.passcode):
             return {'role': user.role, 'hackathon_id': user.hackathon_id}
         return None
 
@@ -251,7 +252,7 @@ def create_hackathon(name: str, admin_id: str, admin_pass: str) -> int:
         admin_user = User(
             hackathon_id=hackathon.id,
             team_id=admin_id,
-            passcode=admin_pass,
+            passcode=hash_passcode(admin_pass),
             role='admin'
         )
         db.add(admin_user)
@@ -267,7 +268,7 @@ def update_admin_passcode(hackathon_id: int, new_passcode: str):
     with db_session() as db:
         admin_user = db.query(User).filter(User.hackathon_id == hackathon_id, User.role == 'admin').first()
         if admin_user:
-            admin_user.passcode = new_passcode
+            admin_user.passcode = hash_passcode(new_passcode)
 
 def change_my_passcode(hackathon_id: int = None, team_id: str = None, current_passcode: str = None, new_passcode: str = None) -> bool:
     # Robust fallback: If hackathon_id is a string, it means the older 3-argument signature 
@@ -283,8 +284,8 @@ def change_my_passcode(hackathon_id: int = None, team_id: str = None, current_pa
         if team_id != 'superadmin' and hackathon_id is not None:
             query = query.filter(User.hackathon_id == hackathon_id)
         user = query.first()
-        if user and user.passcode == current_passcode:
-            user.passcode = new_passcode
+        if user and verify_passcode(current_passcode, user.passcode):
+            user.passcode = hash_passcode(new_passcode)
             return True
         return False
 
