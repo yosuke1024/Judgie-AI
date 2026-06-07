@@ -36,7 +36,7 @@ try:
     else:
         users = db.query(User).filter(User.role == 'team').order_by(User.team_id).all()
         
-    all_teams = {u.team_id: {'team_id': u.team_id, 'product_name': u.product_name, 'one_liner': u.one_liner} for u in users}
+    all_teams = {u.team_id: {'team_id': u.team_id, 'product_name': u.product_name, 'team_name': u.team_name, 'one_liner': u.one_liner} for u in users}
     team_ids = list(all_teams.keys())
     
     evaluations = db.query(Evaluation).filter(Evaluation.team_id.in_(team_ids)).all() if team_ids else []
@@ -58,7 +58,16 @@ eval_dict = {r['team_id']: r for r in eval_rows}
 
 data = []
 for team_id, u_row in all_teams.items():
-    product_disp = u_row['product_name'] if u_row['product_name'] else team_id
+    p_name = u_row['product_name']
+    t_name = u_row['team_name']
+    if p_name and t_name:
+        product_disp = f"{p_name} / {t_name}"
+    elif p_name:
+        product_disp = p_name
+    elif t_name:
+        product_disp = t_name
+    else:
+        product_disp = team_id
     one_liner_disp = u_row['one_liner'] if u_row['one_liner'] else ""
     
     row_data = {
@@ -123,7 +132,16 @@ if data:
                         scores = json.loads(eval_dict[team_id]['scores_json'])
                         s = float(scores.get(c['name'], 0.0))
                     
-                    product_disp = u_row['product_name'] if u_row['product_name'] else team_id
+                    p_name = u_row['product_name']
+                    t_name = u_row['team_name']
+                    if p_name and t_name:
+                        product_disp = f"{p_name} / {t_name}"
+                    elif p_name:
+                        product_disp = p_name
+                    elif t_name:
+                        product_disp = t_name
+                    else:
+                        product_disp = team_id
                     cat_data.append({"Team": product_disp, "Score": s})
                 
                 df_cat = pd.DataFrame(cat_data).sort_values(by="Score", ascending=False).head(5)
