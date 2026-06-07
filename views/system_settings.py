@@ -15,6 +15,7 @@ tab1, tab2 = st.tabs([
 ])
 
 current_h_id = st.session_state.get('active_hackathon_id')
+is_demo = (current_h_id == 9999)
 if not current_h_id:
     st.error(t("No active hackathon selected.", "アクティブなハッカソンがありません。"))
     st.stop()
@@ -25,9 +26,9 @@ with tab1:
     current_key = get_setting(current_h_id, 'gemini_api_key')
 
     # Label is generic now since model can be changed
-    api_key_input = st.text_input(t("Tenant Gemini API Key", "テナント用 Gemini APIキー"), type="password", value=current_key if current_key else "")
+    api_key_input = st.text_input(t("Tenant Gemini API Key", "テナント用 Gemini APIキー"), type="password", value=current_key if current_key else "", disabled=is_demo)
 
-    if st.button(t("Save & Validate API Key", "APIキーを検証して保存"), type="primary", key="save_api"):
+    if st.button(t("Save & Validate API Key", "APIキーを検証して保存"), type="primary", key="save_api", disabled=is_demo):
         if api_key_input:
             with st.spinner(t("Validating key and fetching available models...", "キーの有効性を検証し、利用可能なモデルを取得中...")):
                 try:
@@ -59,7 +60,8 @@ with tab1:
             t("API Key Plan Type", "APIキーのプランタイプ"),
             options=["Free Tier", "Paid Tier / Pay-as-you-go"],
             index=0 if current_tier == "Free Tier" else 1,
-            horizontal=True
+            horizontal=True,
+            disabled=is_demo
         )
 
         if api_tier == "Free Tier":
@@ -95,10 +97,11 @@ with tab1:
         model_input = st.selectbox(
             t("Select Gemini Model", "Geminiモデルの選択"),
             options=available_models,
-            index=default_idx
+            index=default_idx,
+            disabled=is_demo
         )
 
-        if st.button(t("Save Model Settings", "モデル設定を保存"), type="primary", key="save_model_settings"):
+        if st.button(t("Save Model Settings", "モデル設定を保存"), type="primary", key="save_model_settings", disabled=is_demo):
             set_setting(current_h_id, 'gemini_model', model_input)
             set_setting(current_h_id, 'gemini_api_tier', api_tier)
             st.success(t("Model and plan settings updated!", "モデルおよびプラン設定が更新されました！"))
@@ -108,10 +111,12 @@ with tab1:
 with tab2:
     st.markdown(f"### {t('Change Password', 'パスワード変更')}")
     st.caption(t("Change your administrator password.", "管理者のパスワードを変更します。"))
+    if is_demo:
+        st.caption(t("💡 Password change is disabled in Demo Mode.", "💡 デモモードではパスワード変更は無効化されています。"))
     with st.form("change_admin_pass_form"):
-        curr_pass = st.text_input(t("Current Password", "現在のパスワード"), type="password")
-        new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
-        if st.form_submit_button(t("Update Password", "パスワードを更新"), type="primary"):
+        curr_pass = st.text_input(t("Current Password", "現在のパスワード"), type="password", disabled=is_demo)
+        new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password", disabled=is_demo)
+        if st.form_submit_button(t("Update Password", "パスワードを更新"), type="primary", disabled=is_demo):
             if not curr_pass or not new_pass:
                 st.error(t("All fields required.", "すべて入力してください。"))
             else:

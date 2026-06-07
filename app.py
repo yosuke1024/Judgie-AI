@@ -1,7 +1,7 @@
 import streamlit as st
 
 from core.auth import init_session, verify_ip_address
-from core.db import init_db
+from core.db import init_db, seed_demo_data
 from core.i18n import t
 
 # Enforce IP address firewall if ALLOWED_IPS is set in environment/secrets
@@ -11,6 +11,7 @@ st.set_page_config(page_title="Judgie-AI | Hackathon Platform", page_icon="âš–ï¸
 
 # Initialize DB and Session
 init_db()
+seed_demo_data()
 init_session()
 
 # Global Language Setting
