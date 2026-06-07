@@ -62,7 +62,7 @@ with st.container():
     st.markdown("---")
     st.subheader(t("✨ Demo Experience / デモ体験", "✨ Demo Experience / デモ体験"))
     st.markdown(t("Try Judgie-AI immediately without credentials or Gemini API keys. Safe read-only mode.", "ログイン情報やAPIキーの設定不要で、すぐにデモ画面を体験できます（安全な閲覧専用モード）。"))
-    
+
     col_demo1, col_demo2 = st.columns(2)
     with col_demo1:
         if st.button(t("Try as Team (Participant)", "一般参加者として体験"), use_container_width=True):
