@@ -246,7 +246,7 @@ with col2:
         
         from core.db import get_personas
         personas = get_personas(current_h_id)
-        avatar_map = {p['name']: p.get('avatar', '🧑‍⚖️') for p in personas}
+        avatar_map = {p['name']: p.get('avatar_image') or p.get('avatar', '🧑‍⚖️') for p in personas}
         
         with tab_en:
             st.markdown("#### 🔥 Top Priorities (Next Steps)")
