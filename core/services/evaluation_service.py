@@ -1,6 +1,6 @@
-import json
-from core.db import db_session, Evaluation, save_objection_qa
+from core.db import Evaluation, db_session, save_objection_qa
 from core.gemini import object_to_judges
+
 
 def get_team_evaluations(team_id: str) -> list[dict]:
     """
@@ -30,13 +30,13 @@ def submit_team_objection(hackathon_id: int, eval_id: int, prev_eval_json: str, 
     Includes robust schema verification for LLM responses.
     """
     qa_result = object_to_judges(hackathon_id, "", None, prev_eval_json, objection_text)
-    
+
     # Defensive programming: sanitize Gemini responses
     qa_result = sanitize_objection_response(qa_result)
-    
+
     # Cache user objection text in the database object
     qa_result['user_objection'] = objection_text
-    
+
     save_objection_qa(eval_id, qa_result)
     return qa_result
 
@@ -46,16 +46,16 @@ def sanitize_objection_response(data: dict) -> dict:
     """
     if not isinstance(data, dict):
         data = {}
-        
+
     sanitized = {
         "qa_summary_en": data.get("qa_summary_en", "Objection evaluated by the expert panel."),
         "qa_summary_ja": data.get("qa_summary_ja", "審査員パネルによって異議が精査されました。"),
         "judges_responses": data.get("judges_responses", [])
     }
-    
+
     if not isinstance(sanitized["judges_responses"], list):
         sanitized["judges_responses"] = []
-        
+
     normalized_responses = []
     for r in sanitized["judges_responses"]:
         if not isinstance(r, dict):
@@ -66,6 +66,6 @@ def sanitize_objection_response(data: dict) -> dict:
             "response_ja": r.get("response_ja", "日本語の回答がありません。")
         }
         normalized_responses.append(normalized_r)
-        
+
     sanitized["judges_responses"] = normalized_responses
     return sanitized

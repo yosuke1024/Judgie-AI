@@ -1,4 +1,5 @@
 import streamlit as st
+
 from core.auth import login
 from core.i18n import t
 
@@ -9,7 +10,7 @@ with st.container(border=True):
     st.subheader("Super Admin Authentication")
     team_id = "superadmin"
     passcode = st.text_input(t("Passcode", "パスコード"), type="password")
-    
+
     if st.button(t("Log In", "ログイン"), type="primary", use_container_width=True):
         if not passcode:
             st.warning(t("Please enter the passcode.", "パスコードを入力してください。"))
@@ -19,7 +20,7 @@ with st.container(border=True):
             st.rerun()
         else:
             st.error(t("Invalid Passcode.", "パスコードが間違っています。"))
-            
+
 st.markdown("---")
 if st.button(t("← Back to Normal Login", "← 通常のログイン画面に戻る")):
     st.query_params.clear()

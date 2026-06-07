@@ -1,5 +1,6 @@
 import streamlit as st
 
+
 def t(en: str, ja: str) -> str:
     """
     Central translation helper for billingual English/Japanese UI elements.

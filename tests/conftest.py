@@ -1,6 +1,6 @@
 import os
 import sys
-from unittest.mock import MagicMock
+
 import pytest
 
 # Add the project root directory to sys.path so the 'core' module can be imported
@@ -13,10 +13,10 @@ class MockSessionState(dict):
             return self[name]
         except KeyError as e:
             raise AttributeError(name) from e
-            
+
     def __setattr__(self, name, value):
         self[name] = value
-        
+
     def __delattr__(self, name):
         try:
             del self[name]
@@ -33,22 +33,22 @@ class MockStreamlit:
         self.query_params = {}
         self.secrets = {}
         self.context = MockContext()
-        
+
     def error(self, msg):
         pass
-        
+
     def success(self, msg):
         pass
-        
+
     def warning(self, msg):
         pass
-        
+
     def info(self, msg):
         pass
-        
+
     def stop(self):
         raise SystemExit("Streamlit Stop")
-        
+
     def rerun(self):
         raise SystemExit("Streamlit Rerun")
 
@@ -57,9 +57,10 @@ mock_st = MockStreamlit()
 sys.modules['streamlit'] = mock_st
 
 # Import core.db and mock the database engine
-import core.db
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
+
+import core.db  # noqa: E402
 
 # Setup test-specific in-memory SQLite database
 test_engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})

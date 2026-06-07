@@ -1,22 +1,22 @@
-import streamlit as st
-import os
 import json
+
+import streamlit as st
+
 from config import MAX_CONSULTATIONS
-from core.i18n import t
 from core.db import (
-    db_session, 
-    get_consultation_count, 
-    get_criteria, 
-    get_team_profile, 
-    update_team_profile, 
+    Hackathon,
+    User,
     change_my_passcode,
-    User, 
-    Hackathon
+    db_session,
+    get_criteria,
+    get_team_profile,
+    update_team_profile,
 )
-from core.services.submission_service import process_submission
+from core.i18n import t
 from core.services.evaluation_service import get_team_evaluations, submit_team_objection
+from core.services.submission_service import process_submission
 from core.ui_utils import get_avatar_html
-from views.components.charts import render_score_history_chart, render_criteria_radar_chart
+from views.components.charts import render_criteria_radar_chart, render_score_history_chart
 from views.components.feedback_cards import render_judge_feedback_tab
 
 lang = st.session_state.get('language', 'English')
@@ -34,7 +34,7 @@ if role == 'admin':
         else:
             users = db.query(User.team_id).filter(User.role == 'team').order_by(User.team_id).all()
         all_teams = [u.team_id for u in users]
-    
+
     st.info(t("Admin Mode: Read-Only View", "管理者モード: 閲覧専用"))
     view_team_id = st.selectbox(t("Select Team to View", "閲覧するチームを選択"), all_teams) if all_teams else None
 else:
@@ -56,15 +56,15 @@ col1, col2 = st.columns([1, 1.5])
 # --- LEFT COLUMN: UPLOAD ---
 with col1:
     st.title(t("📤 Submission", "📤 成果物の提出"))
-    
+
     # Show Hackathon Name
     with db_session() as db:
         result = db.query(Hackathon.name).join(User, User.hackathon_id == Hackathon.id).filter(User.team_id == view_team_id).first()
         h_row = {'name': result.name} if result else None
-        
+
     if h_row:
         st.caption(f"🏆 {h_row['name']}")
-        
+
     # Team Profile Section
     profile = get_team_profile(current_h_id, view_team_id)
     p_name = profile.get('product_name')
@@ -77,11 +77,11 @@ with col1:
         display_name = p_name
     else:
         display_name = view_team_id
-    
+
     st.markdown(f"**{t('Team / Product:', 'チーム / プロダクト:')}** `{display_name}`")
     if profile.get('one_liner'):
         st.caption(f"✨ {profile['one_liner']}")
-        
+
     if role == 'team':
         p_col1, p_col2 = st.columns(2)
         with p_col1:
@@ -94,7 +94,7 @@ with col1:
                         update_team_profile(current_h_id, view_team_id, p_name, t_name, o_liner)
                         st.success(t("Profile updated!", "プロフィールを更新しました！"))
                         st.rerun()
-                        
+
         with p_col2:
             with st.popover(t("🔐 Change Password", "🔐 パスワード変更")):
                 with st.form("change_team_pass_form"):
@@ -110,9 +110,9 @@ with col1:
                                 st.success(t("Password updated!", "パスワードを更新しました！"))
                             else:
                                 st.error(t("Incorrect current password.", "現在のパスワードが間違っています。"))
-                    
+
     st.divider()
-    
+
     if role == 'admin':
         st.warning(t("Uploads are disabled in Admin Mode.", "管理者モードではアップロードは無効化されています。"))
     elif is_final_submitted:
@@ -125,40 +125,41 @@ with col1:
             ))
 
         uploaded_files = st.file_uploader(
-            t("Artifacts (ZIP, MP4, MOV, PDF)", "成果物ファイル (ZIP, MP4, MOV, PDF)"), 
-            type=["zip", "mp4", "mov", "pdf"], 
+            t("Artifacts (ZIP, MP4, MOV, PDF)", "成果物ファイル (ZIP, MP4, MOV, PDF)"),
+            type=["zip", "mp4", "mov", "pdf"],
             accept_multiple_files=True,
             help=t("Max total size: 200MB.", "合計最大サイズは200MBです。")
         )
-        
+
         can_consult = consultations_left > 0
-        
+
         sub_c1, sub_c2 = st.columns(2)
         with sub_c1:
             st.metric(t("Consultations Left", "残り相談回数"), f"{consultations_left} / {MAX_CONSULTATIONS}")
             if st.button(t("Get AI Coaching", "AIコーチングを受ける"), type="secondary", disabled=not can_consult or not uploaded_files):
                 submit_type = "consultation"
-            else: submit_type = None
-                
+            else:
+                submit_type = None
+
         with sub_c2:
             st.metric(t("Final Submission", "最終提出"), t("Available", "未提出"))
             if st.button(t("Submit Final Pitch", "最終成果物として提出"), type="primary", disabled=not uploaded_files):
                 submit_type = "final"
-                
+
         if submit_type:
             is_final_flag = (submit_type == "final")
-            
+
             # Prepare previous feedback as context
             prev_json_str = None
             if eval_rows:
                 last_fb = json.loads(eval_rows[-1]['strengths_risks_json'])
                 prev_json_str = json.dumps(last_fb.get('judges_feedback', []))
-            
+
             with st.status(t("🤖 AI Expert Panel is reviewing...", "🤖 AI専門家パネルが審査中..."), expanded=True) as status:
                 try:
                     # Execute evaluation flow via service layer
                     st.write(t("📦 Processing files and running AI panel...", "📦 ファイルを処理し、AIパネルを実行中..."))
-                    
+
                     process_submission(
                         hackathon_id=current_h_id,
                         team_id=view_team_id,
@@ -166,7 +167,7 @@ with col1:
                         prev_evaluations_json=prev_json_str,
                         is_final=is_final_flag
                     )
-                    
+
                     status.update(label=t("✅ Analysis complete!", "✅ 解析完了！"), state="complete", expanded=False)
                     st.rerun()
                 except Exception as e:
@@ -176,7 +177,7 @@ with col1:
 # --- RIGHT COLUMN: FEEDBACK & SCORES ---
 with col2:
     st.title(t("💬 AI Feedback Dashboard", "💬 AIフィードバック・ダッシュボード"))
-    
+
     if not eval_rows:
         st.info(t("No feedback history yet.", "まだフィードバック履歴がありません。"))
     else:
@@ -188,34 +189,34 @@ with col2:
                 history_options.append((r['id'], f"⭐ {t('Final Submission', '最終提出')}"))
             else:
                 history_options.append((r['id'], f"🔄 {t('Consultation', '相談')} {i+1}"))
-                
+
         # Reverse to show latest first
         history_options.reverse()
-        
+
         selected_eval_id = st.selectbox(
-            t("Select Evaluation History", "過去の評価履歴を選択"), 
-            [opt[0] for opt in history_options], 
+            t("Select Evaluation History", "過去の評価履歴を選択"),
+            [opt[0] for opt in history_options],
             format_func=lambda x: next(opt[1] for opt in history_options if opt[0] == x),
             key="team_view_history_select"
         )
-        
+
         selected_eval = eval_dict_map[selected_eval_id]
         fb = json.loads(selected_eval['strengths_risks_json'])
         scores = json.loads(selected_eval['scores_json'])
-        
+
         # Identify previous evaluation for delta calculation
         current_idx = next((i for i, r in enumerate(eval_rows) if r['id'] == selected_eval['id']), 0)
         prev_scores = None
         if current_idx > 0:
             prev_scores = json.loads(eval_rows[current_idx - 1]['scores_json'])
-            
+
         # Top: Score Breakdown
         criteria = get_criteria(current_h_id)
         total_weight = sum(c['weight'] for c in criteria) if criteria else 1
-        
+
         # Calculate 100-point scaled total score
         total_score = sum(scores.get(crit['name'], 0) * 20.0 * (crit['weight'] / total_weight) for crit in criteria)
-        
+
         # Display prominent Total Score Card
         st.markdown(
             f"""
@@ -241,19 +242,19 @@ with col2:
             """,
             unsafe_allow_html=True
         )
-        
+
         st.markdown(f"#### 📊 {t('Score Breakdown & Contributions', 'スコア内訳（貢献スコア）')}")
         score_cols = st.columns(3)
-        
+
         chart_data = []
-        
+
         for i, crit in enumerate(criteria):
             col = score_cols[i % 3]
             s = scores.get(crit['name'], 0)
             weight_pct = crit['weight']
             contribution = s * 20.0 * (weight_pct / total_weight)
             max_contrib = 100.0 * (weight_pct / total_weight)
-            
+
             delta_str = None
             if prev_scores is not None:
                 prev_s = prev_scores.get(crit['name'], 0)
@@ -262,33 +263,33 @@ with col2:
                     delta_str = f"{diff:+.1f} pts"
                 else:
                     delta_str = "±0"
-            
+
             with col:
                 st.metric(crit['name'], f"{s} / 5.0", delta_str, delta_color="normal")
                 st.caption(t(f"Contribution: {contribution:.1f} / {max_contrib:.1f} pts", f"貢献スコア: {contribution:.1f} / {max_contrib:.1f}点"))
-            
+
             chart_data.append({
                 "Criteria": crit['name'],
                 "Score": s
             })
-            
+
         st.markdown("---")
-        
+
         # Render score history line chart (Altair Component)
         render_score_history_chart(eval_rows, criteria, total_weight)
-        
+
         # Render current metrics horizontal bar chart (Altair Component)
         render_criteria_radar_chart(chart_data)
-        
+
         st.markdown("---")
-            
+
         # Tabs for Bilingual
         tab_en, tab_ja = st.tabs(["🇺🇸 English", "🇯🇵 日本語"])
-        
+
         from core.db import get_personas
         personas = get_personas(current_h_id)
         avatar_map = {p['name']: p.get('avatar_image') or p.get('avatar', '🧑‍⚖️') for p in personas}
-        
+
         with tab_en:
             st.markdown("#### 🔥 Top Priorities (Next Steps)")
             action_items_en = fb.get('action_items_en', [])
@@ -297,12 +298,12 @@ with col2:
                     st.info(f"👉 {item}")
             else:
                 st.write("No specific action items provided.")
-                
+
             st.markdown("#### 🧠 AI Product Understanding")
             st.write(fb.get('product_understanding_en', fb.get('summary_en', '')))
             st.markdown("#### 🧑‍⚖️ Judges Feedback")
             render_judge_feedback_tab(fb, avatar_map, lang="English")
-            
+
         with tab_ja:
             st.markdown("#### 🔥 最優先アクション (Next Steps)")
             action_items_ja = fb.get('action_items_ja', [])
@@ -311,7 +312,7 @@ with col2:
                     st.info(f"👉 {item}")
             else:
                 st.write("具体的なアクションアイテムは提供されていません。")
-                
+
             st.markdown("#### 🧠 プロダクト理解")
             st.write(fb.get('product_understanding_ja', fb.get('summary_ja', '')))
             st.markdown("#### 🧑‍⚖️ 審査員フィードバック")
@@ -319,20 +320,20 @@ with col2:
 
         st.markdown("---")
         st.subheader(t("🙋 Objection! / Q&A", "🙋 異議あり！ / 審査員への質問"))
-        
+
         qa_data_str = selected_eval.get('qa_json')
-        
+
         if qa_data_str:
             qa_data = json.loads(qa_data_str)
             st.info(t("You have already used your one-time objection for this evaluation.", "この評価に対する1回限りの「反論・質問」権は使用済みです。"))
-            
+
             with st.container(border=True):
                 st.markdown(t("**Your Question / Objection:**", "**あなたからの質問・反論:**"))
                 st.write(qa_data.get('user_objection', ''))
-                
+
             st.markdown("#### ⚖️ Panel Response")
             tab_qa_en, tab_qa_ja = st.tabs(["🇺🇸 English", "🇯🇵 日本語"])
-            
+
             with tab_qa_en:
                 st.info(qa_data.get('qa_summary_en', ''))
                 for j in qa_data.get('judges_responses', []):
@@ -341,7 +342,7 @@ with col2:
                     st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{get_avatar_html(j_name, j_icon, size=30)}<strong style="font-size: 1.1em;">{j_name}</strong></div>', unsafe_allow_html=True)
                     st.write(j.get('response_en', ''))
                     st.divider()
-                    
+
             with tab_qa_ja:
                 st.info(qa_data.get('qa_summary_ja', ''))
                 for j in qa_data.get('judges_responses', []):
@@ -350,17 +351,17 @@ with col2:
                     st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{get_avatar_html(j_name, j_icon, size=30)}<strong style="font-size: 1.1em;">{j_name}</strong></div>', unsafe_allow_html=True)
                     st.write(j.get('response_ja', ''))
                     st.divider()
-                    
+
         else:
             if role == 'team':
                 st.markdown(t(
-                    "You can ask ONE question or make ONE objection per evaluation. The AI Panel will read your comment alongside their previous feedback and respond.", 
+                    "You can ask ONE question or make ONE objection per evaluation. The AI Panel will read your comment alongside their previous feedback and respond.",
                     "1回の評価につき、1回だけ審査員パネルに対して質問や反論を投げることができます。"
                 ))
                 with st.form("objection_form"):
                     obj_text = st.text_area(t("Your message to the judges:", "審査員へのメッセージ:"), height=150)
                     submit_obj = st.form_submit_button(t("Objection! ✊", "異議あり！ ✊"), type="primary")
-                    
+
                     if submit_obj:
                         if not obj_text.strip():
                             st.warning(t("Please enter your message.", "メッセージを入力してください。"))
@@ -368,7 +369,7 @@ with col2:
                             with st.status(t("⚖️ Judges are discussing your point...", "⚖️ 審査員があなたの意見を議論中..."), expanded=True) as status:
                                 try:
                                     prev_eval_json_str = selected_eval['strengths_risks_json']
-                                    
+
                                     # Execute objection flow via service layer
                                     submit_team_objection(
                                         hackathon_id=current_h_id,
@@ -376,7 +377,7 @@ with col2:
                                         prev_eval_json=prev_eval_json_str,
                                         objection_text=obj_text
                                     )
-                                    
+
                                     status.update(label=t("✅ Judges have reached a conclusion!", "✅ 審査員からの回答が届きました！"), state="complete", expanded=False)
                                     st.rerun()
                                 except Exception as e:

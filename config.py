@@ -13,9 +13,16 @@ if APP_ENV == "production":
     if not DATABASE_URL:
         raise ValueError("DATABASE_URL environment variable must be set in production")
 else:
-    # Ensure data directory exists
-    os.makedirs(DATA_DIR, exist_ok=True)
-    DB_PATH = os.path.join(DATA_DIR, "judgie.db")
+    # Ensure data directory exists and is writable (fall back to /tmp on read-only filesystems like Streamlit Cloud)
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        test_file = os.path.join(DATA_DIR, ".write_test")
+        with open(test_file, "w") as f:
+            f.write("test")
+        os.remove(test_file)
+        DB_PATH = os.path.join(DATA_DIR, "judgie.db")
+    except (IOError, OSError):
+        DB_PATH = "/tmp/judgie.db"
     DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 # App Settings

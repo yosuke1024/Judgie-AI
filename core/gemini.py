@@ -1,9 +1,11 @@
-from google import genai
-from google.genai import types
-import streamlit as st
 import json
 import time
-from core.db import get_setting, get_criteria, get_personas
+
+from google import genai
+from google.genai import types
+
+from core.db import get_criteria, get_personas, get_setting
+
 
 def get_gemini_client(hackathon_id, api_key_override=None):
     """Returns an initialized Gemini client using the database or key override."""
@@ -63,15 +65,15 @@ def analyze_submission(hackathon_id, text_content, gemini_media_files=None, prev
     Uses 'gemini-3.1-pro' to handle large contexts (code + video).
     """
     client = get_gemini_client(hackathon_id)
-    
+
     model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
-    
+
     criteria = get_criteria(hackathon_id)
     active_personas = [p for p in get_personas(hackathon_id) if p.get('active', False)]
-    
+
     criteria_str = "\n".join([f"- {c['name']} (Weight: {c['weight']}%): {c.get('description', '')}" for c in criteria])
     personas_str = "\n".join([f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n" for p in active_personas])
-    
+
     context_str = ""
     if previous_evaluations_json:
         context_str = f"""
@@ -87,13 +89,13 @@ This team is submitting a revised version. You MUST carefully review the action 
 4. In your feedback, clearly state which previous advice items were addressed and which were not.
 </critical_instructions>
 """
-        
+
     final_str = ""
     if is_final:
         final_str = "<submission_type>This is their FINAL SUBMISSION for the hackathon. Provide a definitive, conclusive evaluation and scoring.</submission_type>"
     else:
         final_str = "<submission_type>This is a CONSULTATION (work in progress). Provide constructive, coaching-focused feedback to help them improve before the final deadline.</submission_type>"
-    
+
     prompt = f"""You are orchestrating an AI Expert Panel for a Hackathon.
 Analyze the provided source code, pitch materials, and demo video.
 
@@ -147,13 +149,13 @@ Output a strictly valid JSON object with the following structure:
 }}
 </output_instructions>
 """
-    
+
     contents = [prompt]
     if gemini_media_files:
         contents.extend(gemini_media_files)
     if text_content:
         contents.append(f"<source_code_and_documents>\n{text_content}\n</source_code_and_documents>")
-        
+
     response = client.models.generate_content(
         model=model_name,
         contents=contents,
@@ -169,12 +171,12 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
     Handles a one-shot QA/Objection from the team based on the previous evaluation.
     """
     client = get_gemini_client(hackathon_id)
-    
+
     model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
-    
+
     active_personas = [p for p in get_personas(hackathon_id) if p.get('active', False)]
     personas_str = "\n".join([f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n" for p in active_personas])
-    
+
     prompt = f"""You are orchestrating an AI Expert Panel for a Hackathon.
 The team has submitted a question or an objection regarding your PREVIOUS evaluation.
 
@@ -212,13 +214,13 @@ Output a strictly valid JSON object with the following structure:
 }}
 </output_instructions>
 """
-    
+
     contents = [prompt]
     if gemini_media_files:
         contents.extend(gemini_media_files)
     if text_content:
         contents.append(f"<source_code_and_documents>\n{text_content}\n</source_code_and_documents>")
-        
+
     response = client.models.generate_content(
         model=model_name,
         contents=contents,
@@ -235,9 +237,9 @@ def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json,
     using the originally uploaded source code and media files as context.
     """
     client = get_gemini_client(hackathon_id)
-    
+
     model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
-    
+
     # Reconstruct Gemini File objects
     gemini_media_files = []
     if gemini_file_ids_json:
@@ -251,7 +253,7 @@ def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json,
                     print(f"Warning: Could not retrieve Gemini file {name}: {e}")
         except Exception:
             pass
-            
+
     prompt = f"""You are an AI Expert Panelist assisting a Hackathon Administrator.
 The Admin has a specific question regarding a team's submission.
 
@@ -285,13 +287,13 @@ Output a strictly valid JSON object with the following structure:
 }}
 </output_instructions>
 """
-    
+
     contents = [prompt]
     if gemini_media_files:
         contents.extend(gemini_media_files)
     if source_text:
         contents.append(f"<source_code_and_documents>\n{source_text}\n</source_code_and_documents>")
-        
+
     response = client.models.generate_content(
         model=model_name,
         contents=contents,

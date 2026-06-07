@@ -1,15 +1,25 @@
-import streamlit as st
-import pandas as pd
 import json
 import uuid
+
+import pandas as pd
+import streamlit as st
+
 from core.db import (
-    get_criteria, set_criteria, SessionLocal, User, Hackathon, Evaluation,
-    get_setting, set_setting, get_personas, set_personas,
-    save_admin_chat, get_admin_chats, update_team_passcode
+    Evaluation,
+    Hackathon,
+    SessionLocal,
+    User,
+    get_admin_chats,
+    get_criteria,
+    get_personas,
+    save_admin_chat,
+    set_criteria,
+    set_personas,
+    update_team_passcode,
 )
+from core.i18n import t
 from core.security import hash_passcode
 from core.ui_utils import encode_image_to_base64
-from core.i18n import t
 
 st.title(t("👑 Admin Command Center", "👑 管理者コマンドセンター"))
 
@@ -20,9 +30,9 @@ if not current_h_id:
     st.stop()
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    t("📊 Live Scoreboard", "📊 スコアボード"), 
+    t("📊 Live Scoreboard", "📊 スコアボード"),
     t("🏢 Team Management", "🏢 チーム管理"),
-    t("⚖️ Evaluation Criteria", "⚖️ 評価軸"), 
+    t("⚖️ Evaluation Criteria", "⚖️ 評価軸"),
     t("🧑‍🏫 Judges (Personas)", "🧑‍🏫 審査員ペルソナ"),
     t("💬 Submissions & AI Chat", "💬 提出物とAIチャット")
 ])
@@ -30,18 +40,18 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # --- TAB 1: Live Scoreboard ---
 with tab1:
     st.markdown(f"### 📊 {t('Live Scoreboard', 'リアルタイムスコアボード')}")
-    
+
     db = SessionLocal()
     try:
         hackathon = db.query(Hackathon).filter(Hackathon.id == current_h_id).first()
         h_name = hackathon.name if hackathon else "Unknown"
         st.info(f"**{t('Viewing Hackathon:', '表示中のハッカソン:')}** {h_name}")
-        
+
         users = db.query(User).filter(User.hackathon_id == current_h_id, User.role == 'team').all()
         team_ids = [u.team_id for u in users]
-        
+
         evaluations = db.query(Evaluation).filter(Evaluation.team_id.in_(team_ids)).all() if team_ids else []
-        
+
         rows = []
         for tid in team_ids:
             team_evals = [e for e in evaluations if e.team_id == tid]
@@ -66,11 +76,11 @@ with tab1:
         for r in rows:
             team_id = r['team_id']
             scores = json.loads(r['scores_json'])
-            
+
             total_score = sum(
                 scores.get(crit["name"], 0) * 20.0 * (crit["weight"] / total_weight) for crit in criteria
             )
-            
+
             data.append({
                 t("Team", "チーム"): team_id,
                 t("Total Score", "総合スコア"): round(total_score, 1),
@@ -79,7 +89,7 @@ with tab1:
             })
 
         df = pd.DataFrame(data).sort_values(
-            by=[t("Total Score", "総合スコア"), t("Impact (Tie-breaker)", "インパクト (Tie-breaker)")], 
+            by=[t("Total Score", "総合スコア"), t("Impact (Tie-breaker)", "インパクト (Tie-breaker)")],
             ascending=[False, False]
         )
         st.dataframe(df, use_container_width=True, hide_index=True)
@@ -94,11 +104,11 @@ with tab2:
         db.close()
 
     col_csv, col_manual = st.columns(2)
-    
+
     with col_csv:
         st.markdown(f"### {t('Import Teams (CSV)', 'チーム一括登録 (CSV)')}")
         st.caption(t("CSV Format: team_id, passcode", "CSV形式: 1列目にteam_id、2列目にpasscode"))
-        
+
         uploaded_csv = st.file_uploader(t("Upload CSV", "CSVをアップロード"), type=['csv'])
         if uploaded_csv is not None:
             if st.button(t("Import Teams", "チームをインポート")):
@@ -129,7 +139,7 @@ with tab2:
     with col_manual:
         st.markdown(f"### {t('Add Single Team', 'チームの個別追加')}")
         st.caption(t("Manually register a team.", "1チームずつ手動で登録します。"))
-        
+
         with st.form("manual_add_team_form"):
             new_tid = st.text_input(t("Team ID", "チームID"))
             new_pwd = st.text_input(t("Passcode", "パスコード"))
@@ -145,7 +155,7 @@ with tab2:
                             db.commit()
                             st.success(f"Team '{new_tid}' added successfully!")
                             st.rerun()
-                    except Exception as e:
+                    except Exception:
                         db.rollback()
                         st.error(t("Failed to add team.", "追加に失敗しました。"))
                     finally:
@@ -156,16 +166,16 @@ with tab2:
         st.markdown("---")
         st.markdown(f"### {t('Change Team Passcode', 'チームのパスコード変更')}")
         st.caption(t("Update the passcode for an existing team.", "登録済みのチームのパスコードを変更します。"))
-        
+
         with st.form("change_team_passcode_form"):
             team_options = [t_row['team_id'] for t_row in teams]
             if team_options:
                 target_tid = st.selectbox(t("Select Team ID", "変更対象のチームID"), team_options)
             else:
                 target_tid = st.text_input(t("Team ID", "変更対象のチームID"), disabled=True, placeholder=t("No teams registered", "登録済みのチームがありません"))
-            
+
             change_pwd = st.text_input(t("New Passcode", "新しいパスコード"), type="password")
-            
+
             if st.form_submit_button(t("Update Passcode", "パスコードを変更"), type="primary"):
                 if not team_options:
                     st.warning(t("No teams registered to change passcode.", "変更対象のチームが登録されていません。"))
@@ -180,7 +190,7 @@ with tab2:
 
     st.divider()
     st.markdown(f"### {t('Registered Teams', '登録済みチーム一覧')}")
-    
+
     if not teams:
         st.info(t("No teams registered yet.", "まだチームは登録されていません。"))
     else:
@@ -197,18 +207,18 @@ with tab2:
 with tab3:
     st.markdown(f"### {t('Evaluation Criteria', '評価軸の設定')}")
     st.info(t("Select a criteria from the list to edit its details, or add a new one.", "リストから評価軸を選択して詳細を編集するか、新しく追加してください。"))
-    
+
     criteria = get_criteria(current_h_id)
-    
+
     col1, col2 = st.columns([1, 2])
     with col1:
         st.write("**Current Criteria**")
         for i, c in enumerate(criteria):
             st.write(f"- {c['name']} ({c['weight']}%)")
-        
+
         st.markdown("---")
         action_c = st.radio("Action", ["Edit Existing", "Add New"], horizontal=True, label_visibility="collapsed", key="admin_criteria_action")
-        
+
         if action_c == "Edit Existing" and criteria:
             crit_names = [c['name'] for c in criteria]
             selected_c_name = st.selectbox("Select Criteria to Edit", crit_names, key="admin_criteria_select")
@@ -217,13 +227,13 @@ with tab3:
         else:
             selected_c = {"name": "", "weight": 10, "description": ""}
             idx = -1
-    
+
     with col2:
         with st.form("criteria_form"):
             c_name = st.text_input("Criteria Name", value=selected_c['name'])
             c_weight = st.number_input("Weight (%)", min_value=1, max_value=100, value=selected_c.get('weight', 10))
             c_desc = st.text_area("Detailed Description (Prompt for AI)", value=selected_c.get('description', ''), height=200, help="Write multiple lines here to deeply define how AI should score this.")
-            
+
             submitted_c = st.form_submit_button(t("Save Criteria", "この評価軸を保存"), type="primary")
             if submitted_c:
                 if c_name:
@@ -247,11 +257,11 @@ with tab3:
 with tab4:
     st.markdown(f"### {t('Judges (Personas)', '審査員ペルソナの設定')}")
     st.info(t("Define rich personas for the AI judges.", "AI審査員の詳細なペルソナ定義を入力します。"))
-    
+
     personas = get_personas(current_h_id)
     active_count = sum(1 for p in personas if p.get('active', False))
     st.write(f"**Active Judges:** {active_count} / 5")
-    
+
     col1, col2 = st.columns([1, 2])
     with col1:
         st.write("**Current Personas**")
@@ -259,7 +269,7 @@ with tab4:
             role_str = f"({p.get('role', '')})" if p.get('role') else ""
             label = f"{p['name']} {role_str}"
             is_active = st.checkbox(label, value=p.get('active', False), key=f"admin_persona_active_toggle_{i}")
-            
+
             if is_active != p.get('active', False):
                 if is_active and sum(1 for cp in personas if cp.get('active', False)) >= 5:
                     st.error(t("Cannot exceed 5 active judges.", "アクティブな審査員は5名までです。"))
@@ -267,10 +277,10 @@ with tab4:
                     personas[i]['active'] = is_active
                     set_personas(current_h_id, personas)
                     st.rerun()
-            
+
         st.markdown("---")
         action_p = st.radio("Persona Action", ["Edit Existing", "Add New"], horizontal=True, label_visibility="collapsed", key="admin_action_p")
-        
+
         if action_p == "Edit Existing" and personas:
             per_names = [p['name'] for p in personas]
             selected_p_name = st.selectbox("Select Persona to Edit", per_names, key="admin_persona_select")
@@ -279,13 +289,13 @@ with tab4:
         else:
             selected_p = {"name": "", "role": "", "avatar": "🧑‍⚖️", "prompt": "", "active": False}
             idx_p = -1
-            
+
     with col2:
         with st.form("persona_form"):
             p_name = st.text_input("Judge Name (e.g. Yoh)", value=selected_p['name'])
             p_role = st.text_input("Judge Role/Title (e.g. Chief Architect)", value=selected_p.get('role', ''))
             p_avatar = st.text_input("Avatar (Emoji)", value=selected_p.get('avatar', '🧑‍⚖️'))
-            
+
             # Custom avatar image preview and uploader
             avatar_image_val = selected_p.get('avatar_image')
             remove_avatar = False
@@ -293,15 +303,15 @@ with tab4:
                 st.markdown(t("Current Custom Avatar:", "現在のカスタムアバター:"))
                 st.markdown(f'<img src="{avatar_image_val}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-bottom: 10px;">', unsafe_allow_html=True)
                 remove_avatar = st.checkbox(t("Remove custom avatar image (fallback to emoji)", "カスタムアバター画像を削除する (絵文字表示に戻す)"))
-            
+
             uploaded_avatar_file = st.file_uploader(
-                t("Upload New Avatar Image (PNG/JPG, Max 500KB)", "新しいアバター画像をアップロード (PNG/JPG, 最大500KB)"), 
+                t("Upload New Avatar Image (PNG/JPG, Max 500KB)", "新しいアバター画像をアップロード (PNG/JPG, 最大500KB)"),
                 type=["png", "jpg", "jpeg"]
             )
-            
+
             p_active = st.checkbox("Active (Participates in evaluation)", value=selected_p.get('active', False))
             p_prompt = st.text_area("Detailed Persona Prompt", value=selected_p.get('prompt', ''), height=300, help="Write dozens of lines detailing their background, tone of voice, and what they care about.")
-            
+
             submitted_p = st.form_submit_button(t("Save Persona", "このペルソナを保存"), type="primary")
             if submitted_p:
                 if p_name:
@@ -321,14 +331,14 @@ with tab4:
                                 if uploaded_avatar_file.name.lower().endswith((".jpg", ".jpeg")):
                                     mime = "image/jpeg"
                                 p_avatar_image = encode_image_to_base64(file_bytes, mime)
-                                
+
                         new_p = {
-                            "id": selected_p.get('id', str(uuid.uuid4())), 
-                            "name": p_name, 
-                            "role": p_role, 
-                            "avatar": p_avatar, 
+                            "id": selected_p.get('id', str(uuid.uuid4())),
+                            "name": p_name,
+                            "role": p_role,
+                            "avatar": p_avatar,
                             "avatar_image": p_avatar_image,
-                            "prompt": p_prompt, 
+                            "prompt": p_prompt,
                             "active": p_active
                         }
                         if idx_p >= 0:
@@ -341,7 +351,7 @@ with tab4:
                         set_personas(current_h_id, personas)
                         st.success("Saved!")
                         st.rerun()
-                        
+
         if idx_p >= 0:
             if st.button("Delete this Persona", type="secondary", key="admin_persona_delete"):
                 personas.pop(idx_p)
@@ -353,18 +363,18 @@ with tab4:
 with tab5:
     st.markdown(f"### {t('💬 Submissions & AI Chat', '💬 提出物とAIチャット')}")
     st.caption(t("Ask the AI Expert Panel specific questions about a team's submission based on their actual source code.", "チームの実際のソースコードに基づいて、AI審査員に具体的な質問をすることができます。"))
-    
+
     evals = None
     db = SessionLocal()
     try:
         users = db.query(User.team_id).filter(User.hackathon_id == current_h_id, User.role == 'team').order_by(User.team_id).all()
         chat_teams = [u.team_id for u in users]
-        
+
         if not chat_teams:
             st.info(t("No teams available.", "チームがいません。"))
         else:
             selected_team = st.selectbox(t("Select a Team", "チームを選択"), chat_teams, key="chat_team_select")
-            
+
             eval_results = db.query(Evaluation).filter(Evaluation.team_id == selected_team).order_by(Evaluation.id.desc()).all()
             evals = []
             for e in eval_results:
@@ -378,7 +388,7 @@ with tab5:
                 })
     finally:
         db.close()
-        
+
     if evals is not None:
         if not evals:
             st.info(t("No submissions from this team yet.", "このチームからの提出物はまだありません。"))
@@ -391,52 +401,52 @@ with tab5:
                 eval_dict_map[e_id] = r_dict
                 label = f"{'⭐ Final' if r_dict['is_final'] else '🔄 Consultation'} (ID: {e_id}) - {r_dict['evaluated_at']}"
                 eval_options.append((e_id, label))
-                
+
             selected_eval_id = st.selectbox(
-                t("Select Submission", "提出履歴を選択"), 
-                [opt[0] for opt in eval_options], 
+                t("Select Submission", "提出履歴を選択"),
+                [opt[0] for opt in eval_options],
                 format_func=lambda x: next(opt[1] for opt in eval_options if opt[0] == x),
                 key="admin_center_submission_select"
             )
             selected_eval = eval_dict_map[selected_eval_id]
-            
+
             source_text = selected_eval.get('source_text')
             gemini_file_ids = selected_eval.get('gemini_file_ids')
             prev_json_str = selected_eval.get('strengths_risks_json')
-            
+
             if not source_text and not gemini_file_ids:
                 st.warning(t(
-                    "This is a legacy submission. The raw source code and files were not saved. AI Chat is disabled for this submission to prevent hallucinations.", 
+                    "This is a legacy submission. The raw source code and files were not saved. AI Chat is disabled for this submission to prevent hallucinations.",
                     "これは過去の提出物です。元のソースコードやファイルが保存されていないため、ハルシネーション（AIの嘘）を防ぐ目的でAIチャット機能は無効化されています。"
                 ))
             else:
                 st.success(t("✅ Source code and files are available. You can ask the AI panel detailed questions.", "✅ ソースコードとファイルが利用可能です。この提出物についてAIに詳細な質問ができます。"))
-                
+
                 # Retrieve existing chat history
                 chats = get_admin_chats(selected_eval_id)
-                
+
                 if chats:
                     st.markdown(f"#### 💬 {t('Chat History', 'チャット履歴')}")
                     tab_chat_en, tab_chat_ja = st.tabs(["🇺🇸 English", "🇯🇵 日本語"])
-                    
+
                     with tab_chat_en:
                         for chat in chats:
                             with st.container(border=True):
                                 st.markdown(f"**Question:** {chat['question_en']}")
-                                st.markdown(f"**AI Response:**")
+                                st.markdown("**AI Response:**")
                                 st.info(chat['answer_en'])
-                                
+
                     with tab_chat_ja:
                         for chat in chats:
                             with st.container(border=True):
                                 st.markdown(f"**質問:** {chat['question_ja']}")
-                                st.markdown(f"**AIからの回答:**")
+                                st.markdown("**AIからの回答:**")
                                 st.info(chat['answer_ja'])
-                
+
                 with st.form("admin_chat_form"):
                     admin_q = st.text_area(t("Your Question to the AI Panel:", "AIへの質問（例：バックエンドで何のライブラリを使っている？ セキュリティの懸念はある？等）:"), height=100)
                     submit_q = st.form_submit_button(t("Ask AI", "AIに質問する"), type="primary")
-                    
+
                     if submit_q:
                         if not admin_q.strip():
                             st.error(t("Please enter a question.", "質問を入力してください。"))
@@ -445,7 +455,7 @@ with tab5:
                                 try:
                                     from core.gemini import admin_chat_about_submission
                                     res_json = admin_chat_about_submission(current_h_id, source_text, gemini_file_ids, prev_json_str, admin_q)
-                                    
+
                                     # Save to database
                                     save_admin_chat(
                                         evaluation_id=selected_eval_id,
@@ -454,7 +464,7 @@ with tab5:
                                         answer_en=res_json.get('answer_en', ''),
                                         answer_ja=res_json.get('answer_ja', '')
                                     )
-                                    
+
                                     status.update(label=t("✅ AI Responded", "✅ AIの回答が完了しました"), state="complete")
                                     st.rerun()
                                 except Exception as e:

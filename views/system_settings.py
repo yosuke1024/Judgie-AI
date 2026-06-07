@@ -1,7 +1,7 @@
 import streamlit as st
-import pandas as pd
+
 from core.auth import require_login
-from core.db import get_setting, set_setting, change_my_passcode
+from core.db import change_my_passcode, get_setting, set_setting
 from core.i18n import t
 
 require_login(required_role='admin')
@@ -23,17 +23,18 @@ if not current_h_id:
 with tab1:
     st.markdown(f"### {t('Gemini API Configuration', 'Gemini API 設定')}")
     current_key = get_setting(current_h_id, 'gemini_api_key')
-    
+
     # Label is generic now since model can be changed
     api_key_input = st.text_input(t("Tenant Gemini API Key", "テナント用 Gemini APIキー"), type="password", value=current_key if current_key else "")
-    
+
     if st.button(t("Save & Validate API Key", "APIキーを検証して保存"), type="primary", key="save_api"):
         if api_key_input:
             with st.spinner(t("Validating key and fetching available models...", "キーの有効性を検証し、利用可能なモデルを取得中...")):
                 try:
-                    from core.gemini import list_available_gemini_models
                     import json
-                    
+
+                    from core.gemini import list_available_gemini_models
+
                     # Connection test by calling model listing
                     models = list_available_gemini_models(current_h_id, api_key_override=api_key_input)
                     if models:
@@ -47,11 +48,11 @@ with tab1:
                     st.error(t(f"Failed to validate API Key: {str(e)}", f"APIキーの検証に失敗しました。入力が正しいか確認してください: {str(e)}"))
         else:
             st.warning(t("Please enter an API key.", "APIキーを入力してください。"))
-            
+
     if current_key:
         st.divider()
         st.markdown(f"### {t('Model & Plan Settings', 'モデルとプランの設定')}")
-        
+
         # 1. Billing Tier configuration
         current_tier = get_setting(current_h_id, 'gemini_api_tier') or "Free Tier"
         api_tier = st.radio(
@@ -60,7 +61,7 @@ with tab1:
             index=0 if current_tier == "Free Tier" else 1,
             horizontal=True
         )
-        
+
         if api_tier == "Free Tier":
             st.info(t(
                 "⚠️ **Free Tier Active:** API Rate limits are very strict. Recommended models: `gemini-3.5-flash` or `gemini-3.1-flash-lite`.",
@@ -71,7 +72,7 @@ with tab1:
                 "✨ **Paid Tier Active:** Higher rate limits. Recommended models: `gemini-3.5-flash` (fast/value) or `gemini-3.1-pro` (high-accuracy reasoning).",
                 "✨ **有料プラン:** 制限が緩和されており、本番ハッカソン運用に適しています。`gemini-3.5-flash` (高速) または `gemini-3.1-pro` (高精度・コード審査向き) が推奨されます。"
             ))
-            
+
         # 2. Dynamic model selection
         import json
         models_val = get_setting(current_h_id, 'gemini_available_models')
@@ -82,21 +83,21 @@ with tab1:
                 available_models = ["gemini-3.5-flash", "gemini-3.1-pro", "gemini-3.1-flash-lite", "gemini-2.5-flash"]
         else:
             available_models = ["gemini-3.5-flash", "gemini-3.1-pro", "gemini-3.1-flash-lite", "gemini-2.5-flash"]
-            
+
         current_model = get_setting(current_h_id, 'gemini_model') or "gemini-2.5-flash"
-        
+
         default_idx = 0
         if current_model in available_models:
             default_idx = available_models.index(current_model)
         elif "gemini-3.5-flash" in available_models:
             default_idx = available_models.index("gemini-3.5-flash")
-            
+
         model_input = st.selectbox(
             t("Select Gemini Model", "Geminiモデルの選択"),
             options=available_models,
             index=default_idx
         )
-        
+
         if st.button(t("Save Model Settings", "モデル設定を保存"), type="primary", key="save_model_settings"):
             set_setting(current_h_id, 'gemini_model', model_input)
             set_setting(current_h_id, 'gemini_api_tier', api_tier)

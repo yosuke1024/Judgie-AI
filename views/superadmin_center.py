@@ -1,8 +1,17 @@
-import streamlit as st
 import pandas as pd
-from core.db import create_hackathon, update_admin_passcode, change_my_passcode, delete_hackathon, SessionLocal, Hackathon, User
+import streamlit as st
 from sqlalchemy import func
+
 from core.auth import require_login
+from core.db import (
+    Hackathon,
+    SessionLocal,
+    User,
+    change_my_passcode,
+    create_hackathon,
+    delete_hackathon,
+    update_admin_passcode,
+)
 from core.i18n import t
 
 # Only superadmin can access this
@@ -39,7 +48,7 @@ with col1:
         h_name = st.text_input(t("Hackathon Name", "ハッカソン名"), placeholder="e.g. Summer AI Hackathon 2026")
         a_id = st.text_input(t("Tenant Admin ID", "テナント管理者 ID"), placeholder="e.g. admin_summer26")
         a_pass = st.text_input(t("Tenant Admin Password", "テナント管理者パスワード"), type="password")
-        
+
         if st.form_submit_button(t("Create Tenant", "テナントを作成"), type="primary"):
             if not h_name or not a_id or not a_pass:
                 st.error(t("All fields are required.", "すべての項目を入力してください。"))
@@ -53,7 +62,7 @@ with col1:
 
 with col2:
     st.subheader(t("🏢 Existing Hackathons", "🏢 既存のハッカソン一覧"))
-    
+
     db = SessionLocal()
     try:
         results = db.query(
@@ -61,14 +70,14 @@ with col2:
         ).outerjoin(
             User, (Hackathon.id == User.hackathon_id) & (User.role == 'admin')
         ).order_by(Hackathon.id.desc()).all()
-        
+
         rows = [{'id': r.id, 'name': r.name, 'created_at': r.created_at, 'admin_id': r.admin_id} for r in results]
-        
+
         counts = db.query(User.hackathon_id, func.count(User.id).label('team_count')).filter(User.role == 'team').group_by(User.hackathon_id).all()
         team_counts = {c.hackathon_id: c.team_count for c in counts}
     finally:
         db.close()
-    
+
     if not rows:
         st.info(t("No hackathons exist yet.", "まだハッカソンは作成されていません。"))
     else:
@@ -82,12 +91,12 @@ with col2:
                 t("Created At", "作成日時"): r['created_at']
             })
         st.dataframe(pd.DataFrame(data), use_container_width=True, hide_index=True)
-        
+
         st.divider()
         st.subheader(t("🔑 Reset Admin Password", "🔑 管理者パスワードのリセット"))
-        
+
         hackathon_options = {r['id']: f"[{r['id']}] {r['name']} (Admin: {r['admin_id']})" for r in rows if r['admin_id']}
-        
+
         if hackathon_options:
             with st.form("reset_pass_form"):
                 selected_h_id = st.selectbox(t("Select Tenant", "テナントを選択"), options=list(hackathon_options.keys()), format_func=lambda x: hackathon_options[x])
@@ -103,16 +112,16 @@ with col2:
 
         st.divider()
         st.subheader(t("⚠️ Delete Tenant", "⚠️ テナントの削除"))
-        
+
         # Use all IDs from rows so that any hackathon can be deleted
         delete_options = {r['id']: f"[{r['id']}] {r['name']}" for r in rows}
         if delete_options:
             with st.form("delete_tenant_form"):
                 st.markdown(t("Select a tenant to delete. This will permanently delete **all associated data** (users, submissions, settings, evaluations, etc.).", "削除するテナントを選択してください。この操作により、**関連するすべてのデータ**（ユーザー、提出物、設定、評価など）が完全に削除され、元に戻せなくなります。"))
                 selected_del_h_id = st.selectbox(t("Select Tenant to Delete", "削除するテナントを選択"), options=list(delete_options.keys()), format_func=lambda x: delete_options[x])
-                
+
                 confirm_check = st.checkbox(t("I understand that all data for this tenant will be permanently deleted and cannot be recovered.", "このテナントのすべてのデータが永久に削除され、復元できないことを理解しました。"))
-                
+
                 if st.form_submit_button(t("🔥 Delete Tenant", "🔥 テナントを削除"), type="primary"):
                     if not confirm_check:
                         st.error(t("Please check the confirmation box to delete the tenant.", "削除するには確認のチェックボックスをオンにしてください。"))
