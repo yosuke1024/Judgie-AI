@@ -1,5 +1,5 @@
-# 軽量な Python 3.9 公式スリムイメージを使用
-FROM python:3.9-slim
+# 軽量な Python 3.11 公式スリムイメージを使用
+FROM python:3.11-slim
 
 # コンテナ内の作業ディレクトリを設定
 WORKDIR /app

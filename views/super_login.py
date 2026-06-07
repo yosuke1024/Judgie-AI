@@ -1,8 +1,6 @@
 import streamlit as st
 from core.auth import login
-
-lang = st.session_state.get('language', 'English')
-def t(en, ja): return en if lang == "English" else ja
+from core.i18n import t
 
 st.title(t("🌍 Super Admin Console Access", "🌍 スーパー管理者 ログイン"))
 st.markdown(t("Platform administration login.", "プラットフォーム管理用の専用ログイン画面です。"))

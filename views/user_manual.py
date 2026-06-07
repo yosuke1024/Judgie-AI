@@ -1,9 +1,8 @@
 import streamlit as st
 import os
+from core.i18n import t
 
-# Helper for i18n
-lang = st.session_state.get('language', 'English')
-def t(en, ja): return en if lang == "English" else ja
+
 
 # Title and header
 st.title(t("📖 User Manual", "📖 ユーザーマニュアル"))

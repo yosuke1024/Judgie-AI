@@ -1,10 +1,7 @@
 import streamlit as st
 from core.auth import login
 from core.db import SessionLocal, Hackathon
-
-# Helper for i18n
-lang = st.session_state.get('language', 'English')
-def t(en, ja): return en if lang == "English" else ja
+from core.i18n import t
 
 st.title(t("⚖️ Judgie-AI Login", "⚖️ Judgie-AI ログイン"))
 st.markdown(t("Welcome to the AI-powered Hackathon Platform. Please log in.", "AIハッカソンプラットフォームへようこそ。ログインしてください。"))

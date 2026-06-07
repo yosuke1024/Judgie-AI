@@ -3,12 +3,10 @@ import pandas as pd
 from core.db import create_hackathon, update_admin_passcode, change_my_passcode, delete_hackathon, SessionLocal, Hackathon, User
 from sqlalchemy import func
 from core.auth import require_login
+from core.i18n import t
 
 # Only superadmin can access this
 require_login('superadmin')
-
-lang = st.session_state.get('language', 'English')
-def t(en, ja): return en if lang == "English" else ja
 
 st.title(t("🌍 Super Admin Console", "🌍 スーパー管理者コンソール"))
 

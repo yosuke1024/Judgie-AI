@@ -2,11 +2,9 @@ import streamlit as st
 import pandas as pd
 from core.auth import require_login
 from core.db import get_setting, set_setting, change_my_passcode
+from core.i18n import t
 
 require_login(required_role='admin')
-
-lang = st.session_state.get('language', 'English')
-def t(en, ja): return en if lang == "English" else ja
 
 st.set_page_config(page_title="System Settings - Judgie-AI", page_icon="⚙️", layout="wide")
 st.title(t("⚙️ System Settings", "⚙️ システム設定"))

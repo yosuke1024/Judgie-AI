@@ -1,26 +1,36 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import streamlit as st
 import json
 import time
 from core.db import get_setting, get_criteria, get_personas
 
-def configure_gemini(hackathon_id, api_key_override=None):
+def get_gemini_client(hackathon_id, api_key_override=None):
+    """Returns an initialized Gemini client using the database or key override."""
     api_key = api_key_override if api_key_override else get_setting(hackathon_id, 'gemini_api_key')
     if not api_key:
         raise ValueError("Gemini API Key has not been set by the Admin yet. Please contact the organizer.")
-    genai.configure(api_key=api_key)
+    return genai.Client(api_key=api_key)
+
+def configure_gemini(hackathon_id, api_key_override=None):
+    """
+    Deprecated in favor of get_gemini_client.
+    Kept for backward compatibility and testing.
+    """
+    # Verify that we can obtain a client (will raise ValueError if missing)
+    get_gemini_client(hackathon_id, api_key_override=api_key_override)
 
 def list_available_gemini_models(hackathon_id, api_key_override=None):
     """
     Fetches the dynamically available Gemini models from the API.
     Optionally overrides the API key (used for validation before saving).
     """
-    configure_gemini(hackathon_id, api_key_override=api_key_override)
     try:
-        models = genai.list_models()
+        client = get_gemini_client(hackathon_id, api_key_override=api_key_override)
+        models = client.models.list()
         gemini_models = []
         for m in models:
-            if 'generateContent' in m.supported_generation_methods:
+            if m.supported_generation_methods and 'generateContent' in m.supported_generation_methods:
                 name = m.name.replace("models/", "")
                 if name.startswith("gemini-"):
                     gemini_models.append(name)
@@ -31,18 +41,19 @@ def list_available_gemini_models(hackathon_id, api_key_override=None):
 
 def upload_to_gemini(hackathon_id, file_path, mime_type=None):
     """Uploads the given file to Gemini."""
-    configure_gemini(hackathon_id)
-    file = genai.upload_file(file_path, mime_type=mime_type)
+    client = get_gemini_client(hackathon_id)
+    config = types.UploadFileConfig(mime_type=mime_type) if mime_type else None
+    file = client.files.upload(file=file_path, config=config)
     return file
 
 def wait_for_files_active(hackathon_id, files):
     """Waits for the given files to be active in Gemini."""
-    configure_gemini(hackathon_id)
+    client = get_gemini_client(hackathon_id)
     for name in (file.name for file in files):
-        file = genai.get_file(name)
+        file = client.files.get(name=name)
         while file.state.name == "PROCESSING":
             time.sleep(2)
-            file = genai.get_file(name)
+            file = client.files.get(name=name)
         if file.state.name == "FAILED":
             raise ValueError(f"File processing failed: {file.name}")
 
@@ -51,16 +62,9 @@ def analyze_submission(hackathon_id, text_content, gemini_media_files=None, prev
     Calls Gemini API with multimodal input and returns structured JSON.
     Uses 'gemini-3.1-pro' to handle large contexts (code + video).
     """
-    configure_gemini(hackathon_id)
+    client = get_gemini_client(hackathon_id)
     
     model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        generation_config={
-            "response_mime_type": "application/json",
-            "temperature": 0.4,
-        }
-    )
     
     criteria = get_criteria(hackathon_id)
     active_personas = [p for p in get_personas(hackathon_id) if p.get('active', False)]
@@ -150,23 +154,23 @@ Output a strictly valid JSON object with the following structure:
     if text_content:
         contents.append(f"<source_code_and_documents>\n{text_content}\n</source_code_and_documents>")
         
-    response = model.generate_content(contents)
+    response = client.models.generate_content(
+        model=model_name,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.4,
+        )
+    )
     return json.loads(response.text)
 
 def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_evaluation_json, objection_text):
     """
     Handles a one-shot QA/Objection from the team based on the previous evaluation.
     """
-    configure_gemini(hackathon_id)
+    client = get_gemini_client(hackathon_id)
     
     model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        generation_config={
-            "response_mime_type": "application/json",
-            "temperature": 0.4,
-        }
-    )
     
     active_personas = [p for p in get_personas(hackathon_id) if p.get('active', False)]
     personas_str = "\n".join([f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n" for p in active_personas])
@@ -215,7 +219,14 @@ Output a strictly valid JSON object with the following structure:
     if text_content:
         contents.append(f"<source_code_and_documents>\n{text_content}\n</source_code_and_documents>")
         
-    response = model.generate_content(contents)
+    response = client.models.generate_content(
+        model=model_name,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.4,
+        )
+    )
     return json.loads(response.text)
 
 def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json, previous_evaluation_json, admin_question):
@@ -223,16 +234,9 @@ def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json,
     Allows Hackathon Admin to ask a specific question about a team's submission,
     using the originally uploaded source code and media files as context.
     """
-    configure_gemini(hackathon_id)
+    client = get_gemini_client(hackathon_id)
     
     model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        generation_config={
-            "response_mime_type": "application/json",
-            "temperature": 0.4,
-        }
-    )
     
     # Reconstruct Gemini File objects
     gemini_media_files = []
@@ -241,7 +245,7 @@ def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json,
             file_names = json.loads(gemini_file_ids_json)
             for name in file_names:
                 try:
-                    f = genai.get_file(name)
+                    f = client.files.get(name=name)
                     gemini_media_files.append(f)
                 except Exception as e:
                     print(f"Warning: Could not retrieve Gemini file {name}: {e}")
@@ -288,7 +292,14 @@ Output a strictly valid JSON object with the following structure:
     if source_text:
         contents.append(f"<source_code_and_documents>\n{source_text}\n</source_code_and_documents>")
         
-    response = model.generate_content(contents)
+    response = client.models.generate_content(
+        model=model_name,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.4,
+        )
+    )
     return json.loads(response.text)
 
 
