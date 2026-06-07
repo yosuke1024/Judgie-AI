@@ -143,7 +143,6 @@ with tab2:
 
         if is_demo:
             st.caption(t("💡 Adding teams and changing passcodes are disabled in Demo Mode.", "💡 デモモードではチームの追加やパスコード変更は無効化されています。"))
-        
         with st.form("manual_add_team_form"):
             new_tid = st.text_input(t("Team ID", "チームID"), disabled=is_demo)
             new_pwd = st.text_input(t("Passcode", "パスコード"), disabled=is_demo)
