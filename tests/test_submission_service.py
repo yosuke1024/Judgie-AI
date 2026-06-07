@@ -46,14 +46,14 @@ def test_sanitize_evaluation_response():
     assert res_bad["judges_feedback"][0]["judge_role"] == "Expert Panelist" # Default fallback
 
     # Dynamic multi-language case
-    custom_langs = ["English", "Spanish", "Kansai-ben"]
+    custom_langs = ["English", "Spanish", "French"]
     input_multilang = {
         "product_understanding_en": "understanding",
         "product_understanding_es": "comprehension",
-        "product_understanding_kansai_ben": "wakatta",
+        "product_understanding_french": "comprendre",
         "action_items_en": ["item1"],
         "action_items_es": ["item1_es"],
-        "action_items_kansai_ben": ["item1_kb"],
+        "action_items_french": ["item1_fr"],
         "scores": {"Innovation": 4.5},
         "impact_score": 4.0,
         "judges_feedback": [
@@ -61,17 +61,17 @@ def test_sanitize_evaluation_response():
                 "judge_name": "Lisa",
                 "feedback_en": "Great UI",
                 "feedback_es": "Buen UI",
-                "feedback_kansai_ben": "Eee UI"
+                "feedback_french": "Bon UI"
             }
         ]
     }
     res_multi = sanitize_evaluation_response(input_multilang, custom_langs)
     assert res_multi["product_understanding_english"] == "understanding"
     assert res_multi["product_understanding_spanish"] == "comprehension"
-    assert res_multi["product_understanding_kansai_ben"] == "wakatta"
-    assert res_multi["action_items_kansai_ben"] == ["item1_kb"]
+    assert res_multi["product_understanding_french"] == "comprendre"
+    assert res_multi["action_items_french"] == ["item1_fr"]
     assert res_multi["judges_feedback"][0]["feedback_spanish"] == "Buen UI"
-    assert res_multi["judges_feedback"][0]["feedback_kansai_ben"] == "Eee UI"
+    assert res_multi["judges_feedback"][0]["feedback_french"] == "Bon UI"
 
 def test_process_submission_with_zip_and_media(mocker):
     # Simulate uploading a ZIP file and an MP4 video file

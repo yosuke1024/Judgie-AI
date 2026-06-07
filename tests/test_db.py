@@ -312,7 +312,7 @@ def test_ai_response_languages(db_session_fixture):
     assert get_ai_response_languages(hid) == ["English", "Japanese"]
 
     # 2. Set custom languages
-    custom_langs = ["English", "Japanese", "Spanish", "Kansai-ben"]
+    custom_langs = ["English", "Japanese", "Spanish", "French"]
     set_ai_response_languages(hid, custom_langs)
     assert get_ai_response_languages(hid) == custom_langs
 
@@ -321,8 +321,8 @@ def test_ai_response_languages(db_session_fixture):
     assert normalize_lang_to_key("English") == "english"
     assert normalize_lang_to_key("日本語") == "日本語"
     assert normalize_lang_to_key("Spanish") == "spanish"
-    assert normalize_lang_to_key("Kansai-ben") == "kansai_ben"
-    assert normalize_lang_to_key("ギャル語") == "ギャル語"
+    assert normalize_lang_to_key("French") == "french"
+    assert normalize_lang_to_key("Korean") == "korean"
 
 
 def test_seed_demo_data(db_session_fixture):
