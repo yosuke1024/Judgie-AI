@@ -71,12 +71,12 @@ with tab1:
             scores = json.loads(r['scores_json'])
             
             total_score = sum(
-                scores.get(crit["name"], 0) * (crit["weight"] / total_weight) for crit in criteria
+                scores.get(crit["name"], 0) * 20.0 * (crit["weight"] / total_weight) for crit in criteria
             )
             
             data.append({
                 t("Team", "チーム"): team_id,
-                t("Total Score", "総合スコア"): round(total_score, 2),
+                t("Total Score", "総合スコア"): round(total_score, 1),
                 t("Impact (Tie-breaker)", "インパクト (Tie-breaker)"): r['impact_score'],
                 t("Consults", "相談回数"): r['consults']
             })

@@ -19,16 +19,16 @@ def render_score_history_chart(eval_rows: list, criteria: list, total_weight: fl
         step_name = f"Consult {idx+1}" if not r['is_final'] else "Final"
         
         # Calculate weighted Total Score
-        total_s = sum(r_scores.get(c['name'], 0) * (c['weight'] / total_weight) for c in criteria)
+        total_s = sum(r_scores.get(c['name'], 0) * 20.0 * (c['weight'] / total_weight) for c in criteria)
         history_data.append({"Step": step_name, "Criteria": "⭐ Total Score", "Score": total_s, "Order": idx})
         
         for c in criteria:
-            history_data.append({"Step": step_name, "Criteria": c['name'], "Score": r_scores.get(c['name'], 0), "Order": idx})
+            history_data.append({"Step": step_name, "Criteria": c['name'], "Score": r_scores.get(c['name'], 0) * 20.0, "Order": idx})
             
     df_hist = pd.DataFrame(history_data)
     line_chart = alt.Chart(df_hist).mark_line(point=True).encode(
         x=alt.X('Step:N', sort=alt.EncodingSortField(field='Order', order='ascending'), title='Evaluation Phase', axis=alt.Axis(labelAngle=0)),
-        y=alt.Y('Score:Q', scale=alt.Scale(domain=[0, 5])),
+        y=alt.Y('Score:Q', scale=alt.Scale(domain=[0, 100])),
         color=alt.Color('Criteria:N', legend=alt.Legend(title="Metrics")),
         tooltip=['Step', 'Criteria', 'Score']
     ).properties(height=300)

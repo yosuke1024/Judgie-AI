@@ -69,7 +69,7 @@ for team_id, u_row in all_teams.items():
     if team_id in eval_dict:
         r = eval_dict[team_id]
         scores = json.loads(r['scores_json'])
-        total_score = sum(scores.get(crit["name"], 0) * (crit["weight"] / total_weight) for crit in criteria)
+        total_score = sum(scores.get(crit["name"], 0) * 20.0 * (crit["weight"] / total_weight) for crit in criteria)
         
         if r['is_final']:
             status = t("✅ Final", "✅ 最終提出")
@@ -77,7 +77,7 @@ for team_id, u_row in all_teams.items():
             status = t(f"⏳ Cons ({r['consults']}/3)", f"⏳ 構築中 ({r['consults']}/3)")
             
         row_data[t("Status", "状態")] = status
-        row_data[t("Total Score", "総合スコア")] = round(total_score, 2)
+        row_data[t("Total Score", "総合スコア")] = round(total_score, 1)
         row_data[t("Consults", "相談回数")] = r['consults']
             
     else:
@@ -98,10 +98,10 @@ if data:
     col_config = {
         t("Total Score", "総合スコア"): st.column_config.ProgressColumn(
             t("Total Score", "総合スコア"),
-            help="Max score is 5.0",
-            format="%.2f",
+            help="Max score is 100.0",
+            format="%.1f",
             min_value=0,
-            max_value=5.0,
+            max_value=100.0,
         )
     }
         
