@@ -25,6 +25,7 @@ role = st.session_state.role
 st.set_page_config(layout="wide")
 
 current_h_id = st.session_state.get('active_hackathon_id')
+is_demo = (current_h_id == 9999)
 
 # Determine which team we are viewing
 if role == 'admin':
@@ -83,38 +84,56 @@ with col1:
         st.caption(f"✨ {profile['one_liner']}")
 
     if role == 'team':
-        p_col1, p_col2 = st.columns(2)
-        with p_col1:
-            with st.popover(t("⚙️ Edit Profile", "⚙️ プロフィールの編集")):
-                with st.form("profile_form"):
-                    p_name = st.text_input(t("Product Name", "プロダクト名"), value=profile.get('product_name', ''))
-                    t_name = st.text_input(t("Team Name", "チーム名"), value=profile.get('team_name', ''))
-                    o_liner = st.text_input(t("One-liner (Catchphrase)", "一言アピール（キャッチコピー）"), value=profile.get('one_liner', ''))
-                    if st.form_submit_button(t("Save", "保存"), type="primary"):
-                        update_team_profile(current_h_id, view_team_id, p_name, t_name, o_liner)
-                        st.success(t("Profile updated!", "プロフィールを更新しました！"))
-                        st.rerun()
+        if is_demo:
+            st.caption(t(
+                "🔒 Profile editing and password change are disabled in Demo Mode.",
+                "🔒 デモモードではプロフィールの編集やパスワードの変更は無効化されています。"
+            ))
+        else:
+            p_col1, p_col2 = st.columns(2)
+            with p_col1:
+                with st.popover(t("⚙️ Edit Profile", "⚙️ プロフィールの編集")):
+                    with st.form("profile_form"):
+                        p_name = st.text_input(t("Product Name", "プロダクト名"), value=profile.get('product_name', ''))
+                        t_name = st.text_input(t("Team Name", "チーム名"), value=profile.get('team_name', ''))
+                        o_liner = st.text_input(t("One-liner (Catchphrase)", "一言アピール（キャッチコピー）"), value=profile.get('one_liner', ''))
+                        if st.form_submit_button(t("Save", "保存"), type="primary"):
+                            update_team_profile(current_h_id, view_team_id, p_name, t_name, o_liner)
+                            st.success(t("Profile updated!", "プロフィールを更新しました！"))
+                            st.rerun()
 
-        with p_col2:
-            with st.popover(t("🔐 Change Password", "🔐 パスワード変更")):
-                with st.form("change_team_pass_form"):
-                    curr_pass = st.text_input(t("Current Password", "現在のパスワード"), type="password")
-                    new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
-                    if st.form_submit_button(t("Update", "更新"), type="primary"):
-                        if not curr_pass or not new_pass:
-                            st.error(t("All fields required.", "すべて入力してください。"))
-                        else:
-                            success = change_my_passcode(current_h_id, view_team_id, curr_pass, new_pass)
-                            if success:
-                                st.session_state.passcode = new_pass
-                                st.success(t("Password updated!", "パスワードを更新しました！"))
+            with p_col2:
+                with st.popover(t("🔐 Change Password", "🔐 パスワード変更")):
+                    with st.form("change_team_pass_form"):
+                        curr_pass = st.text_input(t("Current Password", "現在のパスワード"), type="password")
+                        new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
+                        if st.form_submit_button(t("Update", "更新"), type="primary"):
+                            if not curr_pass or not new_pass:
+                                st.error(t("All fields required.", "すべて入力してください。"))
                             else:
-                                st.error(t("Incorrect current password.", "現在のパスワードが間違っています。"))
+                                success = change_my_passcode(current_h_id, view_team_id, curr_pass, new_pass)
+                                if success:
+                                    st.session_state.passcode = new_pass
+                                    st.success(t("Password updated!", "パスワードを更新しました！"))
+                                else:
+                                    st.error(t("Incorrect current password.", "現在のパスワードが間違っています。"))
 
     st.divider()
 
     if role == 'admin':
         st.warning(t("Uploads are disabled in Admin Mode.", "管理者モードではアップロードは無効化されています。"))
+    elif is_demo:
+        st.info(t(
+            "💡 Demo Mode: File uploading and AI evaluation are disabled. Please explore the evaluation history on the right dashboard.",
+            "💡 デモモード: ファイルのアップロードや新規解析は無効化されています。右側のダッシュボードで、過去の評価履歴を切り替えて体験してください。"
+        ))
+        sub_c1, sub_c2 = st.columns(2)
+        with sub_c1:
+            st.metric(t("Consultations Left", "残り相談回数"), "0 / 3")
+            st.button(t("Get AI Coaching", "AIコーチングを受ける"), type="secondary", disabled=True, key="demo_coach_btn", use_container_width=True)
+        with sub_c2:
+            st.metric(t("Final Submission", "最終提出"), t("Submitted", "提出済み"))
+            st.button(t("Submit Final Pitch", "最終成果物として提出"), type="primary", disabled=True, key="demo_final_btn", use_container_width=True)
     elif is_final_submitted:
         st.success(t("Final pitch submitted. Good luck!", "最終成果物を提出済みです。お疲れ様でした！"))
     else:
@@ -354,34 +373,40 @@ with col2:
 
         else:
             if role == 'team':
-                st.markdown(t(
-                    "You can ask ONE question or make ONE objection per evaluation. The AI Panel will read your comment alongside their previous feedback and respond.",
-                    "1回の評価につき、1回だけ審査員パネルに対して質問や反論を投げることができます。"
-                ))
-                with st.form("objection_form"):
-                    obj_text = st.text_area(t("Your message to the judges:", "審査員へのメッセージ:"), height=150)
-                    submit_obj = st.form_submit_button(t("Objection! ✊", "異議あり！ ✊"), type="primary")
+                if is_demo:
+                    st.info(t(
+                        "🔒 Demo Mode: Sending new questions is disabled. Please view the pre-recorded QA history (e.g. select 'Consultation 2' from the history list above).",
+                        "🔒 デモモード: 審査員への新規質問送信は無効化されています。過去のQ&A履歴（上の履歴で「相談2」などを選択してください）をご覧ください。"
+                    ))
+                else:
+                    st.markdown(t(
+                        "You can ask ONE question or make ONE objection per evaluation. The AI Panel will read your comment alongside their previous feedback and respond.",
+                        "1回の評価につき、1回だけ審査員パネルに対して質問や反論を投げることができます。"
+                    ))
+                    with st.form("objection_form"):
+                        obj_text = st.text_area(t("Your message to the judges:", "審査員へのメッセージ:"), height=150)
+                        submit_obj = st.form_submit_button(t("Objection! ✊", "異議あり！ ✊"), type="primary")
 
-                    if submit_obj:
-                        if not obj_text.strip():
-                            st.warning(t("Please enter your message.", "メッセージを入力してください。"))
-                        else:
-                            with st.status(t("⚖️ Judges are discussing your point...", "⚖️ 審査員があなたの意見を議論中..."), expanded=True) as status:
-                                try:
-                                    prev_eval_json_str = selected_eval['strengths_risks_json']
+                        if submit_obj:
+                            if not obj_text.strip():
+                                st.warning(t("Please enter your message.", "メッセージを入力してください。"))
+                            else:
+                                with st.status(t("⚖️ Judges are discussing your point...", "⚖️ 審査員があなたの意見を議論中..."), expanded=True) as status:
+                                    try:
+                                        prev_eval_json_str = selected_eval['strengths_risks_json']
 
-                                    # Execute objection flow via service layer
-                                    submit_team_objection(
-                                        hackathon_id=current_h_id,
-                                        eval_id=selected_eval['id'],
-                                        prev_eval_json=prev_eval_json_str,
-                                        objection_text=obj_text
-                                    )
+                                        # Execute objection flow via service layer
+                                        submit_team_objection(
+                                            hackathon_id=current_h_id,
+                                            eval_id=selected_eval['id'],
+                                            prev_eval_json=prev_eval_json_str,
+                                            objection_text=obj_text
+                                        )
 
-                                    status.update(label=t("✅ Judges have reached a conclusion!", "✅ 審査員からの回答が届きました！"), state="complete", expanded=False)
-                                    st.rerun()
-                                except Exception as e:
-                                    status.update(label=t("❌ Error", "❌ エラー"), state="error")
-                                    st.error(f"Failed: {str(e)}")
+                                        status.update(label=t("✅ Judges have reached a conclusion!", "✅ 審査員からの回答が届きました！"), state="complete", expanded=False)
+                                        st.rerun()
+                                    except Exception as e:
+                                        status.update(label=t("❌ Error", "❌ エラー"), state="error")
+                                        st.error(f"Failed: {str(e)}")
             else:
                 st.info(t("No objections made by the team yet.", "チームからの質問・反論はまだありません。"))

@@ -11,6 +11,8 @@ st.set_page_config(page_title="Judgie-AI | Hackathon Platform", page_icon="âš–ï¸
 
 # Initialize DB and Session
 init_db()
+from core.db import seed_demo_data
+seed_demo_data()
 init_session()
 
 # Global Language Setting

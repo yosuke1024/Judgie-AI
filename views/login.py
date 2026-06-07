@@ -16,6 +16,16 @@ with st.container():
     finally:
         db.close()
 
+    # Auto-seed demo data if no hackathons exist yet to prevent crash and show demo option
+    if not hackathons:
+        from core.db import seed_demo_data
+        seed_demo_data()
+        db = SessionLocal()
+        try:
+            hackathons = db.query(Hackathon).order_by(Hackathon.id.desc()).all()
+        finally:
+            db.close()
+
     if not hackathons:
         st.warning(t("No hackathons available yet. Please ask your super admin.", "現在参加できるハッカソンがありません。"))
         st.stop()
@@ -48,3 +58,23 @@ with st.container():
             st.rerun()
         else:
             st.error(t("Invalid ID or Passcode.", "IDまたはパスコードが間違っています。"))
+
+    st.markdown("---")
+    st.subheader(t("✨ Demo Experience / デモ体験", "✨ Demo Experience / デモ体験"))
+    st.markdown(t("Try Judgie-AI immediately without credentials or Gemini API keys. Safe read-only mode.", "ログイン情報やAPIキーの設定不要で、すぐにデモ画面を体験できます（安全な閲覧専用モード）。"))
+    
+    col_demo1, col_demo2 = st.columns(2)
+    with col_demo1:
+        if st.button(t("Try as Team (Participant)", "一般参加者として体験"), use_container_width=True):
+            from core.db import seed_demo_data
+            seed_demo_data()
+            if login("demo_team", "demo123", tenant_id=9999):
+                st.success(t("Redirecting to team dashboard...", "チームダッシュボードへリダイレクト中..."))
+                st.rerun()
+    with col_demo2:
+        if st.button(t("Try as Admin (Organizer)", "主催者・管理者として体験"), use_container_width=True):
+            from core.db import seed_demo_data
+            seed_demo_data()
+            if login("demo_admin", "demo123", tenant_id=9999):
+                st.success(t("Redirecting to admin console...", "管理コンソールへリダイレクト中..."))
+                st.rerun()

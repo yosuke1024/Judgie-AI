@@ -24,6 +24,7 @@ from core.ui_utils import encode_image_to_base64
 st.title(t("👑 Admin Command Center", "👑 管理者コマンドセンター"))
 
 current_h_id = st.session_state.get('active_hackathon_id')
+is_demo = (current_h_id == 9999)
 
 if not current_h_id:
     st.error(t("No active hackathon selected. Please ensure you are logged in correctly as a Tenant Admin.", "アクティブなハッカソンがありません。管理者の設定を確認してください。"))
@@ -109,9 +110,9 @@ with tab2:
         st.markdown(f"### {t('Import Teams (CSV)', 'チーム一括登録 (CSV)')}")
         st.caption(t("CSV Format: team_id, passcode", "CSV形式: 1列目にteam_id、2列目にpasscode"))
 
-        uploaded_csv = st.file_uploader(t("Upload CSV", "CSVをアップロード"), type=['csv'])
+        uploaded_csv = st.file_uploader(t("Upload CSV", "CSVをアップロード"), type=['csv'], disabled=is_demo)
         if uploaded_csv is not None:
-            if st.button(t("Import Teams", "チームをインポート")):
+            if st.button(t("Import Teams", "チームをインポート"), disabled=is_demo):
                 try:
                     df_csv = pd.read_csv(uploaded_csv, header=None)
                     db = SessionLocal()
@@ -140,10 +141,13 @@ with tab2:
         st.markdown(f"### {t('Add Single Team', 'チームの個別追加')}")
         st.caption(t("Manually register a team.", "1チームずつ手動で登録します。"))
 
+        if is_demo:
+            st.caption(t("💡 Adding teams and changing passcodes are disabled in Demo Mode.", "💡 デモモードではチームの追加やパスコード変更は無効化されています。"))
+        
         with st.form("manual_add_team_form"):
-            new_tid = st.text_input(t("Team ID", "チームID"))
-            new_pwd = st.text_input(t("Passcode", "パスコード"))
-            if st.form_submit_button(t("Add Team", "チームを追加"), type="primary"):
+            new_tid = st.text_input(t("Team ID", "チームID"), disabled=is_demo)
+            new_pwd = st.text_input(t("Passcode", "パスコード"), disabled=is_demo)
+            if st.form_submit_button(t("Add Team", "チームを追加"), type="primary", disabled=is_demo):
                 if new_tid and new_pwd:
                     db = SessionLocal()
                     try:
@@ -170,13 +174,13 @@ with tab2:
         with st.form("change_team_passcode_form"):
             team_options = [t_row['team_id'] for t_row in teams]
             if team_options:
-                target_tid = st.selectbox(t("Select Team ID", "変更対象のチームID"), team_options)
+                target_tid = st.selectbox(t("Select Team ID", "変更対象のチームID"), team_options, disabled=is_demo)
             else:
                 target_tid = st.text_input(t("Team ID", "変更対象のチームID"), disabled=True, placeholder=t("No teams registered", "登録済みのチームがありません"))
 
-            change_pwd = st.text_input(t("New Passcode", "新しいパスコード"), type="password")
+            change_pwd = st.text_input(t("New Passcode", "新しいパスコード"), type="password", disabled=is_demo)
 
-            if st.form_submit_button(t("Update Passcode", "パスコードを変更"), type="primary"):
+            if st.form_submit_button(t("Update Passcode", "パスコードを変更"), type="primary", disabled=is_demo):
                 if not team_options:
                     st.warning(t("No teams registered to change passcode.", "変更対象のチームが登録されていません。"))
                 elif not change_pwd:
@@ -229,12 +233,15 @@ with tab3:
             idx = -1
 
     with col2:
-        with st.form("criteria_form"):
-            c_name = st.text_input("Criteria Name", value=selected_c['name'])
-            c_weight = st.number_input("Weight (%)", min_value=1, max_value=100, value=selected_c.get('weight', 10))
-            c_desc = st.text_area("Detailed Description (Prompt for AI)", value=selected_c.get('description', ''), height=200, help="Write multiple lines here to deeply define how AI should score this.")
+        if is_demo:
+            st.caption(t("💡 Editing evaluation criteria is disabled in Demo Mode.", "💡 デモモードでは評価基準の編集は無効化されています。"))
 
-            submitted_c = st.form_submit_button(t("Save Criteria", "この評価軸を保存"), type="primary")
+        with st.form("criteria_form"):
+            c_name = st.text_input("Criteria Name", value=selected_c['name'], disabled=is_demo)
+            c_weight = st.number_input("Weight (%)", min_value=1, max_value=100, value=selected_c.get('weight', 10), disabled=is_demo)
+            c_desc = st.text_area("Detailed Description (Prompt for AI)", value=selected_c.get('description', ''), height=200, help="Write multiple lines here to deeply define how AI should score this.", disabled=is_demo)
+
+            submitted_c = st.form_submit_button(t("Save Criteria", "この評価軸を保存"), type="primary", disabled=is_demo)
             if submitted_c:
                 if c_name:
                     new_c = {"name": c_name, "weight": c_weight, "description": c_desc}
@@ -247,7 +254,7 @@ with tab3:
                     st.rerun()
 
         if idx >= 0:
-            if st.button("Delete this Criteria", type="secondary", key="admin_criteria_delete"):
+            if st.button("Delete this Criteria", type="secondary", key="admin_criteria_delete", disabled=is_demo):
                 criteria.pop(idx)
                 set_criteria(current_h_id, criteria)
                 st.success("Deleted!")
@@ -268,7 +275,7 @@ with tab4:
         for i, p in enumerate(personas):
             role_str = f"({p.get('role', '')})" if p.get('role') else ""
             label = f"{p['name']} {role_str}"
-            is_active = st.checkbox(label, value=p.get('active', False), key=f"admin_persona_active_toggle_{i}")
+            is_active = st.checkbox(label, value=p.get('active', False), key=f"admin_persona_active_toggle_{i}", disabled=is_demo)
 
             if is_active != p.get('active', False):
                 if is_active and sum(1 for cp in personas if cp.get('active', False)) >= 5:
@@ -291,10 +298,13 @@ with tab4:
             idx_p = -1
 
     with col2:
+        if is_demo:
+            st.caption(t("💡 Editing personas is disabled in Demo Mode.", "💡 デモモードではペルソナの編集は無効化されています。"))
+
         with st.form("persona_form"):
-            p_name = st.text_input("Judge Name (e.g. Yoh)", value=selected_p['name'])
-            p_role = st.text_input("Judge Role/Title (e.g. Chief Architect)", value=selected_p.get('role', ''))
-            p_avatar = st.text_input("Avatar (Emoji)", value=selected_p.get('avatar', '🧑‍⚖️'))
+            p_name = st.text_input("Judge Name (e.g. Yoh)", value=selected_p['name'], disabled=is_demo)
+            p_role = st.text_input("Judge Role/Title (e.g. Chief Architect)", value=selected_p.get('role', ''), disabled=is_demo)
+            p_avatar = st.text_input("Avatar (Emoji)", value=selected_p.get('avatar', '🧑‍⚖️'), disabled=is_demo)
 
             # Custom avatar image preview and uploader
             avatar_image_val = selected_p.get('avatar_image')
@@ -302,17 +312,18 @@ with tab4:
             if avatar_image_val:
                 st.markdown(t("Current Custom Avatar:", "現在のカスタムアバター:"))
                 st.markdown(f'<img src="{avatar_image_val}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-bottom: 10px;">', unsafe_allow_html=True)
-                remove_avatar = st.checkbox(t("Remove custom avatar image (fallback to emoji)", "カスタムアバター画像を削除する (絵文字表示に戻す)"))
+                remove_avatar = st.checkbox(t("Remove custom avatar image (fallback to emoji)", "カスタムアバター画像を削除する (絵文字表示に戻す)"), disabled=is_demo)
 
             uploaded_avatar_file = st.file_uploader(
                 t("Upload New Avatar Image (PNG/JPG, Max 500KB)", "新しいアバター画像をアップロード (PNG/JPG, 最大500KB)"),
-                type=["png", "jpg", "jpeg"]
+                type=["png", "jpg", "jpeg"],
+                disabled=is_demo
             )
 
-            p_active = st.checkbox("Active (Participates in evaluation)", value=selected_p.get('active', False))
-            p_prompt = st.text_area("Detailed Persona Prompt", value=selected_p.get('prompt', ''), height=300, help="Write dozens of lines detailing their background, tone of voice, and what they care about.")
+            p_active = st.checkbox("Active (Participates in evaluation)", value=selected_p.get('active', False), disabled=is_demo)
+            p_prompt = st.text_area("Detailed Persona Prompt", value=selected_p.get('prompt', ''), height=300, help="Write dozens of lines detailing their background, tone of voice, and what they care about.", disabled=is_demo)
 
-            submitted_p = st.form_submit_button(t("Save Persona", "このペルソナを保存"), type="primary")
+            submitted_p = st.form_submit_button(t("Save Persona", "このペルソナを保存"), type="primary", disabled=is_demo)
             if submitted_p:
                 if p_name:
                     if p_active and not selected_p.get('active') and active_count >= 5:
@@ -353,7 +364,7 @@ with tab4:
                         st.rerun()
 
         if idx_p >= 0:
-            if st.button("Delete this Persona", type="secondary", key="admin_persona_delete"):
+            if st.button("Delete this Persona", type="secondary", key="admin_persona_delete", disabled=is_demo):
                 personas.pop(idx_p)
                 set_personas(current_h_id, personas)
                 st.success("Deleted!")
@@ -443,9 +454,14 @@ with tab5:
                                 st.markdown("**AIからの回答:**")
                                 st.info(chat['answer_ja'])
 
+                if is_demo:
+                    st.info(t(
+                        "🔒 Demo Mode: Sending new questions is disabled. Please view the pre-recorded QA history above.",
+                        "🔒 デモモード: AIへの新規質問送信は無効化されています。上記のチャット履歴をご覧ください。"
+                    ))
                 with st.form("admin_chat_form"):
-                    admin_q = st.text_area(t("Your Question to the AI Panel:", "AIへの質問（例：バックエンドで何のライブラリを使っている？ セキュリティの懸念はある？等）:"), height=100)
-                    submit_q = st.form_submit_button(t("Ask AI", "AIに質問する"), type="primary")
+                    admin_q = st.text_area(t("Your Question to the AI Panel:", "AIへの質問（例：バックエンドで何のライブラリを使っている？ セキュリティの懸念はある？等）:"), height=100, disabled=is_demo)
+                    submit_q = st.form_submit_button(t("Ask AI", "AIに質問する"), type="primary", disabled=is_demo)
 
                     if submit_q:
                         if not admin_q.strip():

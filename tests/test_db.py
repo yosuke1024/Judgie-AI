@@ -301,3 +301,28 @@ def test_delete_hackathon(db_session_fixture):
     assert db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid).first() is None
     assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is None
     assert db_session_fixture.query(Session).filter(Session.hackathon_id == hid).first() is None
+
+
+def test_seed_demo_data(db_session_fixture):
+    from core.db import seed_demo_data
+    seed_demo_data()
+
+    # Verify hackathon
+    demo_h = db_session_fixture.query(Hackathon).filter(Hackathon.id == 9999).first()
+    assert demo_h is not None
+    assert demo_h.name == "Judgie Demo Hackathon"
+
+    # Verify users
+    admin_u = db_session_fixture.query(User).filter(User.hackathon_id == 9999, User.team_id == "demo_admin").first()
+    assert admin_u is not None
+    assert admin_u.role == "admin"
+
+    team_u = db_session_fixture.query(User).filter(User.hackathon_id == 9999, User.team_id == "demo_team").first()
+    assert team_u is not None
+    assert team_u.role == "team"
+    assert team_u.team_name == "PixelCraft Labs"
+
+    # Verify evaluations
+    evals = db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == 9999).all()
+    assert len(evals) == 7  # 4 for demo_team, 2 for demo_team2, 1 for demo_team3
+
