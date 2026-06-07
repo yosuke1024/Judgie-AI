@@ -7,6 +7,7 @@ from core.db import (
     get_setting, set_setting, get_personas, set_personas,
     save_admin_chat, get_admin_chats
 )
+from core.security import hash_passcode
 
 lang = st.session_state.get('language', 'English')
 def t(en, ja): return en if lang == "English" else ja
@@ -106,7 +107,7 @@ with tab2:
                             if tid and pwd:
                                 existing = db.query(User).filter_by(team_id=tid).first()
                                 if not existing:
-                                    db.add(User(hackathon_id=current_h_id, team_id=tid, passcode=pwd, role='team'))
+                                    db.add(User(hackathon_id=current_h_id, team_id=tid, passcode=hash_passcode(pwd), role='team'))
                                     count += 1
                         db.commit()
                         st.success(f"Successfully imported {count} teams!")
@@ -133,7 +134,7 @@ with tab2:
                         if existing:
                             st.error(t("Failed to add team. The Team ID might already exist.", "追加に失敗しました。チームIDが既に存在する可能性があります。"))
                         else:
-                            db.add(User(hackathon_id=current_h_id, team_id=new_tid.strip(), passcode=new_pwd.strip(), role='team'))
+                            db.add(User(hackathon_id=current_h_id, team_id=new_tid.strip(), passcode=hash_passcode(new_pwd.strip()), role='team'))
                             db.commit()
                             st.success(f"Team '{new_tid}' added successfully!")
                     except Exception as e:
