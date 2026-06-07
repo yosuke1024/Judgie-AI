@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from core.db import create_hackathon, update_admin_passcode, change_my_passcode, SessionLocal, Hackathon, User
+from core.db import create_hackathon, update_admin_passcode, change_my_passcode, delete_hackathon, SessionLocal, Hackathon, User
 from sqlalchemy import func
 from core.auth import require_login
 
@@ -102,3 +102,28 @@ with col2:
                         st.success(t(f"Password reset successfully for tenant ID {selected_h_id}.", f"テナントID {selected_h_id} のパスワードをリセットしました。"))
         else:
             st.info(t("No tenants with admin accounts found.", "管理者アカウントを持つテナントが見つかりません。"))
+
+        st.divider()
+        st.subheader(t("⚠️ Delete Tenant", "⚠️ テナントの削除"))
+        
+        # Use all IDs from rows so that any hackathon can be deleted
+        delete_options = {r['id']: f"[{r['id']}] {r['name']}" for r in rows}
+        if delete_options:
+            with st.form("delete_tenant_form"):
+                st.markdown(t("Select a tenant to delete. This will permanently delete **all associated data** (users, submissions, settings, evaluations, etc.).", "削除するテナントを選択してください。この操作により、**関連するすべてのデータ**（ユーザー、提出物、設定、評価など）が完全に削除され、元に戻せなくなります。"))
+                selected_del_h_id = st.selectbox(t("Select Tenant to Delete", "削除するテナントを選択"), options=list(delete_options.keys()), format_func=lambda x: delete_options[x])
+                
+                confirm_check = st.checkbox(t("I understand that all data for this tenant will be permanently deleted and cannot be recovered.", "このテナントのすべてのデータが永久に削除され、復元できないことを理解しました。"))
+                
+                if st.form_submit_button(t("🔥 Delete Tenant", "🔥 テナントを削除"), type="primary"):
+                    if not confirm_check:
+                        st.error(t("Please check the confirmation box to delete the tenant.", "削除するには確認のチェックボックスをオンにしてください。"))
+                    else:
+                        try:
+                            delete_hackathon(selected_del_h_id)
+                            st.success(t(f"Successfully deleted tenant ID {selected_del_h_id}.", f"テナントID {selected_del_h_id} を正常に削除しました。"))
+                            st.rerun()
+                        except Exception as e:
+                            st.error(t(f"Failed to delete tenant: {str(e)}", f"テナントの削除に失敗しました: {str(e)}"))
+        else:
+            st.info(t("No tenants found.", "テナントが見つかりません。"))
