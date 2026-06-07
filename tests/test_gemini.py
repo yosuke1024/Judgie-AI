@@ -3,7 +3,8 @@ import json
 from unittest.mock import MagicMock
 from core.gemini import (
     configure_gemini, upload_to_gemini, wait_for_files_active,
-    analyze_submission, object_to_judges, admin_chat_about_submission
+    analyze_submission, object_to_judges, admin_chat_about_submission,
+    list_available_gemini_models
 )
 
 def test_configure_gemini_success(mocker):
@@ -150,3 +151,32 @@ def test_admin_chat_about_submission(mocker):
     
     assert res["answer_en"] == "Ans"
     assert res["answer_ja"] == "Ans_ja"
+
+def test_list_available_gemini_models(mocker):
+    mocker.patch("core.gemini.get_setting", return_value="test_api_key")
+    
+    # Mock Model objects returned by models.list()
+    mock_model_1 = MagicMock()
+    mock_model_1.name = "models/gemini-2.5-flash"
+    mock_model_1.supported_actions = ["generateContent"]
+    
+    mock_model_2 = MagicMock()
+    mock_model_2.name = "models/gemini-3.1-pro"
+    mock_model_2.supported_actions = ["generateContent"]
+
+    mock_model_3 = MagicMock()
+    mock_model_3.name = "models/text-embedding-004"
+    mock_model_3.supported_actions = ["embedContent"]
+
+    mock_model_4 = MagicMock()
+    mock_model_4.name = "models/other-model"
+    mock_model_4.supported_actions = ["generateContent"]
+
+    mock_client = MagicMock()
+    mock_client.models.list.return_value = [mock_model_1, mock_model_2, mock_model_3, mock_model_4]
+    mocker.patch("core.gemini.get_gemini_client", return_value=mock_client)
+    
+    res = list_available_gemini_models(1)
+    
+    assert res == ["gemini-2.5-flash", "gemini-3.1-pro"]
+
