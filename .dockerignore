@@ -1,0 +1,11 @@
+.git
+.github
+.gitignore
+.env
+.devcontainer
+venv/
+**/*.pyc
+**/__pycache__/
+data/
+judgie.db
+*.zip

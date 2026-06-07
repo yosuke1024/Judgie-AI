@@ -1,0 +1,39 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Data (Do not commit real data)
+data/judgie.db
+*.db
+*.db.backup
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Submissions
+submission.zip
+*.zip.backup
+# 5. Personas
+personas/*.md
+!personas/*.sample.md
+
+# AI Agent / Local Configs
+.ai-conventions.md
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+

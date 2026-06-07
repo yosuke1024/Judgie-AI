@@ -1,0 +1,45 @@
+steps:
+  # 1. コンテナのビルド (代入変数を使用してリージョンやイメージ名を汎用化)
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build', 
+      '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${COMMIT_SHA}',
+      '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:latest',
+      '.'
+    ]
+
+  # 2. イメージのプッシュ
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${COMMIT_SHA}']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:latest']
+
+  # 3. Cloud Run へのデプロイと環境変数/シークレット/Cloud SQLの接続マウント
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: [
+      'run', 'deploy', '${_IMAGE_NAME}',
+      '--image', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${COMMIT_SHA}',
+      '--region', '${_REGION}',
+      '--set-env-vars', 'APP_ENV=production',
+      '--set-secrets', 'DATABASE_URL=${_SECRET_NAME}:latest',
+      '--add-cloudsql-instances', '${PROJECT_ID}:${_REGION}:${_DB_INSTANCE}',
+      '--ingress', 'internal-and-cloud-load-balancing',
+      '--no-allow-unauthenticated'
+    ]
+
+# ユーザー定義変数のデフォルト値 (OSS公開時はこのデフォルト値が表示されます)
+substitutions:
+  _REGION: 'us-central1'
+  _REPO_NAME: 'judgie-repo'
+  _IMAGE_NAME: 'judgie-app'
+  _DB_INSTANCE: 'judgie-db'
+  _SECRET_NAME: 'DATABASE_URL'
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${COMMIT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
