@@ -1,10 +1,11 @@
 import pytest
 import json
-from core.security import verify_passcode
+from core.security import verify_passcode, hash_passcode
 from core.db import (
     init_db, verify_user, get_consultation_count, save_evaluation,
     save_objection_qa, get_setting, set_setting, get_criteria, set_criteria,
     get_personas, set_personas, create_hackathon, update_admin_passcode,
+    update_team_passcode,
     change_my_passcode, get_team_profile, update_team_profile,
     create_session, get_session, delete_session, save_admin_chat, get_admin_chats,
     delete_hackathon,
@@ -120,6 +121,25 @@ def test_update_admin_passcode(db_session_fixture):
     update_admin_passcode(hid, "newpass")
     assert verify_user("admin1", "newpass", hackathon_id=hid) is not None
     assert verify_user("admin1", "pass123", hackathon_id=hid) is None
+
+def test_update_team_passcode(db_session_fixture):
+    hid = create_hackathon("Hack1", "admin1", "pass123")
+    
+    # 登録されたチームユーザーを作成
+    team_user = User(hackathon_id=hid, team_id="teamA", passcode=hash_passcode("teampass"), role="team")
+    db_session_fixture.add(team_user)
+    db_session_fixture.commit()
+    
+    # 正しいチームIDとハッカソンIDで更新が成功することを確認
+    assert update_team_passcode(hid, "teamA", "newteampass") is True
+    assert verify_user("teamA", "newteampass", hackathon_id=hid) is not None
+    assert verify_user("teamA", "teampass", hackathon_id=hid) is None
+    
+    # 存在しないチームIDの更新が失敗することを確認
+    assert update_team_passcode(hid, "nonexistent", "somepass") is False
+    
+    # 別のハッカソンIDを指定した場合に更新が適用されないことを確認
+    assert update_team_passcode(999, "teamA", "anotherpass") is False
 
 def test_change_my_passcode(db_session_fixture):
     init_db()

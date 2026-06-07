@@ -270,6 +270,18 @@ def update_admin_passcode(hackathon_id: int, new_passcode: str):
         if admin_user:
             admin_user.passcode = hash_passcode(new_passcode)
 
+def update_team_passcode(hackathon_id: int, team_id: str, new_passcode: str) -> bool:
+    with db_session() as db:
+        team_user = db.query(User).filter(
+            User.hackathon_id == hackathon_id,
+            User.team_id == team_id,
+            User.role == 'team'
+        ).first()
+        if team_user:
+            team_user.passcode = hash_passcode(new_passcode)
+            return True
+        return False
+
 def change_my_passcode(hackathon_id: int = None, team_id: str = None, current_passcode: str = None, new_passcode: str = None) -> bool:
     # Robust fallback: If hackathon_id is a string, it means the older 3-argument signature 
     # (team_id, current_passcode, new_passcode) was called due to hot-reload cache mismatch.

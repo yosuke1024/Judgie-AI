@@ -5,7 +5,7 @@ import uuid
 from core.db import (
     get_criteria, set_criteria, SessionLocal, User, Hackathon, Evaluation,
     get_setting, set_setting, get_personas, set_personas,
-    save_admin_chat, get_admin_chats
+    save_admin_chat, get_admin_chats, update_team_passcode
 )
 from core.security import hash_passcode
 from core.ui_utils import encode_image_to_base64
@@ -86,6 +86,13 @@ with tab1:
 
 # --- TAB 2: Team Management ---
 with tab2:
+    db = SessionLocal()
+    try:
+        results = db.query(User.team_id, User.product_name, User.team_name).filter(User.hackathon_id == current_h_id, User.role == 'team').order_by(User.id.desc()).all()
+        teams = [{'team_id': r.team_id, 'product_name': r.product_name, 'team_name': r.team_name} for r in results]
+    finally:
+        db.close()
+
     col_csv, col_manual = st.columns(2)
     
     with col_csv:
@@ -110,6 +117,7 @@ with tab2:
                                     count += 1
                         db.commit()
                         st.success(f"Successfully imported {count} teams!")
+                        st.rerun()
                     except Exception as e:
                         db.rollback()
                         st.error(f"Failed to read CSV: {str(e)}")
@@ -136,6 +144,7 @@ with tab2:
                             db.add(User(hackathon_id=current_h_id, team_id=new_tid.strip(), passcode=hash_passcode(new_pwd.strip()), role='team'))
                             db.commit()
                             st.success(f"Team '{new_tid}' added successfully!")
+                            st.rerun()
                     except Exception as e:
                         db.rollback()
                         st.error(t("Failed to add team.", "追加に失敗しました。"))
@@ -144,15 +153,33 @@ with tab2:
                 else:
                     st.warning(t("Both Team ID and Passcode are required.", "チームIDとパスコードの両方を入力してください。"))
 
+        st.markdown("---")
+        st.markdown(f"### {t('Change Team Passcode', 'チームのパスコード変更')}")
+        st.caption(t("Update the passcode for an existing team.", "登録済みのチームのパスコードを変更します。"))
+        
+        with st.form("change_team_passcode_form"):
+            team_options = [t_row['team_id'] for t_row in teams]
+            if team_options:
+                target_tid = st.selectbox(t("Select Team ID", "変更対象のチームID"), team_options)
+            else:
+                target_tid = st.text_input(t("Team ID", "変更対象のチームID"), disabled=True, placeholder=t("No teams registered", "登録済みのチームがありません"))
+            
+            change_pwd = st.text_input(t("New Passcode", "新しいパスコード"), type="password")
+            
+            if st.form_submit_button(t("Update Passcode", "パスコードを変更"), type="primary"):
+                if not team_options:
+                    st.warning(t("No teams registered to change passcode.", "変更対象のチームが登録されていません。"))
+                elif not change_pwd:
+                    st.warning(t("Please enter a new passcode.", "新しいパスコードを入力してください。"))
+                else:
+                    if update_team_passcode(current_h_id, target_tid, change_pwd.strip()):
+                        st.success(t(f"Successfully updated passcode for team '{target_tid}'!", f"チーム '{target_tid}' のパスコードを更新しました！"))
+                        st.rerun()
+                    else:
+                        st.error(t("Failed to update passcode.", "パスコードの更新に失敗しました。"))
+
     st.divider()
     st.markdown(f"### {t('Registered Teams', '登録済みチーム一覧')}")
-    
-    db = SessionLocal()
-    try:
-        results = db.query(User.team_id, User.product_name, User.team_name).filter(User.hackathon_id == current_h_id, User.role == 'team').order_by(User.id.desc()).all()
-        teams = [{'team_id': r.team_id, 'product_name': r.product_name, 'team_name': r.team_name} for r in results]
-    finally:
-        db.close()
     
     if not teams:
         st.info(t("No teams registered yet.", "まだチームは登録されていません。"))

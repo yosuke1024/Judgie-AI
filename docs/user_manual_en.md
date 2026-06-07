@@ -92,6 +92,7 @@ Once logged in, you can access the **"👑 Admin Command Center"**. Follow these
 - Go to the **"🏢 Team Management"** tab.
 - **Bulk Import (CSV):** Upload a CSV file structured as `team_id, passcode` to register multiple teams at once.
 - **Manual Registration:** Add teams individually using the manual form.
+- **Change Team Passcode:** Update a team's passcode if a participant forgets it.
 - Distribute the credentials (Hackathon ID, Team ID, Passcode) to each participating team.
 
 ### 3-3. Operations During the Hackathon
