@@ -25,6 +25,16 @@ def render_judge_feedback_tab(feedback_data: dict, avatar_map: dict, lang: str):
         lang_key = normalize_lang_to_key(lang)
         feedback_text = j.get(f'feedback_{lang_key}')
         if feedback_text is None:
+            compat_map = {
+                "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en",
+                "spanish": "es", "french": "fr", "german": "de", "korean": "ko",
+                "chinese": "zh", "vietnamese": "vi", "thai": "th", "indonesian": "id"
+            }
+            compat_key = compat_map.get(lang_key)
+            if compat_key:
+                feedback_text = j.get(f'feedback_{compat_key}')
+
+        if feedback_text is None:
             fallback_keys = ['feedback_en', 'feedback_ja']
             for fk in fallback_keys:
                 feedback_text = j.get(fk)
