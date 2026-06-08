@@ -61,11 +61,23 @@
 └── requirements-dev.txt  # Development dependencies (pytest, ruff)
 ```
 
-## 🔐 Security Note
+## 🔐 Security & Optional OIDC Gateway
 
-> **Note**
-> - Team and admin passcodes are safely hashed using `bcrypt` before being stored in the database, protecting credentials from exposure.
-> - An optional IP-based firewall is supported via the `ALLOWED_IPS` environment variable (comma-separated IP addresses) to restrict platform access.
+* **Passcode Hashing**: Team and admin passcodes are safely hashed using `bcrypt` before being stored in the database.
+* **IP Firewall**: An optional IP-based firewall is supported via the `ALLOWED_IPS` environment variable (comma-separated IP addresses) to restrict platform access.
+* **OIDC Gateway Authentication (Optional)**: For private or enterprise deployments (e.g., replacing GCP Cloud Load Balancing / IAP setups to run with $0 fixed-cost), you can lock the entire application behind a generic OIDC (OpenID Connect / Google OAuth) gate.
+
+### Configuring OIDC Gateway
+To enable OIDC gateway authentication, configure the following variables in your `.env` file:
+* `OIDC_ENABLED=true` (Set to `false` or omit to bypass OIDC and use normal passcode login only)
+* `OIDC_ISSUER=https://accounts.google.com` (Your OIDC identity provider issuer URL, defaults to Google)
+* `OIDC_CLIENT_ID=your-client-id`
+* `OIDC_CLIENT_SECRET=your-client-secret`
+* `OIDC_REDIRECT_URI=http://localhost:8501/` (Your application's base URL)
+* `OIDC_ALLOWED_DOMAINS=yourcompany.com` (Comma-separated list of allowed email domains. Leave empty to allow any authenticated user)
+* `OIDC_ALLOWED_EMAILS=admin@gmail.com` (Comma-separated list of allowed individual emails)
+
+When OIDC is enabled, users must authenticate and pass domain/email whitelisting before they can access the standard Judgie-AI login interface. If disabled (default), the OIDC screen is bypassed.
 
 ## 📦 Setup
 
