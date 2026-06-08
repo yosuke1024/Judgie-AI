@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import uuid
 from contextlib import contextmanager
@@ -121,13 +122,44 @@ def get_db():
 def init_db():
     Base.metadata.create_all(bind=engine)
     with db_session() as db:
-        # Seed SuperAdmin User
-        superadmin = db.query(User).filter(User.role == 'superadmin').first()
-        if not superadmin:
-            superadmin = User(team_id='superadmin', passcode=hash_passcode('superadmin123'), role='superadmin')
-            db.add(superadmin)
+        default_admin_id = os.environ.get("DEFAULT_ADMIN_ID")
+        default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSCODE")
+
+        # If single-tenant mode is NOT enabled, seed SuperAdmin as usual
+        if not default_admin_id:
+            superadmin = db.query(User).filter(User.role == 'superadmin').first()
+            if not superadmin:
+                superadmin = User(team_id='superadmin', passcode=hash_passcode('superadmin123'), role='superadmin')
+                db.add(superadmin)
+        else:
+            # Single-tenant mode: Auto-provision default hackathon and tenant admin
+            # Only provision if there are no hackathons at all (prevent overwriting/duplicates)
+            existing_h = db.query(Hackathon).first()
+            if not existing_h:
+                h_name = os.environ.get("DEFAULT_HACKATHON_NAME", "Default Hackathon")
+                hackathon = Hackathon(id=1, name=h_name)
+                db.add(hackathon)
+                db.flush()
+
+                admin_user = User(
+                    hackathon_id=hackathon.id,
+                    team_id=default_admin_id,
+                    passcode=hash_passcode(default_admin_pass),
+                    role='admin'
+                )
+                db.add(admin_user)
+                db.flush()
+
+                # Initialize settings with defaults
+                set_personas(hackathon.id, get_personas(None), db=db)
+                set_criteria(hackathon.id, get_criteria(None), db=db)
+                set_ai_response_languages(hackathon.id, ["English", "Japanese"], db=db)
 
 def verify_user(team_id: str, passcode: str, hackathon_id: int = None) -> dict:
+    # Block SuperAdmin login if single-tenant mode is enabled
+    if team_id == 'superadmin' and os.environ.get("DEFAULT_ADMIN_ID"):
+        return None
+
     with db_session() as db:
         query = db.query(User).filter(User.team_id == team_id)
         if team_id == 'superadmin':

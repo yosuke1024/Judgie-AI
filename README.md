@@ -4,6 +4,7 @@
 ![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.50+-red.svg)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://judgie-ai.streamlit.app)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/yosuke1024/Judgie-AI&plugins=postgresql&envs=DEFAULT_ADMIN_ID,DEFAULT_ADMIN_PASSCODE,DEFAULT_HACKATHON_NAME&DEFAULT_ADMIN_ID=admin&DEFAULT_HACKATHON_NAME=My%20Hackathon&APP_ENV=production&referralCode=pixapps)
 
 **Judgie-AI** is a multi-tenant AI hackathon platform that automates and enhances the judging and feedback process. Leveraging Google Gemini's multimodal capabilities, it evaluates team submissions (source code ZIPs, demo videos, PDF slides) from the diverse perspectives of a customizable panel of AI expert personas, providing actionable coaching and scoring.
 
@@ -78,6 +79,21 @@ To enable OIDC gateway authentication, configure the following variables in your
 * `OIDC_ALLOWED_EMAILS=admin@gmail.com` (Comma-separated list of allowed individual emails)
 
 When OIDC is enabled, users must authenticate and pass domain/email whitelisting before they can access the standard Judgie-AI login interface. If disabled (default), the OIDC screen is bypassed.
+
+## 🚀 Deploying to Railway (One-Click)
+
+You can deploy Judgie-AI to Railway with a single click. This template automatically provisions a Streamlit container and a PostgreSQL database.
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/yosuke1024/Judgie-AI&plugins=postgresql&envs=DEFAULT_ADMIN_ID,DEFAULT_ADMIN_PASSCODE,DEFAULT_HACKATHON_NAME&DEFAULT_ADMIN_ID=admin&DEFAULT_HACKATHON_NAME=My%20Hackathon&APP_ENV=production&referralCode=pixapps)
+
+During deployment, you will be prompted to set the following environment variables:
+* `DEFAULT_ADMIN_ID`: The login ID for your Hackathon Admin dashboard.
+* `DEFAULT_ADMIN_PASSCODE`: The passcode for your Admin account.
+* `DEFAULT_HACKATHON_NAME`: The name of your hackathon.
+
+When these environment variables are provided, the platform automatically disables the system-wide SuperAdmin (`superadmin`/`superadmin123`) for security reasons, so you can log in directly as your hackathon's administrator.
+
+---
 
 ## 📦 Setup
 

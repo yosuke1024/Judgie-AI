@@ -45,6 +45,9 @@ with st.sidebar:
         unsafe_allow_html=True
     )
 
+# Check if SuperAdmin should be disabled (Single-tenant mode)
+super_admin_disabled = os.environ.get("DEFAULT_ADMIN_ID") is not None
+
 # Define Pages
 login_page = st.Page("views/login.py", title="Login", icon="🔑")
 super_login_page = st.Page("views/super_login.py", title="Super Admin Login", icon="🌍")
@@ -58,16 +61,19 @@ manual_page = st.Page("views/user_manual.py", title=t("User Manual", "ユーザ�
 # Dynamic Navigation based on role
 pages = []
 if not st.session_state.logged_in:
-    if st.query_params.get("admin") == "true":
+    if st.query_params.get("admin") == "true" and not super_admin_disabled:
         pages = [super_login_page, manual_page]
     else:
         pages = [login_page, manual_page]
-elif st.session_state.role == 'superadmin':
+elif st.session_state.role == 'superadmin' and not super_admin_disabled:
     pages = [superadmin_page, manual_page]
 elif st.session_state.role == 'admin':
     pages = [admin_page, team_page, leaderboard_page, settings_page, manual_page]
 elif st.session_state.role == 'team':
     pages = [team_page, leaderboard_page, manual_page]
+else:
+    # Fallback in case a superadmin session is active but now disabled
+    pages = [login_page, manual_page]
 
 pg = st.navigation(pages)
 pg.run()

@@ -348,3 +348,34 @@ def test_seed_demo_data(db_session_fixture):
     evals = db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == 9999).all()
     assert len(evals) == 7  # 4 for demo_team, 2 for demo_team2, 1 for demo_team3
 
+
+def test_single_tenant_mode(db_session_fixture, monkeypatch):
+    # Mock environment variables
+    monkeypatch.setenv("DEFAULT_ADMIN_ID", "railway_admin")
+    monkeypatch.setenv("DEFAULT_ADMIN_PASSCODE", "railway_pass123")
+    monkeypatch.setenv("DEFAULT_HACKATHON_NAME", "Railway Hackathon")
+
+    # Re-run init_db in single-tenant mode
+    init_db()
+
+    # 1. Verify SuperAdmin is NOT created
+    superadmin = db_session_fixture.query(User).filter(User.role == 'superadmin').first()
+    assert superadmin is None
+
+    # 2. Verify default hackathon and admin user are created
+    hackathon = db_session_fixture.query(Hackathon).filter(Hackathon.id == 1).first()
+    assert hackathon is not None
+    assert hackathon.name == "Railway Hackathon"
+
+    admin_user = db_session_fixture.query(User).filter(User.hackathon_id == 1, User.team_id == "railway_admin").first()
+    assert admin_user is not None
+    assert admin_user.role == "admin"
+    assert verify_passcode("railway_pass123", admin_user.passcode) is True
+
+    # 3. Verify SuperAdmin login is blocked in verify_user
+    assert verify_user("superadmin", "superadmin123") is None
+
+    # 4. Verify admin login succeeds
+    assert verify_user("railway_admin", "railway_pass123", hackathon_id=1) == {'role': 'admin', 'hackathon_id': 1}
+
+
