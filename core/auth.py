@@ -124,6 +124,12 @@ def logout():
     st.session_state.team_id = None
     st.session_state.active_hackathon_id = None
     st.session_state.sid = None
+
+    # Clear OIDC state variables
+    for key in ['oidc_verified', 'oidc_email', 'oidc_state']:
+        if key in st.session_state:
+            del st.session_state[key]
+
     st.rerun()
 
 def require_login(required_role=None):
