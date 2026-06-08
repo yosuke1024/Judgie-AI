@@ -3,8 +3,9 @@
 ![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 ![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.50+-red.svg)
+![Judgie AI Logo](assets/logo.png)
 [![Streamlit App](https://img.shields.io/badge/Streamlit_App-%23FE4B4B?logo=streamlit&logoColor=white)](https://judgie-ai.streamlit.app)
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/VBtGh6?referralCode=lR1Ra-&utm_medium=integration&utm_source=template&utm_campaign=generic)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/judgieai)
 
 **Judgie-AI** is a multi-tenant AI hackathon platform that automates and enhances the judging and feedback process. Leveraging Google Gemini's multimodal capabilities, it evaluates team submissions (source code ZIPs, demo videos, PDF slides) from the diverse perspectives of a customizable panel of AI expert personas, providing actionable coaching and scoring.
 
@@ -84,7 +85,7 @@ When OIDC is enabled, users must authenticate and pass domain/email whitelisting
 
 You can deploy Judgie-AI to Railway with a single click. This template automatically provisions a Streamlit container and a PostgreSQL database.
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/VBtGh6?referralCode=lR1Ra-&utm_medium=integration&utm_source=template&utm_campaign=generic)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/judgieai)
 
 During deployment, you will be prompted to set the following environment variables:
 * `DEFAULT_ADMIN_ID`: The login ID for your Hackathon Admin dashboard.
