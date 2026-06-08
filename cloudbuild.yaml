@@ -21,11 +21,11 @@ steps:
       'run', 'deploy', '${_IMAGE_NAME}',
       '--image', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${COMMIT_SHA}',
       '--region', '${_REGION}',
-      '--set-env-vars', 'APP_ENV=production',
-      '--set-secrets', 'DATABASE_URL=${_SECRET_NAME}:latest',
+      '--set-env-vars', 'APP_ENV=production,OIDC_ENABLED=${_OIDC_ENABLED},OIDC_CLIENT_ID=${_OIDC_CLIENT_ID},OIDC_REDIRECT_URI=${_OIDC_REDIRECT_URI},OIDC_ALLOWED_DOMAINS=${_OIDC_ALLOWED_DOMAINS},OIDC_ALLOWED_EMAILS=${_OIDC_ALLOWED_EMAILS}',
+      '--set-secrets', 'DATABASE_URL=${_SECRET_NAME}:latest,OIDC_CLIENT_SECRET=OIDC_CLIENT_SECRET:latest',
       '--add-cloudsql-instances', '${PROJECT_ID}:${_REGION}:${_DB_INSTANCE}',
-      '--ingress', 'internal-and-cloud-load-balancing',
-      '--no-allow-unauthenticated'
+      '--ingress', 'all',
+      '--allow-unauthenticated'
     ]
 
 # ユーザー定義変数のデフォルト値 (OSS公開時はこのデフォルト値が表示されます)
@@ -35,6 +35,11 @@ substitutions:
   _IMAGE_NAME: 'judgie-app'
   _DB_INSTANCE: 'judgie-db'
   _SECRET_NAME: 'DATABASE_URL'
+  _OIDC_ENABLED: 'false'
+  _OIDC_CLIENT_ID: ''
+  _OIDC_REDIRECT_URI: ''
+  _OIDC_ALLOWED_DOMAINS: ''
+  _OIDC_ALLOWED_EMAILS: ''
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${COMMIT_SHA}'
