@@ -1,0 +1,7 @@
+# Litestream Configuration File
+# Env variables will be interpolated at runtime.
+
+dbs:
+  - path: /app/data/judgie.db
+    replicas:
+      - url: ${LITESTREAM_REPLICA_URL}
