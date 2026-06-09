@@ -1,5 +1,5 @@
 steps:
-  # 1. コンテナのビルド (代入変数を使用してリージョンやイメージ名を汎用化)
+  # 1. Build container image (using substitutions to generalize region and image name)
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build', 
@@ -8,13 +8,13 @@ steps:
       '.'
     ]
 
-  # 2. イメージのプッシュ
+  # 2. Push container image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${COMMIT_SHA}']
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:latest']
 
-  # 3. Cloud Run へのデプロイ (SQLite / PostgreSQL の条件分岐)
+  # 3. Deploy to Cloud Run (conditional configuration for SQLite / PostgreSQL)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
     args:
@@ -39,7 +39,7 @@ steps:
           fi
           echo "Using GCS bucket: gs://$$BUCKET"
 
-          # 事前に既存のシークレット型DATABASE_URLを削除して型競合を防止
+          # Pre-emptively remove existing secret DATABASE_URL to prevent type conflicts
           echo "Removing conflicting database secrets..."
           gcloud run services update "${_IMAGE_NAME}" \
             --region "${_REGION}" \
@@ -56,7 +56,7 @@ steps:
         else
           echo "==== Configuring for PostgreSQL (Cloud SQL) ===="
           
-          # 事前に既存の環境変数型DATABASE_URLを削除して型競合を防止
+          # Pre-emptively remove existing env-var DATABASE_URL/LITESTREAM_REPLICA_URL to prevent type conflicts
           echo "Removing conflicting database env vars..."
           gcloud run services update "${_IMAGE_NAME}" \
             --region "${_REGION}" \
@@ -72,7 +72,7 @@ steps:
 
         gcloud "$${ARGS[@]}"
 
-# ユーザー定義変数のデフォルト値 (OSS公開時はこのデフォルト値が表示されます)
+# Default values for user-defined substitutions (shown during OSS deployment)
 substitutions:
   _REGION: 'us-central1'
   _REPO_NAME: 'judgie-repo'

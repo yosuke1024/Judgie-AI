@@ -1,34 +1,34 @@
 #!/bin/sh
 set -e
 
-# PORTのデフォルト設定
+# Default configuration for PORT
 PORT=${PORT:-8080}
 
-# データベースファイルのディレクトリ作成
+# Create directory for database files
 mkdir -p /app/data
 
-# DATABASE_URLがsqliteかどうか、かつLITESTREAM_REPLICA_URLが指定されているかを判定
+# Check if DATABASE_URL is SQLite and LITESTREAM_REPLICA_URL is specified
 if [ -n "$DATABASE_URL" ] && echo "$DATABASE_URL" | grep -q "^sqlite://"; then
     echo "SQLite database detected. Checking Litestream config..."
     
-    # 接続文字列からSQLiteファイルパスを抽出
+    # Extract the SQLite file path from the connection string
     # sqlite:////app/data/judgie.db -> /app/data/judgie.db
     # sqlite:///data/judgie.db -> data/judgie.db
     DB_PATH=$(echo "$DATABASE_URL" | sed 's|^sqlite:///||')
     if echo "$DB_PATH" | grep -q "^/"; then
-        # 絶対パス
+        # Absolute path
         true
     else
-        # 相対パスの場合は /app/ を付与して絶対パス化
+        # For relative path, prefix with /app/ to make it absolute
         DB_PATH="/app/$DB_PATH"
     fi
 
-    # データベースファイルの親ディレクトリが存在することを確認
+    # Ensure the parent directory of the database file exists
     mkdir -p "$(dirname "$DB_PATH")"
 
     if [ -n "$LITESTREAM_REPLICA_URL" ]; then
         echo "LITESTREAM_REPLICA_URL is set. Restoring database from replica if exists..."
-        # データベースがまだ存在しない場合のみ、レプリカからリストアを試みる
+        # Only restore from replica if the database file does not exist yet
         if [ ! -f "$DB_PATH" ]; then
             litestream restore -if-replica-exists "$DB_PATH" || echo "No replica found or restore failed. Starting with empty database."
         else
@@ -36,7 +36,7 @@ if [ -n "$DATABASE_URL" ] && echo "$DATABASE_URL" | grep -q "^sqlite://"; then
         fi
 
         echo "Starting Litestream replication and Streamlit app..."
-        # litestream replicateの制御下でStreamlitアプリを実行
+        # Run the Streamlit app under the control of litestream replicate
         exec litestream replicate -exec "streamlit run app.py --server.port=${PORT} --server.address=0.0.0.0 --server.fileWatcherType=none"
     else
         echo "LITESTREAM_REPLICA_URL is not set. Running without replication..."
