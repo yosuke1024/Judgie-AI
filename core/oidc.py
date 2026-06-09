@@ -151,11 +151,22 @@ def enforce_oidc_gateway():
     code = st.query_params.get("code")
 
     if not code:
+        import json
+        import base64
+
         # Generate and store a CSRF state token
         if "oidc_state" not in st.session_state:
             st.session_state.oidc_state = secrets.token_hex(16)
 
-        auth_url = get_auth_url(st.session_state.oidc_state)
+        # Pack CSRF token and current query parameters into state
+        current_params = {k: v for k, v in st.query_params.items() if k not in ["code", "state"]}
+        state_data = {
+            "csrf": st.session_state.oidc_state,
+            "params": current_params
+        }
+        state_payload = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
+
+        auth_url = get_auth_url(state_payload)
 
         # Render a modern, centered login interface
         st.markdown(
@@ -213,11 +224,22 @@ def enforce_oidc_gateway():
             st.stop()
 
     else:
-        # Code received; handle callback and state validation
-        state = st.query_params.get("state")
-        saved_state = st.session_state.get("oidc_state")
+        import json
+        import base64
 
-        if saved_state and state != saved_state:
+        # Code received; handle callback and state validation
+        state_payload = st.query_params.get("state")
+        saved_csrf = st.session_state.get("oidc_state")
+
+        try:
+            state_data = json.loads(base64.urlsafe_b64decode(state_payload.encode()).decode())
+            state_csrf = state_data.get("csrf")
+            restored_params = state_data.get("params", {})
+        except Exception:
+            state_csrf = None
+            restored_params = {}
+
+        if saved_csrf and state_csrf != saved_csrf:
             st.error("Invalid session state (possible CSRF attempt or session timeout). Please try again.")
             if st.button("Reset and Retry Login", use_container_width=True):
                 st.query_params.clear()
@@ -232,8 +254,10 @@ def enforce_oidc_gateway():
             st.session_state.oidc_verified = True
             st.session_state.oidc_email = email
 
-            # Clear OAuth parameters from the browser address bar and reload
+            # Clear OAuth parameters from the browser address bar, but restore original query params
             st.query_params.clear()
+            for k, v in restored_params.items():
+                st.query_params[k] = v
             st.rerun()
         else:
             # Render access denied message with account detail
