@@ -1,4 +1,4 @@
-from core.db import Evaluation, db_session, save_objection_qa, get_ai_response_languages, normalize_lang_to_key
+from core.db import Evaluation, db_session, get_ai_response_languages, normalize_lang_to_key, save_objection_qa
 from core.gemini import object_to_judges
 
 
@@ -75,7 +75,7 @@ def sanitize_objection_response(data: dict, hackathon_id: int = None) -> dict:
     for r in raw_responses:
         if not isinstance(r, dict):
             continue
-        
+
         normalized_r = {
             "judge_name": r.get("judge_name", "Judge"),
         }
@@ -88,7 +88,7 @@ def sanitize_objection_response(data: dict, hackathon_id: int = None) -> dict:
                 default_resp = "日本語の回答がありません。"
             elif lang_key in ["english", "en", "英語"]:
                 default_resp = "No detailed response in English."
-            
+
             normalized_r[f"response_{lang_key}"] = r.get(f"response_{lang_key}", default_resp)
 
         # Retain legacy/fallback keys for backward compatibility

@@ -87,12 +87,12 @@ def test_sanitize_objection_response_multilingual(db_session_fixture):
     }
 
     res = sanitize_objection_response(input_data, hid)
-    
+
     # Check that the dynamic keys are correctly sanitized and preserved
     assert res["qa_summary_english"] == "English summary"
     assert res["qa_summary_japanese"] == "日本語の要約"
     assert res["qa_summary_korean"] == "한국어 요약"
-    
+
     # Check fallback/legacy keys are also set
     assert res["qa_summary_en"] == "Objection evaluated by the expert panel."
     assert res["qa_summary_ja"] == "審査員パネルによって異議が精査されました。"
@@ -104,7 +104,7 @@ def test_sanitize_objection_response_multilingual(db_session_fixture):
     assert judges[0]["response_english"] == "Marcus response in English"
     assert judges[0]["response_japanese"] == "Marcus response in Japanese"
     assert judges[0]["response_korean"] == "Marcus response in Korean"
-    
+
     # Fallback response values
     assert judges[0]["response_en"] == "No detailed response in English."
     assert judges[0]["response_ja"] == "日本語の回答がありません。"
