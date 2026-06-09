@@ -12,7 +12,7 @@ if APP_ENV == "production":
     DATABASE_URL = os.environ.get("DATABASE_URL")
     if not DATABASE_URL:
         raise ValueError("DATABASE_URL environment variable must be set in production")
-    
+
     # If DATABASE_URL is SQLite, ensure target directory exists
     if DATABASE_URL.startswith("sqlite:///"):
         db_path = DATABASE_URL.replace("sqlite:///", "")
