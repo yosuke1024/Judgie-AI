@@ -34,30 +34,30 @@ steps:
         if [ "${_DB_TYPE}" = "sqlite" ]; then
           echo "==== Configuring for SQLite + Litestream ===="
           BUCKET="${_LITESTREAM_BUCKET}"
-          if [ -z "$BUCKET" ]; then
+          if [ -z "$$BUCKET" ]; then
             BUCKET="${PROJECT_ID}-judgie-litestream"
           fi
-          echo "Using GCS bucket: gs://${BUCKET}"
+          echo "Using GCS bucket: gs://$$BUCKET"
 
-          ENV_VARS="${ENV_VARS},DATABASE_URL=sqlite:////app/data/judgie.db,LITESTREAM_REPLICA_URL=gcs://${BUCKET}/judgie.db"
+          ENV_VARS="$$ENV_VARS,DATABASE_URL=sqlite:////app/data/judgie.db,LITESTREAM_REPLICA_URL=gcs://$$BUCKET/judgie.db"
           
           ARGS+=(
-            "--set-env-vars" "${ENV_VARS}"
-            "--set-secrets" "${SECRETS}"
+            "--set-env-vars" "$$ENV_VARS"
+            "--set-secrets" "$$SECRETS"
             "--max-instances" "1"
             "--no-cpu-throttling"
           )
         else
           echo "==== Configuring for PostgreSQL (Cloud SQL) ===="
-          SECRETS="${SECRETS},DATABASE_URL=${_SECRET_NAME}:latest"
+          SECRETS="$$SECRETS,DATABASE_URL=${_SECRET_NAME}:latest"
           ARGS+=(
-            "--set-env-vars" "${ENV_VARS}"
-            "--set-secrets" "${SECRETS}"
+            "--set-env-vars" "$$ENV_VARS"
+            "--set-secrets" "$$SECRETS"
             "--add-cloudsql-instances" "${PROJECT_ID}:${_REGION}:${_DB_INSTANCE}"
           )
         fi
 
-        gcloud "${ARGS[@]}"
+        gcloud "$${ARGS[@]}"
 
 # ユーザー定義変数のデフォルト値 (OSS公開時はこのデフォルト値が表示されます)
 substitutions:
