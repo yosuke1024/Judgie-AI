@@ -39,22 +39,33 @@ steps:
           fi
           echo "Using GCS bucket: gs://$$BUCKET"
 
+          # 事前に既存のシークレット型DATABASE_URLを削除して型競合を防止
+          echo "Removing conflicting database secrets..."
+          gcloud run services update "${_IMAGE_NAME}" \
+            --region "${_REGION}" \
+            --remove-secrets "DATABASE_URL" || true
+
           ENV_VARS="$$ENV_VARS,DATABASE_URL=sqlite:////app/data/judgie.db,LITESTREAM_REPLICA_URL=gcs://$$BUCKET/judgie.db"
           
           ARGS+=(
             "--set-env-vars" "$$ENV_VARS"
             "--set-secrets" "$$SECRETS"
-            "--remove-secrets" "DATABASE_URL"
             "--max-instances" "1"
             "--no-cpu-throttling"
           )
         else
           echo "==== Configuring for PostgreSQL (Cloud SQL) ===="
+          
+          # 事前に既存の環境変数型DATABASE_URLを削除して型競合を防止
+          echo "Removing conflicting database env vars..."
+          gcloud run services update "${_IMAGE_NAME}" \
+            --region "${_REGION}" \
+            --remove-env-vars "DATABASE_URL,LITESTREAM_REPLICA_URL" || true
+
           SECRETS="$$SECRETS,DATABASE_URL=${_SECRET_NAME}:latest"
           ARGS+=(
             "--set-env-vars" "$$ENV_VARS"
             "--set-secrets" "$$SECRETS"
-            "--remove-env-vars" "DATABASE_URL,LITESTREAM_REPLICA_URL"
             "--add-cloudsql-instances" "${PROJECT_ID}:${_REGION}:${_DB_INSTANCE}"
           )
         fi
