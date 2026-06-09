@@ -44,6 +44,7 @@ steps:
           ARGS+=(
             "--set-env-vars" "$$ENV_VARS"
             "--set-secrets" "$$SECRETS"
+            "--remove-secrets" "DATABASE_URL"
             "--max-instances" "1"
             "--no-cpu-throttling"
           )
@@ -53,6 +54,7 @@ steps:
           ARGS+=(
             "--set-env-vars" "$$ENV_VARS"
             "--set-secrets" "$$SECRETS"
+            "--remove-env-vars" "DATABASE_URL,LITESTREAM_REPLICA_URL"
             "--add-cloudsql-instances" "${PROJECT_ID}:${_REGION}:${_DB_INSTANCE}"
           )
         fi
