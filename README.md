@@ -1,15 +1,47 @@
 # ⚖️ Judgie-AI
 
-![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
-![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.50+-red.svg)
-![Judgie AI Logo](assets/logo.png)
-[![Streamlit App](https://img.shields.io/badge/Streamlit_App-%23FE4B4B?logo=streamlit&logoColor=white)](https://judgie-ai.streamlit.app)
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/judgieai)
+<p align="center">
+  <img src="assets/logo.png" width="220" alt="Judgie AI Logo">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0">
+  <img src="https://img.shields.io/badge/python-3.9+-blue.svg" alt="Python Version">
+  <img src="https://img.shields.io/badge/Streamlit-1.50+-red.svg" alt="Streamlit">
+  <a href="https://judgie-ai.streamlit.app"><img src="https://img.shields.io/badge/Streamlit_App-%23FE4B4B?logo=streamlit&logoColor=white" alt="Streamlit App"></a>
+  <a href="https://railway.com/deploy/judgieai"><img src="https://railway.com/button.svg" alt="Deploy on Railway"></a>
+</p>
 
 **Judgie-AI** is a multi-tenant AI hackathon platform that automates and enhances the judging and feedback process. Leveraging Google Gemini's multimodal capabilities, it evaluates team submissions (source code ZIPs, demo videos, PDF slides) from the diverse perspectives of a customizable panel of AI expert personas, providing actionable coaching and scoring.
 
 > 💡 **Judgie-AI** is part of the **[PixApps](https://pixapps.ai/)** suite — a collection of innovative, AI-powered applications. Explore our other projects and support our work at [pixapps.ai](https://pixapps.ai/).
+
+<p align="center">
+  <img src="assets/dashboard_score.png" width="800" alt="Judgie AI Score Dashboard">
+</p>
+
+<details>
+  <summary>📸 More Screenshots (Click to expand)</summary>
+  <br>
+  <table align="center">
+    <tr>
+      <td><b>AI Feedback & Evaluation</b></td>
+      <td><b>The Hype Board (Rankings)</b></td>
+    </tr>
+    <tr>
+      <td><img src="assets/dashboard_feedback.png" width="380" alt="AI Feedback"></td>
+      <td><img src="assets/dashboard_hypeboard.png" width="380" alt="The Hype Board"></td>
+    </tr>
+    <tr>
+      <td><b>Rules & Persona Panel</b></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><img src="assets/dashboard_rules.png" width="380" alt="Rules & Persona"></td>
+      <td></td>
+    </tr>
+  </table>
+</details>
 
 ---
 
