@@ -8,10 +8,20 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 
 if APP_ENV == "production":
     # Production database URL from environment variable
-    # e.g., postgresql://user:pass@host:port/dbname
+    # e.g., postgresql://user:pass@host:port/dbname or sqlite:////app/data/judgie.db
     DATABASE_URL = os.environ.get("DATABASE_URL")
     if not DATABASE_URL:
         raise ValueError("DATABASE_URL environment variable must be set in production")
+    
+    # If DATABASE_URL is SQLite, ensure target directory exists
+    if DATABASE_URL.startswith("sqlite:///"):
+        db_path = DATABASE_URL.replace("sqlite:///", "")
+        if db_path.startswith("/"):
+            db_dir = os.path.dirname(db_path)
+        else:
+            db_dir = os.path.dirname(os.path.join(BASE_DIR, db_path))
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
 else:
     # Ensure data directory exists and is writable (fall back to /tmp on read-only filesystems like Streamlit Cloud)
     try:
