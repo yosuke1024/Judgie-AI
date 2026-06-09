@@ -515,13 +515,28 @@ with tab5:
                                     from core.gemini import admin_chat_about_submission
                                     res_json = admin_chat_about_submission(current_h_id, source_text, gemini_file_ids, prev_json_str, admin_q)
 
-                                    # Save to database
+                                    # Save to database (map dynamic keys to static columns for backward compatibility)
+                                    languages = get_ai_response_languages(current_h_id)
+                                    q_en = admin_q
+                                    q_ja = admin_q
+                                    a_en = ''
+                                    a_ja = ''
+
+                                    for lang in languages:
+                                        lang_key = normalize_lang_to_key(lang)
+                                        if lang_key in ['english', 'en', '英語']:
+                                            q_en = res_json.get(f'question_{lang_key}', admin_q)
+                                            a_en = res_json.get(f'answer_{lang_key}', '')
+                                        elif lang_key in ['japanese', 'ja', '日本語']:
+                                            q_ja = res_json.get(f'question_{lang_key}', admin_q)
+                                            a_ja = res_json.get(f'answer_{lang_key}', '')
+
                                     save_admin_chat(
                                         evaluation_id=selected_eval_id,
-                                        question_en=res_json.get('question_en', admin_q),
-                                        question_ja=res_json.get('question_ja', admin_q),
-                                        answer_en=res_json.get('answer_en', ''),
-                                        answer_ja=res_json.get('answer_ja', ''),
+                                        question_en=q_en,
+                                        question_ja=q_ja,
+                                        answer_en=a_en,
+                                        answer_ja=a_ja,
                                         qa_json=res_json
                                     )
 

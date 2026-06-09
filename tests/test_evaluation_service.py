@@ -66,6 +66,49 @@ def test_sanitize_objection_response():
     assert res_mixed["judges_responses"][0]["judge_name"] == "David"
     assert res_mixed["judges_responses"][0]["response_en"] == "No detailed response in English."
 
+def test_sanitize_objection_response_multilingual(db_session_fixture):
+    # Set up a hackathon with multilingual AI response settings
+    from core.db import create_hackathon, set_ai_response_languages
+    hid = create_hackathon("HackMulti", "admin_multi", "pass123")
+    set_ai_response_languages(hid, ["English", "Japanese", "Korean"])
+
+    input_data = {
+        "qa_summary_english": "English summary",
+        "qa_summary_japanese": "日本語の要約",
+        "qa_summary_korean": "한국어 요약",
+        "judges_responses": [
+            {
+                "judge_name": "Marcus",
+                "response_english": "Marcus response in English",
+                "response_japanese": "Marcus response in Japanese",
+                "response_korean": "Marcus response in Korean",
+            }
+        ]
+    }
+
+    res = sanitize_objection_response(input_data, hid)
+    
+    # Check that the dynamic keys are correctly sanitized and preserved
+    assert res["qa_summary_english"] == "English summary"
+    assert res["qa_summary_japanese"] == "日本語の要約"
+    assert res["qa_summary_korean"] == "한국어 요약"
+    
+    # Check fallback/legacy keys are also set
+    assert res["qa_summary_en"] == "Objection evaluated by the expert panel."
+    assert res["qa_summary_ja"] == "審査員パネルによって異議が精査されました。"
+
+    # Check judges responses dynamic and static keys
+    judges = res["judges_responses"]
+    assert len(judges) == 1
+    assert judges[0]["judge_name"] == "Marcus"
+    assert judges[0]["response_english"] == "Marcus response in English"
+    assert judges[0]["response_japanese"] == "Marcus response in Japanese"
+    assert judges[0]["response_korean"] == "Marcus response in Korean"
+    
+    # Fallback response values
+    assert judges[0]["response_en"] == "No detailed response in English."
+    assert judges[0]["response_ja"] == "日本語の回答がありません。"
+
 def test_submit_team_objection(mocker, db_session_fixture):
     hid = create_hackathon("Hack1", "admin1", "pass123")
 
