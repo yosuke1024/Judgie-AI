@@ -151,8 +151,8 @@ def enforce_oidc_gateway():
     code = st.query_params.get("code")
 
     if not code:
-        import json
         import base64
+        import json
 
         # Generate and store a CSRF state token
         if "oidc_state" not in st.session_state:
@@ -224,8 +224,8 @@ def enforce_oidc_gateway():
             st.stop()
 
     else:
-        import json
         import base64
+        import json
 
         # Code received; handle callback and state validation
         state_payload = st.query_params.get("state")
