@@ -13,6 +13,7 @@ from core.db import (
     get_ai_response_languages,
     get_criteria,
     get_personas,
+    normalize_lang_to_key,
     save_admin_chat,
     set_ai_response_languages,
     set_criteria,
@@ -440,21 +441,61 @@ with tab5:
 
                 if chats:
                     st.markdown(f"#### 💬 {t('Chat History', 'チャット履歴')}")
-                    tab_chat_en, tab_chat_ja = st.tabs(["🇺🇸 English", "🇯🇵 日本語"])
+                    
+                    languages = get_ai_response_languages(current_h_id)
+                    emoji_map = {
+                        "English": "🇺🇸",
+                        "Japanese": "🇯🇵",
+                        "Spanish": "🇪🇸",
+                        "French": "🇫🇷",
+                        "German": "🇩🇪",
+                        "Chinese (Simplified)": "🇨🇳",
+                        "Chinese (Traditional)": "🇹🇼",
+                        "Korean": "🇰🇷",
+                        "Vietnamese": "🇻🇳",
+                        "Thai": "🇹🇭",
+                        "Indonesian": "🇮🇩"
+                    }
+                    tab_titles = [f"{emoji_map.get(lang, '🌐')} {lang}" for lang in languages]
+                    chat_tabs = st.tabs(tab_titles)
 
-                    with tab_chat_en:
-                        for chat in chats:
-                            with st.container(border=True):
-                                st.markdown(f"**Question:** {chat['question_en']}")
-                                st.markdown("**AI Response:**")
-                                st.info(chat['answer_en'])
+                    for idx, lang_name in enumerate(languages):
+                        lang_key = normalize_lang_to_key(lang_name)
+                        # Map language key to fallback for english/japanese
+                        compat_map = {
+                            "english": "english", "japanese": "japanese", "日本語": "japanese", "英語": "english",
+                            "spanish": "spanish", "french": "french", "german": "german", "korean": "korean",
+                            "chinese": "chinese", "vietnamese": "vietnamese", "thai": "thai", "indonesian": "indonesian"
+                        }
+                        mapped_key = compat_map.get(lang_key, lang_key)
 
-                    with tab_chat_ja:
-                        for chat in chats:
-                            with st.container(border=True):
-                                st.markdown(f"**質問:** {chat['question_ja']}")
-                                st.markdown("**AIからの回答:**")
-                                st.info(chat['answer_ja'])
+                        with chat_tabs[idx]:
+                            for chat in chats:
+                                qa_data = chat.get('qa_json', {})
+                                q_val = qa_data.get(f'question_{mapped_key}')
+                                
+                                # Fallback logic for legacy values
+                                if not q_val:
+                                    if mapped_key == "english":
+                                        q_val = qa_data.get("question_en", chat.get("question_en"))
+                                    elif mapped_key == "japanese":
+                                        q_val = qa_data.get("question_ja", chat.get("question_ja"))
+                                    else:
+                                        q_val = qa_data.get("question_english", qa_data.get("question_en", chat.get("question_en")))
+
+                                a_val = qa_data.get(f'answer_{mapped_key}')
+                                if not a_val:
+                                    if mapped_key == "english":
+                                        a_val = qa_data.get("answer_en", chat.get("answer_en"))
+                                    elif mapped_key == "japanese":
+                                        a_val = qa_data.get("answer_ja", chat.get("answer_ja"))
+                                    else:
+                                        a_val = qa_data.get("answer_english", qa_data.get("answer_en", chat.get("answer_en")))
+
+                                with st.container(border=True):
+                                    st.markdown(f"**{t('Question:', '質問:')}** {q_val}")
+                                    st.markdown(f"**{t('AI Response:', 'AIからの回答:')}**")
+                                    st.info(a_val)
 
                 if is_demo:
                     st.info(t(
@@ -480,7 +521,8 @@ with tab5:
                                         question_en=res_json.get('question_en', admin_q),
                                         question_ja=res_json.get('question_ja', admin_q),
                                         answer_en=res_json.get('answer_en', ''),
-                                        answer_ja=res_json.get('answer_ja', '')
+                                        answer_ja=res_json.get('answer_ja', ''),
+                                        qa_json=res_json
                                     )
 
                                     status.update(label=t("✅ AI Responded", "✅ AIの回答が完了しました"), state="complete")

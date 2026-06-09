@@ -95,10 +95,11 @@ class AdminChat(Base):
     __tablename__ = "admin_chats"
     id = Column(Integer, primary_key=True, index=True)
     evaluation_id = Column(Integer, ForeignKey("evaluations.id"), nullable=False)
-    question_en = Column(Text, nullable=False)
-    question_ja = Column(Text, nullable=False)
-    answer_en = Column(Text, nullable=False)
-    answer_ja = Column(Text, nullable=False)
+    question_en = Column(Text, nullable=True)
+    question_ja = Column(Text, nullable=True)
+    answer_en = Column(Text, nullable=True)
+    answer_ja = Column(Text, nullable=True)
+    qa_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
 
@@ -121,6 +122,13 @@ def get_db():
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Run dynamic schema migrations to add qa_json column to admin_chats if not exists
+    try:
+        with engine.begin() as conn:
+            conn.execute("ALTER TABLE admin_chats ADD COLUMN qa_json TEXT;")
+    except Exception:
+        pass
+
     with db_session() as db:
         default_admin_id = os.environ.get("DEFAULT_ADMIN_ID")
         default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSCODE")
@@ -420,14 +428,15 @@ def delete_session(session_id: str):
         if session_record:
             db.delete(session_record)
 
-def save_admin_chat(evaluation_id: int, question_en: str, question_ja: str, answer_en: str, answer_ja: str) -> AdminChat:
+def save_admin_chat(evaluation_id: int, question_en: str, question_ja: str, answer_en: str, answer_ja: str, qa_json: dict = None) -> AdminChat:
     with db_session() as db:
         chat = AdminChat(
             evaluation_id=evaluation_id,
             question_en=question_en,
             question_ja=question_ja,
             answer_en=answer_en,
-            answer_ja=answer_ja
+            answer_ja=answer_ja,
+            qa_json=json.dumps(qa_json) if qa_json else None
         )
         db.add(chat)
         db.flush()
@@ -436,14 +445,35 @@ def save_admin_chat(evaluation_id: int, question_en: str, question_ja: str, answ
 def get_admin_chats(evaluation_id: int) -> list[dict]:
     with db_session() as db:
         chats = db.query(AdminChat).filter(AdminChat.evaluation_id == evaluation_id).order_by(AdminChat.created_at.asc()).all()
-        return [{
-            'id': c.id,
-            'question_en': c.question_en,
-            'question_ja': c.question_ja,
-            'answer_en': c.answer_en,
-            'answer_ja': c.answer_ja,
-            'created_at': c.created_at
-        } for c in chats]
+        result = []
+        for c in chats:
+            qa_data = {}
+            if c.qa_json:
+                try:
+                    qa_data = json.loads(c.qa_json)
+                except Exception:
+                    pass
+            
+            # Populate with fallback values for backward compatibility
+            if "question_english" not in qa_data and c.question_en:
+                qa_data["question_english"] = c.question_en
+            if "question_japanese" not in qa_data and c.question_ja:
+                qa_data["question_japanese"] = c.question_ja
+            if "answer_english" not in qa_data and c.answer_en:
+                qa_data["answer_english"] = c.answer_en
+            if "answer_japanese" not in qa_data and c.answer_ja:
+                qa_data["answer_japanese"] = c.answer_ja
+
+            result.append({
+                'id': c.id,
+                'question_en': c.question_en,
+                'question_ja': c.question_ja,
+                'answer_en': c.answer_en,
+                'answer_ja': c.answer_ja,
+                'qa_json': qa_data,
+                'created_at': c.created_at
+            })
+        return result
 
 def delete_hackathon(hackathon_id: int):
     with db_session() as db:
