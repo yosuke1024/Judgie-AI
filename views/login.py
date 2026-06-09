@@ -26,41 +26,59 @@ with st.container():
         finally:
             db.close()
 
-    if not hackathons:
+    # Exclude demo hackathon (ID: 9999) from the active login hackathons
+    active_hackathons = [h for h in hackathons if h.id != 9999]
+
+    if not active_hackathons:
         st.warning(t("No hackathons available yet. Please ask your super admin.", "現在参加できるハッカソンがありません。"))
-        st.stop()
+    elif len(active_hackathons) == 1:
+        single_h = active_hackathons[0]
+        tenant_id = single_h.id
+        st.markdown(f"**{t('Hackathon', 'ハッカソン')}:** {single_h.name}")
 
-    h_options = {h.id: f"{h.name} (ID: {h.id})" for h in hackathons}
+        team_id = st.text_input(t("Team ID / Admin ID", "チームID / 管理者ID"), placeholder="e.g. team01 or admin")
+        passcode = st.text_input(t("Passcode", "パスコード"), type="password")
 
-    # Determine pre-selected index based on URL query param
-    tenant_param = st.query_params.get("tenant", "")
-    default_index = 0
-    if tenant_param.isdigit():
-        tid = int(tenant_param)
-        keys = list(h_options.keys())
-        if tid in keys:
-            default_index = keys.index(tid)
+        if st.button(t("Log In", "ログイン"), type="primary", use_container_width=True):
+            if not team_id or not passcode:
+                st.warning(t("Please enter all fields.", "すべての項目を入力してください。"))
+            elif login(team_id, passcode, tenant_id=tenant_id):
+                st.success(t("Login successful! Redirecting...", "ログイン成功！リダイレクト中..."))
+                st.rerun()
+            else:
+                st.error(t("Invalid ID or Passcode.", "IDまたはパスコードが間違っています。"))
+    else:
+        h_options = {h.id: f"{h.name} (ID: {h.id})" for h in active_hackathons}
 
-    tenant_id = st.selectbox(
-        t("Select Hackathon", "参加するハッカソンを選択"),
-        options=list(h_options.keys()),
-        format_func=lambda x: h_options[x],
-        index=default_index
-    )
-    team_id = st.text_input(t("Team ID / Admin ID", "チームID / 管理者ID"), placeholder="e.g. team01 or admin")
-    passcode = st.text_input(t("Passcode", "パスコード"), type="password")
+        # Determine pre-selected index based on URL query param
+        tenant_param = st.query_params.get("tenant", "")
+        default_index = 0
+        if tenant_param.isdigit():
+            tid = int(tenant_param)
+            keys = list(h_options.keys())
+            if tid in keys:
+                default_index = keys.index(tid)
 
-    if st.button(t("Log In", "ログイン"), type="primary", use_container_width=True):
-        if not team_id or not passcode:
-            st.warning(t("Please enter all fields.", "すべての項目を入力してください。"))
-        elif login(team_id, passcode, tenant_id=tenant_id):
-            st.success(t("Login successful! Redirecting...", "ログイン成功！リダイレクト中..."))
-            st.rerun()
-        else:
-            st.error(t("Invalid ID or Passcode.", "IDまたはパスコードが間違っています。"))
+        tenant_id = st.selectbox(
+            t("Select Hackathon", "参加するハッカソンを選択"),
+            options=list(h_options.keys()),
+            format_func=lambda x: h_options[x],
+            index=default_index
+        )
+        team_id = st.text_input(t("Team ID / Admin ID", "チームID / 管理者ID"), placeholder="e.g. team01 or admin")
+        passcode = st.text_input(t("Passcode", "パスコード"), type="password")
+
+        if st.button(t("Log In", "ログイン"), type="primary", use_container_width=True):
+            if not team_id or not passcode:
+                st.warning(t("Please enter all fields.", "すべての項目を入力してください。"))
+            elif login(team_id, passcode, tenant_id=tenant_id):
+                st.success(t("Login successful! Redirecting...", "ログイン成功！リダイレクト中..."))
+                st.rerun()
+            else:
+                st.error(t("Invalid ID or Passcode.", "IDまたはパスコードが間違っています。"))
 
     st.markdown("---")
-    st.subheader(t("✨ Demo Experience / デモ体験", "✨ Demo Experience / デモ体験"))
+    st.subheader(t("✨ Demo Experience", "✨ デモ体験"))
     st.markdown(t("Try Judgie-AI immediately without credentials or Gemini API keys. Safe read-only mode.", "ログイン情報やAPIキーの設定不要で、すぐにデモ画面を体験できます（安全な閲覧専用モード）。"))
 
     col_demo1, col_demo2 = st.columns(2)
