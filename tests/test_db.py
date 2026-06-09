@@ -232,16 +232,34 @@ def test_session_management(db_session_fixture):
     delete_session("")
 
 def test_admin_chat(db_session_fixture):
-    # Save chat log
+    # 1. Save chat log in legacy format (qa_json=None)
     save_admin_chat(123, "Q?", "質問?", "A!", "回答!")
 
-    # Retrieve chat log
+    # Retrieve and verify legacy compatibility fallback in qa_json
     chats = get_admin_chats(123)
     assert len(chats) == 1
     assert chats[0]["question_en"] == "Q?"
     assert chats[0]["question_ja"] == "質問?"
     assert chats[0]["answer_en"] == "A!"
     assert chats[0]["answer_ja"] == "回答!"
+    assert chats[0]["qa_json"]["question_english"] == "Q?"
+    assert chats[0]["qa_json"]["question_japanese"] == "質問?"
+    assert chats[0]["qa_json"]["answer_english"] == "A!"
+    assert chats[0]["qa_json"]["answer_japanese"] == "回答!"
+
+    # 2. Save with multi-language qa_json dictionary
+    mock_qa = {
+        "question_english": "What logic?",
+        "answer_english": "Some logic",
+        "question_spanish": "Que logica?",
+        "answer_spanish": "Alguna logica"
+    }
+    save_admin_chat(123, "What logic?", "どんなロジック？", "Some logic", "いくつかのロジック", qa_json=mock_qa)
+
+    chats_all = get_admin_chats(123)
+    assert len(chats_all) == 2
+    assert chats_all[1]["qa_json"]["question_spanish"] == "Que logica?"
+    assert chats_all[1]["qa_json"]["answer_spanish"] == "Alguna logica"
 
     assert len(get_admin_chats(999)) == 0
 
