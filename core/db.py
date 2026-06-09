@@ -453,7 +453,7 @@ def get_admin_chats(evaluation_id: int) -> list[dict]:
                     qa_data = json.loads(c.qa_json)
                 except Exception:
                     pass
-            
+
             # Populate with fallback values for backward compatibility
             if "question_english" not in qa_data and c.question_en:
                 qa_data["question_english"] = c.question_en

@@ -441,7 +441,7 @@ with tab5:
 
                 if chats:
                     st.markdown(f"#### 💬 {t('Chat History', 'チャット履歴')}")
-                    
+
                     languages = get_ai_response_languages(current_h_id)
                     emoji_map = {
                         "English": "🇺🇸",
@@ -473,7 +473,7 @@ with tab5:
                             for chat in chats:
                                 qa_data = chat.get('qa_json', {})
                                 q_val = qa_data.get(f'question_{mapped_key}')
-                                
+
                                 # Fallback logic for legacy values
                                 if not q_val:
                                     if mapped_key == "english":
