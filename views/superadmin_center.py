@@ -80,13 +80,31 @@ with col1:
                     custom_template_data = None
                     if selected_tpl_key == "custom" and custom_url.strip():
                         url_to_fetch = custom_url.strip()
+
+                        # SSRF対策のインラインバリデーション
+                        from urllib.parse import urlparse
+                        parsed = urlparse(url_to_fetch)
+                        if parsed.scheme not in ('http', 'https'):
+                            raise ValueError("Invalid URL scheme. Only HTTP/HTTPS is allowed.")
+
+                        allowed_domains = {
+                            'github.com',
+                            'raw.githubusercontent.com',
+                            'gist.githubusercontent.com',
+                            'githubusercontent.com'
+                        }
+                        if parsed.hostname not in allowed_domains:
+                            raise ValueError("Access to this domain is not allowed for custom templates.")
+
                         if not is_safe_url(url_to_fetch):
                             raise ValueError("Invalid or unsafe URL. Only public HTTP/HTTPS URLs are allowed.")
+
                         import requests
                         res = requests.get(url_to_fetch)
                         if res.status_code != 200:
                             raise ValueError(f"Failed to fetch template from URL. HTTP {res.status_code}")
                         custom_template_data = res.json()
+
 
                     new_id = create_hackathon(h_name, a_id, a_pass, template_id=selected_tpl_key, custom_template_data=custom_template_data)
                     st.success(f"Successfully created Project '{h_name}' (ID: {new_id}) with Admin '{a_id}'!")

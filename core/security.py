@@ -39,14 +39,9 @@ def is_safe_url(url: str) -> bool:
             'githubusercontent.com'
         }
 
-        domain_matched = False
-        for allowed in allowed_domains:
-            if hostname == allowed or hostname.endswith('.' + allowed):
-                domain_matched = True
-                break
-
-        if not domain_matched:
+        if hostname not in allowed_domains:
             return False
+
 
         # ホスト名が直接IPアドレスの場合のチェック
         try:
