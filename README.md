@@ -49,7 +49,8 @@
 
 **Judgie-AI** was born out of a very personal, practical need. 
 
-I was invited to be a judge for a global hackathon. As someone who isn't comfortable with English, the thought of evaluating dozens of English-language submissions was incredibly daunting. I needed a way to survive the judging process and make it more efficient. So, I built a tool to automate the first pass of evaluation by orchestrating a panel of AI expert personas (like UX designers, VCs, and engineers) to review code, videos, and slides.
+I was asked to judge an internal company hackathon that had to be conducted in English. As someone who isn't comfortable with English, the thought of evaluating dozens of English-language submissions was incredibly daunting. I needed a way to survive the judging process and make it more efficient. So, I built a tool to automate the first pass of evaluation by orchestrating a panel of AI expert personas (like UX designers, VCs, and engineers) to review code, videos, and slides.
+
 
 But while developing it, I realized something exciting: **the core engine I was building was far more powerful and versatile than just a hackathon helper.** 
 
