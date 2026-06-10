@@ -101,7 +101,7 @@ def test_personas(db_session_fixture):
 
 def test_evaluation_flow(db_session_fixture):
     # Save evaluations and objection Q&A
-    hid = create_hackathon("Hack1", "admin1", "pass123")
+    hid = create_hackathon("Hack1", "admin1", "pass123", template_id="hackathon")
 
     result_data = {
         "scores": {"Innovation & Creativity": 4.5},
@@ -267,7 +267,7 @@ def test_delete_hackathon(db_session_fixture):
     init_db()
 
     # 1. Create a tenant (Hackathon)
-    hid = create_hackathon("HackToDelete", "del_admin", "pass123")
+    hid = create_hackathon("HackToDelete", "del_admin", "pass123", template_id="hackathon")
 
     # 2. Create related dummy data
     # Team user
@@ -324,7 +324,7 @@ def test_delete_hackathon(db_session_fixture):
 
 def test_ai_response_languages(db_session_fixture):
     # Test setting and getting languages
-    hid = create_hackathon("Hack1", "admin1", "pass123")
+    hid = create_hackathon("Hack1", "admin1", "pass123", template_id="hackathon")
 
     # 1. Default languages when not set
     assert get_ai_response_languages(hid) == ["English", "Japanese"]
@@ -397,3 +397,29 @@ def test_single_tenant_mode(db_session_fixture, monkeypatch):
     assert verify_user("railway_admin", "railway_pass123", hackathon_id=1) == {'role': 'admin', 'hackathon_id': 1}
 
 
+def test_initialize_hackathon_template(db_session_fixture):
+    # Create hackathon without a template
+    hid = create_hackathon("HackEmpty", "empty_admin", "pass123", template_id=None)
+
+    db_session_fixture.expire_all()
+    hackathon = db_session_fixture.query(Hackathon).filter(Hackathon.id == hid).first()
+    assert hackathon.template_id is None
+
+    # Initialize with startup_pitch template
+    from core.db import initialize_hackathon_template
+    initialize_hackathon_template(hid, "startup_pitch")
+
+    db_session_fixture.expire_all()
+    hackathon_updated = db_session_fixture.query(Hackathon).filter(Hackathon.id == hid).first()
+    assert hackathon_updated.template_id == "startup_pitch"
+    assert hackathon_updated.re_evaluation_context_mode == "independent"
+    assert hackathon_updated.max_qa_turns == 3
+
+    # Check criteria and personas are initialized
+    criteria = get_criteria(hid)
+    assert len(criteria) > 0
+    assert criteria[0]["name"] == "Market Opportunity"
+
+    personas = get_personas(hid)
+    assert len(personas) > 0
+    assert personas[0]["name"] == "Marcus"

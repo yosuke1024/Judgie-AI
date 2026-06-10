@@ -68,7 +68,7 @@ def test_sanitize_objection_response():
 def test_sanitize_objection_response_multilingual(db_session_fixture):
     # Set up a hackathon with multilingual AI response settings
     from core.db import create_hackathon, set_ai_response_languages
-    hid = create_hackathon("HackMulti", "admin_multi", "pass123")
+    hid = create_hackathon("HackMulti", "admin_multi", "pass123", template_id="hackathon")
     set_ai_response_languages(hid, ["English", "Japanese", "Korean"])
 
     input_data = {
@@ -109,7 +109,7 @@ def test_sanitize_objection_response_multilingual(db_session_fixture):
     assert judges[0]["response_ja"] == "日本語の回答がありません。"
 
 def test_submit_team_objection(mocker, db_session_fixture):
-    hid = create_hackathon("Hack1", "admin1", "pass123")
+    hid = create_hackathon("Hack1", "admin1", "pass123", template_id="hackathon")
 
     # Pre-save target evaluation records
     result_data = {
