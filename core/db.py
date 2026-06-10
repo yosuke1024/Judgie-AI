@@ -441,12 +441,27 @@ def update_team_passcode(hackathon_id: int, team_id: str, new_passcode: str) -> 
         team_user = db.query(User).filter(
             User.hackathon_id == hackathon_id,
             User.team_id == team_id,
-            User.role == 'team'
+            User.role.in_(['team', 'observer'])
         ).first()
         if team_user:
             team_user.passcode = hash_passcode(new_passcode)
             return True
         return False
+
+def update_user_role(hackathon_id: int, team_id: str, new_role: str) -> bool:
+    if new_role not in ['team', 'observer']:
+        return False
+    with db_session() as db:
+        user = db.query(User).filter(
+            User.hackathon_id == hackathon_id,
+            User.team_id == team_id,
+            User.role.in_(['team', 'observer'])
+        ).first()
+        if user:
+            user.role = new_role
+            return True
+        return False
+
 
 def change_my_passcode(hackathon_id: int = None, team_id: str = None, current_passcode: str = None, new_passcode: str = None) -> bool:
     # Robust fallback: If hackathon_id is a string, it means the older 3-argument signature

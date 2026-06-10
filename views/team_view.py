@@ -30,7 +30,7 @@ current_h_id = st.session_state.get('active_hackathon_id')
 is_demo = (current_h_id == 9999)
 
 # Determine which team we are viewing
-if role == 'admin':
+if role in ('admin', 'observer'):
     with db_session() as db:
         if current_h_id:
             users = db.query(User.team_id).filter(User.role == 'team', User.hackathon_id == current_h_id).order_by(User.team_id).all()
@@ -38,7 +38,10 @@ if role == 'admin':
             users = db.query(User.team_id).filter(User.role == 'team').order_by(User.team_id).all()
         all_teams = [u.team_id for u in users]
 
-    st.info(t("Admin Mode: Read-Only View", "管理者モード: 閲覧専用"))
+    if role == 'admin':
+        st.info(t("Admin Mode: Read-Only View", "管理者モード: 閲覧専用"))
+    else:
+        st.info(t("Observer Mode: Read-Only View", "オブザーバーモード: 閲覧専用"))
     view_team_id = st.selectbox(t("Select Team to View", "閲覧するチームを選択"), all_teams) if all_teams else None
 else:
     view_team_id = st.session_state.team_id
@@ -122,8 +125,8 @@ with col1:
 
     st.divider()
 
-    if role == 'admin':
-        st.warning(t("Uploads are disabled in Admin Mode.", "管理者モードではアップロードは無効化されています。"))
+    if role in ('admin', 'observer'):
+        st.warning(t("Uploads are disabled in Read-Only Mode.", "閲覧専用モードではアップロードは無効化されています。"))
     elif is_demo:
         st.info(t(
             "💡 Demo Mode: File uploading and AI evaluation are disabled. Please explore the evaluation history on the right dashboard.",
