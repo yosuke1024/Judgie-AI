@@ -27,9 +27,12 @@ with col_btn:
         with st.form("change_my_pass_form"):
             curr_pass = st.text_input(t("Current Password", "現在のパスワード"), type="password")
             new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
+            confirm_pass = st.text_input(t("Confirm New Password", "新しいパスワード（確認）"), type="password")
             if st.form_submit_button(t("Update", "更新"), type="primary"):
-                if not curr_pass or not new_pass:
+                if not curr_pass or not new_pass or not confirm_pass:
                     st.error(t("All fields required.", "すべて入力してください。"))
+                elif new_pass != confirm_pass:
+                    st.error(t("Passwords do not match.", "新しいパスワードが一致しません。"))
                 else:
                     success = change_my_passcode(None, st.session_state.team_id, curr_pass, new_pass)
                     if success:
@@ -101,9 +104,12 @@ with col2:
             with st.form("reset_pass_form"):
                 selected_h_id = st.selectbox(t("Select Tenant", "テナントを選択"), options=list(hackathon_options.keys()), format_func=lambda x: hackathon_options[x])
                 new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
+                confirm_pass = st.text_input(t("Confirm New Password", "新しいパスワード（確認）"), type="password")
                 if st.form_submit_button(t("Reset Password", "パスワードをリセット"), type="primary"):
-                    if not new_pass:
-                        st.error(t("Password cannot be empty.", "パスワードを入力してください。"))
+                    if not new_pass or not confirm_pass:
+                        st.error(t("All fields required.", "すべて入力してください。"))
+                    elif new_pass != confirm_pass:
+                        st.error(t("Passwords do not match.", "新しいパスワードが一致しません。"))
                     else:
                         update_admin_passcode(selected_h_id, new_pass)
                         st.success(t(f"Password reset successfully for tenant ID {selected_h_id}.", f"テナントID {selected_h_id} のパスワードをリセットしました。"))

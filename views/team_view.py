@@ -112,9 +112,12 @@ with col1:
                     with st.form("change_team_pass_form"):
                         curr_pass = st.text_input(t("Current Password", "現在のパスワード"), type="password")
                         new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
+                        confirm_pass = st.text_input(t("Confirm New Password", "新しいパスワード（確認）"), type="password")
                         if st.form_submit_button(t("Update", "更新"), type="primary"):
-                            if not curr_pass or not new_pass:
+                            if not curr_pass or not new_pass or not confirm_pass:
                                 st.error(t("All fields required.", "すべて入力してください。"))
+                            elif new_pass != confirm_pass:
+                                st.error(t("Passwords do not match.", "新しいパスワードが一致しません。"))
                             else:
                                 success = change_my_passcode(current_h_id, view_team_id, curr_pass, new_pass)
                                 if success:
