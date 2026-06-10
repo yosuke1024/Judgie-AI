@@ -61,7 +61,7 @@ if not hackathon.template_id and not is_demo:
     with st.form("admin_setup_form"):
         # Template Selection
         template_options = {
-            "hackathon": t("Project Evaluation", "プロジェクト審査"),
+            "hackathon": t("Hackathon Evaluation", "ハッカソン審査"),
             "startup_pitch": t("Startup Pitch Review", "スタートアップピッチ審査"),
             "hiring": t("Hiring & Technical Interview", "採用・技術面接評価"),
             "architecture": t("Software Architecture Review", "ソフトウェアアーキテクチャレビュー"),
