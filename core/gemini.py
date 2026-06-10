@@ -177,9 +177,9 @@ Output a strictly valid JSON object with the following structure:
     )
     return json.loads(response.text)
 
-def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_evaluation_json, objection_text):
+def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_evaluation_json, chat_history_list):
     """
-    Handles a one-shot QA/Objection from the team based on the previous evaluation.
+    Handles a Q&A session turn from the team based on the evaluation and chat history.
     """
     client = get_gemini_client(hackathon_id)
 
@@ -196,29 +196,60 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
 
     for lang in languages:
         lang_key = normalize_lang_to_key(lang)
-        qa_summary_fields.append(f'    "qa_summary_{lang_key}": "A brief 2-3 sentence summary of the panel\'s overall stance on the objection in {lang}."')
-        response_fields.append(f'            "response_{lang_key}": "Direct, persona-driven response to the team\'s objection in {lang}."')
+        qa_summary_fields.append(f'    "qa_summary_{lang_key}": "A brief 2-3 sentence summary of the panel\'s overall stance on the latest objection in {lang}."')
+        response_fields.append(f'            "response_{lang_key}": "Direct, persona-driven response to the team\'s latest point in {lang}."')
 
     qa_summary_str = ",\n".join(qa_summary_fields)
     response_fields_str = ",\n".join(response_fields)
 
-    prompt = f"""You are orchestrating an AI Expert Panel for a Hackathon.
-The team has submitted a question or an objection regarding your PREVIOUS evaluation.
+    # Build chat thread context
+    chat_thread_str = ""
+    if chat_history_list:
+        chat_thread_str = "\n<chat_history>\n"
+        for msg in chat_history_list:
+            sender_label = "Team (User)" if msg.get("sender") == "team" else "Judges Panel (AI)"
+            msg_data = msg.get("message_json")
+            if isinstance(msg_data, str):
+                try:
+                    msg_data = json.loads(msg_data)
+                except Exception:
+                    pass
+
+            if msg.get("sender") == "team":
+                text = msg_data.get("user_objection") if isinstance(msg_data, dict) else msg_data
+                chat_thread_str += f"- [{sender_label}]: {text}\n"
+            else:
+                if isinstance(msg_data, dict):
+                    # Fallback lookup for a summary to represent the AI's turn
+                    summary = (
+                        msg_data.get("qa_summary_english") or
+                        msg_data.get("qa_summary_en") or
+                        msg_data.get("qa_summary_japanese") or
+                        msg_data.get("qa_summary_ja") or
+                        "Response provided."
+                    )
+                    chat_thread_str += f"- [{sender_label}]: {summary}\n"
+                else:
+                    chat_thread_str += f"- [{sender_label}]: {msg_data}\n"
+        chat_thread_str += "</chat_history>\n"
+
+    prompt = f"""You are orchestrating an AI Expert Panel.
+The team has been evaluated and is now in a Q&A / discussion session with you regarding their evaluation.
 
 <previous_evaluation_data format="json">
 {previous_evaluation_json}
 </previous_evaluation_data>
 
-<team_objection_or_question>
-{objection_text}
-</team_objection_or_question>
+Here is the dialogue history. The last message from the 'Team (User)' is the active question or objection you MUST address:
+{chat_thread_str}
 
 <expert_judges>
 {personas_str}
 </expert_judges>
 
 <critical_instructions>
-- You must directly address the team's objection or question based on your specific persona.
+- Address the latest question or objection raised by the team (the very last item in the chat history).
+- Take the context of the previous Q&A exchanges into account.
 - If the team makes a valid point, acknowledge it. If they missed something, explain why your original evaluation stands.
 - Provide constructive, direct, and persona-driven responses.
 - You MUST answer and summarize in the following languages: {", ".join(languages)}.

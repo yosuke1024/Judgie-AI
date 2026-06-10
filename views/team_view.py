@@ -9,11 +9,13 @@ from core.db import (
     change_my_passcode,
     db_session,
     get_criteria,
+    get_max_qa_turns,
+    get_re_evaluation_context_mode,
     get_team_profile,
     update_team_profile,
 )
 from core.i18n import t
-from core.services.evaluation_service import get_team_evaluations, submit_team_objection
+from core.services.evaluation_service import get_team_chats, get_team_evaluations, submit_team_objection
 from core.services.submission_service import process_submission
 from core.ui_utils import get_avatar_html
 from views.components.charts import render_criteria_radar_chart, render_score_history_chart
@@ -170,7 +172,8 @@ with col1:
 
             # Prepare previous feedback as context
             prev_json_str = None
-            if eval_rows:
+            context_mode = get_re_evaluation_context_mode(current_h_id)
+            if context_mode == "cumulative" and eval_rows:
                 last_fb = json.loads(eval_rows[-1]['strengths_risks_json'])
                 prev_json_str = json.dumps(last_fb.get('judges_feedback', []))
 
@@ -364,86 +367,106 @@ with col2:
         st.markdown("---")
         st.subheader(t("🙋 Objection! / Q&A", "🙋 異議あり！ / 審査員への質問"))
 
-        qa_data_str = selected_eval.get('qa_json')
+        max_qa = get_max_qa_turns(current_h_id)
 
-        if qa_data_str:
-            qa_data = json.loads(qa_data_str)
-            st.info(t("You have already used your one-time objection for this evaluation.", "この評価に対する1回限りの「反論・質問」権は使用済みです。"))
+        # Get chat history for this evaluation
+        chats = get_team_chats(selected_eval_id)
 
-            with st.container(border=True):
-                st.markdown(t("**Your Question / Objection:**", "**あなたからの質問・反論:**"))
-                st.write(qa_data.get('user_objection', ''))
+        # Calculate turns used (each user question is a turn)
+        turns_used = sum(1 for c in chats if c['sender'] == 'team')
 
-            st.markdown("#### ⚖️ Panel Response")
-            qa_tabs = st.tabs(tab_titles)
+        if max_qa == 0:
+            st.info(t("Q&A is disabled for this project.", "このプロジェクトではQ&Aは無効化されています。"))
 
-            for idx, lang_name in enumerate(languages):
-                lang_key = normalize_lang_to_key(lang_name)
-                with qa_tabs[idx]:
-                    qa_summary = qa_data.get(f'qa_summary_{lang_key}')
-                    if qa_summary is None:
-                        compat_map = {
-                            "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en",
-                            "spanish": "es", "french": "fr", "german": "de", "korean": "ko",
-                            "chinese": "zh", "vietnamese": "vi", "thai": "th", "indonesian": "id"
-                        }
-                        compat_key = compat_map.get(lang_key, 'en')
-                        qa_summary = qa_data.get(f'qa_summary_{compat_key}', '')
-                    st.info(qa_summary)
+        # Render Chat Thread UI if there is any history
+        if chats:
+            st.markdown(f"#### 💬 {t('Discussion Thread', 'ディスカッションスレッド')}")
+            for chat in chats:
+                is_user = (chat['sender'] == 'team')
+                msg_data = chat['message_json']
 
-                    for j in qa_data.get('judges_responses', []):
-                        j_name = j.get('judge_name', 'Judge')
-                        j_icon = avatar_map.get(j_name, '🧑‍⚖️')
-                        st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{get_avatar_html(j_name, j_icon, size=30)}<strong style="font-size: 1.1em;">{j_name}</strong></div>', unsafe_allow_html=True)
-
-                        j_resp = j.get(f'response_{lang_key}')
-                        if j_resp is None:
-                            compat_map = {
-                                "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en",
-                                "spanish": "es", "french": "fr", "german": "de", "korean": "ko",
-                                "chinese": "zh", "vietnamese": "vi", "thai": "th", "indonesian": "id"
-                            }
-                            compat_key = compat_map.get(lang_key, 'en')
-                            j_resp = j.get(f'response_{compat_key}', '')
-                        st.write(j_resp)
-                        st.divider()
-
-        else:
-            if role == 'team':
-                if is_demo:
-                    st.info(t(
-                        "🔒 Demo Mode: Sending new questions is disabled. Please view the pre-recorded QA history (e.g. select 'Consultation 2' from the history list above).",
-                        "🔒 デモモード: 審査員への新規質問送信は無効化されています。過去のQ&A履歴（上の履歴で「相談2」などを選択してください）をご覧ください。"
-                    ))
+                if is_user:
+                    with st.chat_message("user"):
+                        st.markdown(f"**{t('Your Question / Objection:', 'あなたからの質問・反論:')}**")
+                        st.write(msg_data.get('user_objection', ''))
                 else:
-                    st.markdown(t(
-                        "You can ask ONE question or make ONE objection per evaluation. The AI Panel will read your comment alongside their previous feedback and respond.",
-                        "1回の評価につき、1回だけ審査員パネルに対して質問や反論を投げることができます。"
-                    ))
-                    with st.form("objection_form"):
-                        obj_text = st.text_area(t("Your message to the judges:", "審査員へのメッセージ:"), height=150)
-                        submit_obj = st.form_submit_button(t("Objection! ✊", "異議あり！ ✊"), type="primary")
+                    with st.chat_message("assistant", avatar="🧑‍⚖️"):
+                        st.markdown(f"**⚖️ {t('Panel Response:', '審査員からの回答:')}**")
 
-                        if submit_obj:
-                            if not obj_text.strip():
-                                st.warning(t("Please enter your message.", "メッセージを入力してください。"))
-                            else:
-                                with st.status(t("⚖️ Judges are discussing your point...", "⚖️ 審査員があなたの意見を議論中..."), expanded=True) as status:
-                                    try:
-                                        prev_eval_json_str = selected_eval['strengths_risks_json']
+                        # Support multiple languages in tabs
+                        qa_tabs = st.tabs(tab_titles)
+                        for idx, lang_name in enumerate(languages):
+                            lang_key = normalize_lang_to_key(lang_name)
+                            with qa_tabs[idx]:
+                                qa_summary = msg_data.get(f'qa_summary_{lang_key}')
+                                if not qa_summary:
+                                    compat_map = {
+                                        "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en"
+                                    }
+                                    compat_key = compat_map.get(lang_key, 'en')
+                                    qa_summary = msg_data.get(f'qa_summary_{compat_key}', '')
+                                st.info(qa_summary)
 
-                                        # Execute objection flow via service layer
-                                        submit_team_objection(
-                                            hackathon_id=current_h_id,
-                                            eval_id=selected_eval['id'],
-                                            prev_eval_json=prev_eval_json_str,
-                                            objection_text=obj_text
-                                        )
+                                for j in msg_data.get('judges_responses', []):
+                                    j_name = j.get('judge_name', 'Judge')
+                                    j_icon = avatar_map.get(j_name, '🧑‍⚖️')
+                                    st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{get_avatar_html(j_name, j_icon, size=24)}<strong style="margin-left: 8px;">{j_name}</strong></div>', unsafe_allow_html=True)
 
-                                        status.update(label=t("✅ Judges have reached a conclusion!", "✅ 審査員からの回答が届きました！"), state="complete", expanded=False)
-                                        st.rerun()
-                                    except Exception as e:
-                                        status.update(label=t("❌ Error", "❌ エラー"), state="error")
-                                        st.error(f"Failed: {str(e)}")
+                                    j_resp = j.get(f'response_{lang_key}')
+                                    if not j_resp:
+                                        compat_map = {
+                                            "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en"
+                                        }
+                                        compat_key = compat_map.get(lang_key, 'en')
+                                        j_resp = j.get(f'response_{compat_key}', '')
+                                    st.write(j_resp)
+                                    st.divider()
+
+        # Handle form visibility based on Q&A turn limit
+        has_reached_limit = (max_qa != -1 and turns_used >= max_qa)
+
+        if max_qa > 0:
+            if has_reached_limit:
+                st.success(t(
+                    f"You have completed the maximum allowed discussion turns ({turns_used} / {max_qa}).",
+                    f"許容された最大ディスカッション回数に達しました ({turns_used} / {max_qa} 往復)。"
+                ))
             else:
-                st.info(t("No objections made by the team yet.", "チームからの質問・反論はまだありません。"))
+                if role == 'team':
+                    if is_demo:
+                        st.info(t(
+                            "🔒 Demo Mode: Sending new questions is disabled.",
+                            "🔒 デモモード: 審査員への新規質問送信は無効化されています。"
+                        ))
+                    else:
+                        turns_left_str = f"{max_qa - turns_used} / {max_qa}" if max_qa != -1 else t("Unlimited", "無制限")
+                        st.markdown(t(
+                            f"You can ask questions or make objections ({turns_left_str} turns left). The AI Panel will read your message and respond.",
+                            f"審査員パネルに対して質問や反論を送信できます (残りターン数: {turns_left_str})。"
+                        ))
+                        with st.form("objection_form"):
+                            obj_text = st.text_area(t("Your message to the judges:", "審査員へのメッセージ:"), height=150)
+                            submit_obj = st.form_submit_button(t("Send Message ✊", "メッセージを送信 ✊"), type="primary")
+
+                            if submit_obj:
+                                if not obj_text.strip():
+                                    st.warning(t("Please enter your message.", "メッセージを入力してください。"))
+                                else:
+                                    with st.status(t("⚖️ Judges are discussing your point...", "⚖️ 審査員があなたの意見を議論中..."), expanded=True) as status:
+                                        try:
+                                            prev_eval_json_str = selected_eval['strengths_risks_json']
+
+                                            submit_team_objection(
+                                                hackathon_id=current_h_id,
+                                                eval_id=selected_eval['id'],
+                                                prev_eval_json=prev_eval_json_str,
+                                                objection_text=obj_text
+                                            )
+                                            status.update(label=t("✅ Judges have responded!", "✅ 審査員からの回答が届きました！"), state="complete", expanded=False)
+                                            st.rerun()
+                                        except Exception as e:
+                                            status.update(label=t("❌ Error", "❌ エラー"), state="error")
+                                            st.error(f"Failed: {str(e)}")
+                else:
+                    if not chats:
+                        st.info(t("No objections made by the team yet.", "チームからの質問・反論はまだありません。"))

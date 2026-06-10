@@ -21,6 +21,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from config import DATABASE_URL
 from core.security import hash_passcode, verify_passcode
+from core.templates import TEMPLATES
 
 
 def normalize_lang_to_key(lang_name: str) -> str:
@@ -41,6 +42,9 @@ class Hackathon(Base):
     __tablename__ = "hackathons"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    template_id = Column(String, nullable=True)
+    re_evaluation_context_mode = Column(String, default="cumulative", nullable=False)
+    max_qa_turns = Column(Integer, default=1, nullable=False)
     created_at = Column(DateTime, default=func.now())
 
 class User(Base):
@@ -102,6 +106,14 @@ class AdminChat(Base):
     qa_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
+class TeamChat(Base):
+    __tablename__ = "team_chats"
+    id = Column(Integer, primary_key=True, index=True)
+    evaluation_id = Column(Integer, ForeignKey("evaluations.id"), nullable=False)
+    sender = Column(String, nullable=False)  # 'team' or 'judges'
+    message_json = Column(Text, nullable=False)  # Store JSON representation of the QA data
+    created_at = Column(DateTime, default=func.now())
+
 
 @contextmanager
 def db_session():
@@ -122,10 +134,25 @@ def get_db():
 
 def init_db():
     Base.metadata.create_all(bind=engine)
-    # Run dynamic schema migrations to add qa_json column to admin_chats if not exists
+    # Run dynamic schema migrations to add columns/tables if not exists
     try:
         with engine.begin() as conn:
             conn.execute("ALTER TABLE admin_chats ADD COLUMN qa_json TEXT;")
+    except Exception:
+        pass
+    try:
+        with engine.begin() as conn:
+            conn.execute("ALTER TABLE hackathons ADD COLUMN template_id TEXT;")
+    except Exception:
+        pass
+    try:
+        with engine.begin() as conn:
+            conn.execute("ALTER TABLE hackathons ADD COLUMN re_evaluation_context_mode TEXT DEFAULT 'cumulative';")
+    except Exception:
+        pass
+    try:
+        with engine.begin() as conn:
+            conn.execute("ALTER TABLE hackathons ADD COLUMN max_qa_turns INTEGER DEFAULT 1;")
     except Exception:
         pass
 
@@ -145,7 +172,13 @@ def init_db():
             existing_h = db.query(Hackathon).first()
             if not existing_h:
                 h_name = os.environ.get("DEFAULT_HACKATHON_NAME", "Default Hackathon")
-                hackathon = Hackathon(id=1, name=h_name)
+                hackathon = Hackathon(
+                    id=1,
+                    name=h_name,
+                    template_id="hackathon",
+                    re_evaluation_context_mode="cumulative",
+                    max_qa_turns=1
+                )
                 db.add(hackathon)
                 db.flush()
 
@@ -269,32 +302,7 @@ def get_criteria(hackathon_id):
     val = get_setting(hackathon_id, 'evaluation_criteria')
     if val:
         return json.loads(val)
-    return [
-        {
-            "name": "Innovation & Creativity", "weight": 20,
-            "description": "What judges evaluate:\n- Novelty of the idea or approach (not a copy of an existing solution)\n- Creative use of AI/technology to solve the problem\n- Clear differentiation vs. obvious/standard implementations\n\nSignals of a strong submission:\n- A unique angle or insight\n- A clever, simple approach to a hard problem\n- Clear explanation of 'what’s new'"
-        },
-        {
-            "name": "Technical Implementation", "weight": 20,
-            "description": "What judges evaluate:\n- Technical soundness (architecture, correctness, reliability)\n- Security/compliance awareness (data handling, permissions, secrets)\n- Maintainability (readable code, reasonable structure, documentation)\n\nSignals of a strong submission:\n- Clear architecture and tradeoffs\n- Evidence of testing or validation\n- Good engineering hygiene (setup steps, configs, error handling)"
-        },
-        {
-            "name": "Problem Solving & Impact", "weight": 20,
-            "description": "What judges evaluate:\n- Clarity of the problem statement and target users\n- Size of the benefit (time saved, cost reduced, risk reduced, revenue potential, customer value)\n- Likelihood of adoption in the real world\n\nSignals of a strong submission:\n- Specific use case and measurable outcome\n- Clear 'before vs after' narrative\n- Realistic plan for next steps after the hackathon"
-        },
-        {
-            "name": "Product & UX", "weight": 15,
-            "description": "What judges evaluate:\n- Usability and clarity of the user flow\n- Quality of interaction design (even if minimal)\n- How easily someone can understand and try the product\n\nSignals of a strong submission:\n- Intuitive UI/CLI/API with clear instructions\n- Thoughtful edge cases and error messages\n- Cohesive user journey"
-        },
-        {
-            "name": "Working Prototype", "weight": 15,
-            "description": "What judges evaluate:\n- Does the core experience work end-to-end?\n- Stability during demo\n- Completeness relative to the scope claimed\n\nSignals of a strong submission:\n- Reliable demo path (repeatable)\n- A runnable build or accessible environment\n- Clear scope boundaries (what works vs. what’s planned)"
-        },
-        {
-            "name": "Presentation", "weight": 10,
-            "description": "What judges evaluate:\n- Clarity and structure of the pitch\n- Demo storytelling (problem -> solution -> impact)\n- Ability to answer questions and defend choices\n\nSignals of a strong submission:\n- Simple, compelling narrative\n- Concise demo with no unnecessary steps\n- Clear callout of impact and future roadmap"
-        }
-    ]
+    return TEMPLATES["hackathon"]["criteria"]
 
 def set_criteria(hackathon_id, criteria_list, db=None):
     set_setting(hackathon_id, 'evaluation_criteria', json.dumps(criteria_list), db=db)
@@ -303,35 +311,73 @@ def get_personas(hackathon_id):
     val = get_setting(hackathon_id, 'judges_personas')
     if val:
         return json.loads(val)
-    return [
-        {
-            "id": "1", "name": "Alex", "role": "Serial Entrepreneur", "avatar": "🚀", "active": True,
-            "prompt": "[Core Identity & Background]\nYou are Alex. You dropped out of college to build your first startup, scaled it to millions of users, and sold it. You've since founded two more successful companies. You know the crushing weight of building a business from nothing and have zero tolerance for vanity metrics.\n\n[Personality & Tone]\nIntense, visionary, and demanding. You speak with high energy and urgency. You ask the hard questions about business survival, but you are deeply encouraging when you see a spark of genuine potential.\n\n[Specialized Expertise]\nGo-to-market strategy, product-market fit, unit economics, and disruptive innovation.\n\n[Guiding Principles]\n- You love: Radical, unconventional thinking. '10x' improvements. Deep understanding of the customer's pain.\n- You hate: 'Vitamins' masquerading as 'Painkillers'. Solutions looking for a problem. Incremental features disguised as innovation.\n\n[Evaluation Framework]\n- Innovation: Is this genuinely a new paradigm, or just a simple API wrapper?\n- Impact: Who exactly suffers from this problem? How measurable is the benefit?"
-        },
-        {
-            "id": "2", "name": "David", "role": "Principal Software Engineer", "avatar": "💻", "active": True,
-            "prompt": "[Core Identity & Background]\nYou are David. You spent 15 years in the trenches scaling massive distributed systems at tier-1 tech companies. You've survived catastrophic production outages caused by lazy coding, which turned you into a ruthless disciplinarian for engineering excellence.\n\n[Personality & Tone]\nHighly analytical, uncompromising, and strictly logical. You don't sugarcoat your words. Your harshness comes from respect for the craft. You provide specific, code-level actionable advice.\n\n[Specialized Expertise]\nDistributed systems, code maintainability, security, and robust architecture.\n\n[Guiding Principles]\n- You love: Clean, modular architecture. Elegant, 'boring' solutions to complex problems. Comprehensive error handling.\n- You hate: Spaghetti code, hardcoded secrets, massive files, and 'hype-driven' development (using AI when a simple SQL query would do).\n\n[Evaluation Framework]\n- Tech Implementation: Is the architecture sound? Are there glaring security holes? Is the code maintainable?\n- Working Prototype: Does the core flow actually run robustly without crashing during edge cases?"
-        },
-        {
-            "id": "3", "name": "Lisa", "role": "Head of Product Design", "avatar": "🎨", "active": True,
-            "prompt": "[Core Identity & Background]\nYou are Lisa. You have a PhD in Cognitive Psychology and transitioned into UX design to bridge the gap between human brains and digital interfaces. You've led design teams for award-winning consumer apps where every pixel and microsecond of latency mattered.\n\n[Personality & Tone]\nEmpathetic to the user, extremely detail-oriented, and fiercely protective of the user experience. You are supportive but an absolute perfectionist. You critique with warmth but demand excellence.\n\n[Specialized Expertise]\nHuman-computer interaction, accessibility, interaction design, and cognitive load management.\n\n[Guiding Principles]\n- You love: Frictionless onboarding, intuitive interfaces, accessibility, and delightful micro-interactions.\n- You hate: Unclear user flows, requiring users to read a manual, inconsistent UI patterns, and ignoring failure states.\n\n[Evaluation Framework]\n- Product & UX: How quickly can a new user understand the value? Is the interaction natural? Did they design for failure states?\n- Working Prototype: Is the experience cohesive end-to-end?"
-        },
-        {
-            "id": "4", "name": "Sarah", "role": "Senior Product Manager", "avatar": "📋", "active": True,
-            "prompt": "[Core Identity & Background]\nYou are Sarah. You spent years navigating the chaos of fast-growing startups, acting as the critical bridge between engineering, design, and business. You've learned the hard way that shipping the wrong feature is worse than shipping nothing at all.\n\n[Personality & Tone]\nStructured, objective, and incredibly pragmatic. You cut through the noise. You constantly challenge teams to justify *why* they built something, not just *how*.\n\n[Specialized Expertise]\nScope management, feature prioritization, user journey mapping, and metric-driven development.\n\n[Guiding Principles]\n- You love: Relentless focus on the core user problem. Ruthlessly cutting unnecessary features to polish the MVP. Clear success metrics.\n- You hate: Scope creep. Building features because they are 'cool' rather than necessary. Lack of a clear target audience.\n\n[Evaluation Framework]\n- Problem Solving: Is the problem deeply understood? Is the solution the most effective way to solve it?\n- Working Prototype: Did the team focus on the right core loop instead of half-baking 10 features?"
-        },
-        {
-            "id": "5", "name": "Marcus", "role": "Venture Capitalist", "avatar": "💼", "active": True,
-            "prompt": "[Core Identity & Background]\nYou are Marcus. You started as an investment banker, transitioned to a VC, and have sat through over 5,000 startup pitches. You know within the first 60 seconds if a team has what it takes to survive. You invest in narratives and the founders who tell them.\n\n[Personality & Tone]\nFast-paced, sharp, and intimidatingly insightful. You don't have time for fluff. You ask hard, incisive questions designed to test the team's conviction and clarity.\n\n[Specialized Expertise]\nStorytelling, pitch structure, market sizing, and competitive positioning.\n\n[Guiding Principles]\n- You love: A compelling hook. Clear communication of complex ideas. Confidence under scrutiny. Demonstrating traction.\n- You hate: Getting bogged down in technical weeds during a pitch. Unrealistic market sizing. Defensive answers to feedback.\n\n[Evaluation Framework]\n- Presentation: Is the storytelling compelling? Did they clearly articulate the 'Why now?'\n- Problem Solving & Impact: Is the market big enough to care? Is the adoption strategy realistic?"
-        }
-    ]
+    return TEMPLATES["hackathon"]["personas"]
 
 def set_personas(hackathon_id, personas_list, db=None):
     set_setting(hackathon_id, 'judges_personas', json.dumps(personas_list), db=db)
 
-def create_hackathon(name: str, admin_id: str, admin_pass: str) -> int:
+def get_re_evaluation_context_mode(hackathon_id: int) -> str:
+    if hackathon_id is None:
+        return "cumulative"
     with db_session() as db:
-        hackathon = Hackathon(name=name)
+        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+        return h.re_evaluation_context_mode if h else "cumulative"
+
+def set_re_evaluation_context_mode(hackathon_id: int, mode: str):
+    if hackathon_id is None:
+        return
+    with db_session() as db:
+        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+        if h:
+            h.re_evaluation_context_mode = mode
+
+def get_max_qa_turns(hackathon_id: int) -> int:
+    if hackathon_id is None:
+        return 1
+    with db_session() as db:
+        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+        return h.max_qa_turns if h else 1
+
+def set_max_qa_turns(hackathon_id: int, turns: int):
+    if hackathon_id is None:
+        return
+    with db_session() as db:
+        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+        if h:
+            h.max_qa_turns = turns
+
+def create_hackathon(name: str, admin_id: str, admin_pass: str, template_id: str = "hackathon", custom_template_data: dict = None) -> int:
+    with db_session() as db:
+        # Resolve template configuration
+        selected_criteria = None
+        selected_personas = None
+        re_eval_mode = "cumulative"
+        max_qa = 1
+
+        if custom_template_data:
+            selected_criteria = custom_template_data.get("criteria")
+            selected_personas = custom_template_data.get("personas")
+            re_eval_mode = custom_template_data.get("re_evaluation_context_mode", "cumulative")
+            max_qa = custom_template_data.get("max_qa_turns", 1)
+        elif template_id in TEMPLATES:
+            tpl = TEMPLATES[template_id]
+            selected_criteria = tpl.get("criteria")
+            selected_personas = tpl.get("personas")
+            re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
+            max_qa = tpl.get("max_qa_turns", 1)
+        else:
+            tpl = TEMPLATES["hackathon"]
+            selected_criteria = tpl.get("criteria")
+            selected_personas = tpl.get("personas")
+            re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
+            max_qa = tpl.get("max_qa_turns", 1)
+
+        hackathon = Hackathon(
+            name=name,
+            template_id=template_id,
+            re_evaluation_context_mode=re_eval_mode,
+            max_qa_turns=max_qa
+        )
         db.add(hackathon)
         db.flush() # flush to get the ID
 
@@ -345,9 +391,9 @@ def create_hackathon(name: str, admin_id: str, admin_pass: str) -> int:
         db.add(admin_user)
         db.flush()
 
-        # Initialize default settings for this hackathon using the same transaction session
-        set_personas(hackathon.id, get_personas(None), db=db) # get defaults and save
-        set_criteria(hackathon.id, get_criteria(None), db=db)
+        # Initialize settings for this hackathon using the same transaction session
+        set_personas(hackathon.id, selected_personas, db=db)
+        set_criteria(hackathon.id, selected_criteria, db=db)
         set_ai_response_languages(hackathon.id, ["English", "Japanese"], db=db)
 
         return hackathon.id

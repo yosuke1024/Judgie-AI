@@ -13,6 +13,7 @@ from core.db import (
     update_admin_passcode,
 )
 from core.i18n import t
+from core.security import is_safe_url
 
 # Only superadmin can access this
 require_login('superadmin')
@@ -43,22 +44,79 @@ st.divider()
 col1, col2 = st.columns([1, 1.5])
 
 with col1:
-    st.subheader(t("➕ Create New Hackathon", "➕ 新規ハッカソンの作成"))
+    st.subheader(t("➕ Create New Project", "➕ 新規プロジェクトの作成"))
     with st.form("superadmin_create_form"):
-        h_name = st.text_input(t("Hackathon Name", "ハッカソン名"), placeholder="e.g. Summer AI Hackathon 2026")
+        h_name = st.text_input(t("Project Name", "プロジェクト名"), placeholder="e.g. Summer AI Hackathon 2026")
         a_id = st.text_input(t("Tenant Admin ID", "テナント管理者 ID"), placeholder="e.g. admin_summer26")
         a_pass = st.text_input(t("Tenant Admin Password", "テナント管理者パスワード"), type="password")
 
-        if st.form_submit_button(t("Create Tenant", "テナントを作成"), type="primary"):
+        # Template Selection
+        template_options = {
+            "hackathon": t("Hackathon Evaluation", "ハッカソン審査"),
+            "startup_pitch": t("Startup Pitch Review", "スタートアップピッチ審査"),
+            "hiring": t("Hiring & Technical Interview", "採用・技術面接評価"),
+            "architecture": t("Software Architecture Review", "ソフトウェアアーキテクチャレビュー"),
+            "custom": t("Custom (Import from URL)", "カスタム (URLからインポート)")
+        }
+        selected_tpl_key = st.selectbox(
+            t("Evaluation Template", "評価テンプレート"),
+            options=list(template_options.keys()),
+            format_func=lambda x: template_options[x]
+        )
+
+        custom_url = st.text_input(
+            t("Custom Template URL (JSON)", "カスタムテンプレートURL (JSON)"),
+            placeholder="https://raw.githubusercontent.com/.../template.json",
+            help=t("Required only if Custom template is selected.", "カスタムテンプレート選択時のみ必須です。")
+        )
+
+        if st.form_submit_button(t("Create Project", "プロジェクトを作成"), type="primary"):
             if not h_name or not a_id or not a_pass:
                 st.error(t("All fields are required.", "すべての項目を入力してください。"))
+            elif selected_tpl_key == "custom" and not custom_url.strip():
+                st.error(t("Please enter a custom template URL.", "カスタムテンプレートのURLを入力してください。"))
             else:
                 try:
-                    new_id = create_hackathon(h_name, a_id, a_pass)
-                    st.success(f"Successfully created Hackathon '{h_name}' (ID: {new_id}) with Admin '{a_id}'!")
+                    custom_template_data = None
+                    if selected_tpl_key == "custom" and custom_url.strip():
+                        url_to_fetch = custom_url.strip()
+
+                        # SSRF対策のインラインバリデーション
+                        from urllib.parse import urlparse
+                        parsed = urlparse(url_to_fetch)
+                        if parsed.scheme not in ('http', 'https'):
+                            raise ValueError("Invalid URL scheme. Only HTTP/HTTPS is allowed.")
+
+                        allowed_domains = {
+                            'github.com',
+                            'raw.githubusercontent.com',
+                            'gist.githubusercontent.com',
+                            'githubusercontent.com'
+                        }
+                        if parsed.hostname not in allowed_domains:
+                            raise ValueError("Access to this domain is not allowed for custom templates.")
+
+                        if not is_safe_url(url_to_fetch):
+                            raise ValueError("Invalid or unsafe URL. Only public HTTP/HTTPS URLs are allowed.")
+
+                        # 検証済みのパーツから安全なURLを再構築し、汚染追跡（Taint Tracking）を断ち切る
+                        safe_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                        if parsed.query:
+                            safe_url += f"?{parsed.query}"
+
+                        import requests
+                        res = requests.get(safe_url)
+                        if res.status_code != 200:
+                            raise ValueError(f"Failed to fetch template from URL. HTTP {res.status_code}")
+                        custom_template_data = res.json()
+
+
+
+                    new_id = create_hackathon(h_name, a_id, a_pass, template_id=selected_tpl_key, custom_template_data=custom_template_data)
+                    st.success(f"Successfully created Project '{h_name}' (ID: {new_id}) with Admin '{a_id}'!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Failed to create hackathon: {str(e)}")
+                    st.error(f"Failed to create project: {str(e)}")
 
 with col2:
     st.subheader(t("🏢 Existing Hackathons", "🏢 既存のハッカソン一覧"))

@@ -1,4 +1,6 @@
-from core.db import Evaluation, db_session, get_ai_response_languages, normalize_lang_to_key, save_objection_qa
+import json
+
+from core.db import Evaluation, TeamChat, db_session, get_ai_response_languages, normalize_lang_to_key
 from core.gemini import object_to_judges
 
 
@@ -24,20 +26,65 @@ def get_team_evaluations(team_id: str) -> list[dict]:
             })
         return eval_rows
 
+def get_team_chats(evaluation_id: int) -> list[dict]:
+    """
+    Retrieves all chat messages for a specific evaluation ID.
+    """
+    with db_session() as db:
+        chats = db.query(TeamChat).filter(TeamChat.evaluation_id == evaluation_id).order_by(TeamChat.created_at.asc()).all()
+        chat_list = []
+        for c in chats:
+            try:
+                msg_data = json.loads(c.message_json)
+            except Exception:
+                msg_data = c.message_json
+            chat_list.append({
+                'id': c.id,
+                'sender': c.sender,
+                'message_json': msg_data,
+                'created_at': c.created_at
+            })
+        return chat_list
+
 def submit_team_objection(hackathon_id: int, eval_id: int, prev_eval_json: str, objection_text: str) -> dict:
     """
-    Executes a one-shot AI debate in response to the team's objection and updates the DB.
-    Includes robust schema verification for LLM responses.
+    Executes a chat session turn with the AI expert panel in response to the team's objection.
+    Inserts both user objection and panel's answer as separate records in TeamChat table.
     """
-    qa_result = object_to_judges(hackathon_id, "", None, prev_eval_json, objection_text)
+    # 1. Insert user message to TeamChat table
+    with db_session() as db:
+        user_msg = TeamChat(
+            evaluation_id=eval_id,
+            sender='team',
+            message_json=json.dumps({"user_objection": objection_text})
+        )
+        db.add(user_msg)
+        db.flush()
+
+        # 2. Retrieve the entire chat history for this evaluation
+        chats = db.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).order_by(TeamChat.created_at.asc()).all()
+        chat_history = []
+        for c in chats:
+            chat_history.append({
+                'sender': c.sender,
+                'message_json': c.message_json
+            })
+
+    # 3. Call Gemini with the full Q&A discussion history
+    qa_result = object_to_judges(hackathon_id, "", None, prev_eval_json, chat_history)
 
     # Defensive programming: sanitize Gemini responses
     qa_result = sanitize_objection_response(qa_result, hackathon_id)
 
-    # Cache user objection text in the database object
-    qa_result['user_objection'] = objection_text
+    # 4. Insert AI response to TeamChat table
+    with db_session() as db:
+        ai_msg = TeamChat(
+            evaluation_id=eval_id,
+            sender='judges',
+            message_json=json.dumps(qa_result)
+        )
+        db.add(ai_msg)
 
-    save_objection_qa(eval_id, qa_result)
     return qa_result
 
 def sanitize_objection_response(data: dict, hackathon_id: int = None) -> dict:

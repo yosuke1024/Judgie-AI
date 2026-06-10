@@ -12,12 +12,16 @@ from core.db import (
     get_admin_chats,
     get_ai_response_languages,
     get_criteria,
+    get_max_qa_turns,
     get_personas,
+    get_re_evaluation_context_mode,
     normalize_lang_to_key,
     save_admin_chat,
     set_ai_response_languages,
     set_criteria,
+    set_max_qa_turns,
     set_personas,
+    set_re_evaluation_context_mode,
     update_team_passcode,
 )
 from core.i18n import t
@@ -33,13 +37,14 @@ if not current_h_id:
     st.error(t("No active hackathon selected. Please ensure you are logged in correctly as a Tenant Admin.", "アクティブなハッカソンがありません。管理者の設定を確認してください。"))
     st.stop()
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     t("📊 Live Scoreboard", "📊 スコアボード"),
     t("🏢 Team Management", "🏢 チーム管理"),
     t("⚖️ Evaluation Criteria", "⚖️ 評価軸"),
     t("🧑‍🏫 Judges (Personas)", "🧑‍🏫 審査員ペルソナ"),
     t("💬 Submissions & AI Chat", "💬 提出物とAIチャット"),
-    t("🤖 AI Response Settings", "🤖 AIレスポンス設定")
+    t("🤖 AI Response Settings", "🤖 AIレスポンス設定"),
+    t("⚙️ Project Settings", "⚙️ プロジェクト詳細設定")
 ])
 
 # --- TAB 1: Live Scoreboard ---
@@ -607,4 +612,77 @@ with tab6:
         else:
             set_ai_response_languages(current_h_id, langs_list)
             st.success(t("AI response languages updated successfully!", "AIレスポンスの言語設定を更新しました！"))
+            st.rerun()
+
+# --- TAB 7: Project Settings ---
+with tab7:
+    st.markdown(f"### ⚙️ {t('Project Details & Behavior Settings', 'プロジェクト詳細・挙動設定')}")
+    st.info(t(
+        "Fine-tune evaluation context behaviors and Q&A constraints for this specific project.",
+        "このプロジェクトにおける評価コンテキストの挙動やQ&A対話の制限を設定します。"
+    ))
+
+    curr_mode = get_re_evaluation_context_mode(current_h_id)
+    curr_max_qa = get_max_qa_turns(current_h_id)
+
+    with st.form("project_behavior_settings_form"):
+        st.subheader(t("🔄 Re-evaluation Context Mode", "🔄 再評価（イテレーション）時のコンテキスト"))
+        st.markdown(t(
+            "Configure how the AI panel handles updates when teams resubmit their work.",
+            "成果物が再アップロードされた際に、AIパネルが前回の評価結果をどのように扱うかを定義します。"
+        ))
+        re_eval_options = {
+            "cumulative": t(
+                "Cumulative (Include previous evaluation context. Recommended for hackathons)",
+                "累積（前回の評価内容や改善点をコンテキストに含め、改善度を評価に反映させます ※ハッカソン推奨）"
+            ),
+            "independent": t(
+                "Independent (Evaluate freshly from scratch. Recommended for hiring/recruiting)",
+                "独立（前回の評価は引き継がず、毎回純粋に提出物のみでフラットに採点します ※採用や単発評価推奨）"
+            )
+        }
+        selected_mode = st.radio(
+            "re_evaluation_context_mode",
+            options=list(re_eval_options.keys()),
+            format_func=lambda x: re_eval_options[x],
+            index=0 if curr_mode == "cumulative" else 1,
+            label_visibility="collapsed"
+        )
+
+        st.markdown("---")
+
+        st.subheader(t("🙋 Max Q&A Dialogue Turns", "🙋 Q&A（異議申し立て）の最大ターン数"))
+        st.markdown(t(
+            "Define how many questions or objections a team/candidate can send to the AI judges.",
+            "チームや候補者が、評価結果に対して最大何回AI審査員へ質問や反論を送信できるかを設定します。"
+        ))
+
+        qa_options = {
+            0: t("Disable Q&A (0 Turns)", "Q&A無効 (0回)"),
+            1: t("1 Turn (One-shot Q&A)", "1往復のみ (デフォルト)"),
+            2: t("2 Turns", "2往復"),
+            3: t("3 Turns", "3往復"),
+            5: t("5 Turns", "5往復"),
+            -1: t("Unlimited Turns", "無制限")
+        }
+
+        default_index = 1
+        if curr_max_qa in qa_options:
+            default_index = list(qa_options.keys()).index(curr_max_qa)
+        else:
+            default_index = 1
+
+        selected_max_qa = st.selectbox(
+            "max_qa_turns",
+            options=list(qa_options.keys()),
+            format_func=lambda x: qa_options[x],
+            index=default_index,
+            label_visibility="collapsed"
+        )
+
+        submitted_settings = st.form_submit_button(t("Save Project Settings", "プロジェクト設定を保存"), type="primary", disabled=is_demo)
+        if submitted_settings:
+            set_re_evaluation_context_mode(current_h_id, selected_mode)
+            set_max_qa_turns(current_h_id, selected_max_qa)
+            st.success(t("Project settings saved successfully!", "プロジェクト設定を正常に保存しました！"))
             st.rerun()

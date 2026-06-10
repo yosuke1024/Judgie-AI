@@ -1,7 +1,8 @@
-name: CI
+name: ci.yml
 
 on:
   push:
+
     branches: [ main, public ]
   pull_request:
     branches: [ main, public ]
