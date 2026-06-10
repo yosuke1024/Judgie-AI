@@ -71,6 +71,8 @@ elif st.session_state.role == 'admin':
     pages = [admin_page, team_page, leaderboard_page, settings_page, manual_page]
 elif st.session_state.role == 'team':
     pages = [team_page, leaderboard_page, manual_page]
+elif st.session_state.role == 'observer':
+    pages = [team_page, leaderboard_page, manual_page]
 else:
     # Fallback in case a superadmin session is active but now disabled
     pages = [login_page, manual_page]

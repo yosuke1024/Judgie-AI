@@ -24,6 +24,7 @@ from core.db import (
     set_personas,
     set_re_evaluation_context_mode,
     update_team_passcode,
+    update_user_role,
 )
 from core.i18n import t
 from core.security import hash_passcode, is_safe_url
@@ -194,20 +195,26 @@ with tab1:
 with tab2:
     db = SessionLocal()
     try:
-        results = db.query(User.team_id, User.product_name, User.team_name).filter(User.hackathon_id == current_h_id, User.role == 'team').order_by(User.id.desc()).all()
-        teams = [{'team_id': r.team_id, 'product_name': r.product_name, 'team_name': r.team_name} for r in results]
+        results = db.query(User.team_id, User.product_name, User.team_name, User.role).filter(
+            User.hackathon_id == current_h_id,
+            User.role.in_(['team', 'observer'])
+        ).order_by(User.id.desc()).all()
+        teams = [{'team_id': r.team_id, 'product_name': r.product_name, 'team_name': r.team_name, 'role': r.role} for r in results]
     finally:
         db.close()
 
     col_csv, col_manual = st.columns(2)
 
     with col_csv:
-        st.markdown(f"### {t('Import Teams (CSV)', 'チーム一括登録 (CSV)')}")
-        st.caption(t("CSV Format: team_id, passcode", "CSV形式: 1列目にteam_id、2列目にpasscode"))
+        st.markdown(f"### {t('Import Users (CSV)', 'ユーザー一括登録 (CSV)')}")
+        st.caption(t(
+            "CSV Format: team_id, passcode, role (optional: team / observer)",
+            "CSV形式: 1列目にID、2列目にpasscode、3列目にrole（省略時はteam、その他はobserverを指定可能）"
+        ))
 
         uploaded_csv = st.file_uploader(t("Upload CSV", "CSVをアップロード"), type=['csv'], disabled=is_demo)
         if uploaded_csv is not None:
-            if st.button(t("Import Teams", "チームをインポート"), disabled=is_demo):
+            if st.button(t("Import Users", "ユーザーをインポート"), disabled=is_demo):
                 try:
                     df_csv = pd.read_csv(uploaded_csv, header=None)
                     db = SessionLocal()
@@ -216,13 +223,19 @@ with tab2:
                         for _, row in df_csv.iterrows():
                             tid = str(row[0]).strip()
                             pwd = str(row[1]).strip()
+                            role_val = 'team'
+                            if len(row) > 2:
+                                potential_role = str(row[2]).strip().lower()
+                                if potential_role in ['team', 'observer']:
+                                    role_val = potential_role
+
                             if tid and pwd:
                                 existing = db.query(User).filter_by(team_id=tid).first()
                                 if not existing:
-                                    db.add(User(hackathon_id=current_h_id, team_id=tid, passcode=hash_passcode(pwd), role='team'))
+                                    db.add(User(hackathon_id=current_h_id, team_id=tid, passcode=hash_passcode(pwd), role=role_val))
                                     count += 1
                         db.commit()
-                        st.success(f"Successfully imported {count} teams!")
+                        st.success(f"Successfully imported {count} users!")
                         st.rerun()
                     except Exception as e:
                         db.rollback()
@@ -233,71 +246,105 @@ with tab2:
                     st.error(f"Failed to read CSV: {str(e)}")
 
     with col_manual:
-        st.markdown(f"### {t('Add Single Team', 'チームの個別追加')}")
-        st.caption(t("Manually register a team.", "1チームずつ手動で登録します。"))
+        st.markdown(f"### {t('Add Single User', 'ユーザーの個別追加')}")
+        st.caption(t("Manually register a user.", "1ユーザーずつ手動で登録します。"))
 
         if is_demo:
-            st.caption(t("💡 Adding teams and changing passcodes are disabled in Demo Mode.", "💡 デモモードではチームの追加やパスコード変更は無効化されています。"))
+            st.caption(t("💡 Adding users and changing configurations are disabled in Demo Mode.", "💡 デモモードではユーザーの追加や設定変更は無効化されています。"))
         with st.form("manual_add_team_form"):
-            new_tid = st.text_input(t("Team ID", "チームID"), disabled=is_demo)
+            new_tid = st.text_input(t("User ID / Team ID", "ユーザーID / チームID"), disabled=is_demo)
             new_pwd = st.text_input(t("Passcode", "パスコード"), disabled=is_demo)
-            if st.form_submit_button(t("Add Team", "チームを追加"), type="primary", disabled=is_demo):
+            new_role = st.selectbox(
+                t("Role", "ロール"),
+                ["team", "observer"],
+                format_func=lambda x: t("Participant (team)", "一般参加者 (team)") if x == "team" else t("Observer (observer)", "オブザーバー (observer)"),
+                disabled=is_demo
+            )
+            if st.form_submit_button(t("Add User", "ユーザーを追加"), type="primary", disabled=is_demo):
                 if new_tid and new_pwd:
                     db = SessionLocal()
                     try:
                         existing = db.query(User).filter_by(team_id=new_tid.strip()).first()
                         if existing:
-                            st.error(t("Failed to add team. The Team ID might already exist.", "追加に失敗しました。チームIDが既に存在する可能性があります。"))
+                            st.error(t("Failed to add user. The User ID might already exist.", "追加に失敗しました。ユーザーIDが既に存在する可能性があります。"))
                         else:
-                            db.add(User(hackathon_id=current_h_id, team_id=new_tid.strip(), passcode=hash_passcode(new_pwd.strip()), role='team'))
+                            db.add(User(hackathon_id=current_h_id, team_id=new_tid.strip(), passcode=hash_passcode(new_pwd.strip()), role=new_role))
                             db.commit()
-                            st.success(f"Team '{new_tid}' added successfully!")
+                            st.success(f"User '{new_tid}' added successfully!")
                             st.rerun()
                     except Exception:
                         db.rollback()
-                        st.error(t("Failed to add team.", "追加に失敗しました。"))
+                        st.error(t("Failed to add user.", "追加に失敗しました。"))
                     finally:
                         db.close()
                 else:
-                    st.warning(t("Both Team ID and Passcode are required.", "チームIDとパスコードの両方を入力してください。"))
+                    st.warning(t("Both User ID and Passcode are required.", "ユーザーIDとパスコードの両方を入力してください。"))
 
         st.markdown("---")
-        st.markdown(f"### {t('Change Team Passcode', 'チームのパスコード変更')}")
-        st.caption(t("Update the passcode for an existing team.", "登録済みのチームのパスコードを変更します。"))
+        st.markdown(f"### {t('Change Passcode', 'パスコード変更')}")
+        st.caption(t("Update the passcode for an existing user.", "登録済みのユーザーのパスコードを変更します。"))
 
         with st.form("change_team_passcode_form"):
             team_options = [t_row['team_id'] for t_row in teams]
             if team_options:
-                target_tid = st.selectbox(t("Select Team ID", "変更対象のチームID"), team_options, disabled=is_demo)
+                target_tid = st.selectbox(t("Select User ID", "変更対象のユーザーID"), team_options, disabled=is_demo)
             else:
-                target_tid = st.text_input(t("Team ID", "変更対象のチームID"), disabled=True, placeholder=t("No teams registered", "登録済みのチームがありません"))
+                target_tid = st.text_input(t("User ID", "変更対象のユーザーID"), disabled=True, placeholder=t("No users registered", "登録済みのユーザーがありません"))
 
             change_pwd = st.text_input(t("New Passcode", "新しいパスコード"), type="password", disabled=is_demo)
 
             if st.form_submit_button(t("Update Passcode", "パスコードを変更"), type="primary", disabled=is_demo):
                 if not team_options:
-                    st.warning(t("No teams registered to change passcode.", "変更対象のチームが登録されていません。"))
+                    st.warning(t("No users registered to change passcode.", "変更対象のユーザーが登録されていません。"))
                 elif not change_pwd:
                     st.warning(t("Please enter a new passcode.", "新しいパスコードを入力してください。"))
                 else:
                     if update_team_passcode(current_h_id, target_tid, change_pwd.strip()):
-                        st.success(t(f"Successfully updated passcode for team '{target_tid}'!", f"チーム '{target_tid}' のパスコードを更新しました！"))
+                        st.success(t(f"Successfully updated passcode for user '{target_tid}'!", f"ユーザー '{target_tid}' のパスコードを更新しました！"))
                         st.rerun()
                     else:
                         st.error(t("Failed to update passcode.", "パスコードの更新に失敗しました。"))
 
+        st.markdown("---")
+        st.markdown(f"### {t('Change User Role', 'ユーザーのロール変更')}")
+        st.caption(t("Update the role for an existing user.", "登録済みのユーザーのロールを変更します。"))
+
+        with st.form("change_user_role_form"):
+            if team_options:
+                target_role_tid = st.selectbox(t("Select User ID", "変更対象のユーザーID"), team_options, disabled=is_demo, key="role_target_tid")
+            else:
+                target_role_tid = st.text_input(t("User ID", "変更対象のユーザーID"), disabled=True, placeholder=t("No users registered", "登録済みのユーザーがありません"), key="role_target_tid")
+
+            new_user_role = st.selectbox(
+                t("New Role", "新しいロール"),
+                ["team", "observer"],
+                format_func=lambda x: t("Participant (team)", "一般参加者 (team)") if x == "team" else t("Observer (observer)", "オブザーバー (observer)"),
+                disabled=is_demo
+            )
+
+            if st.form_submit_button(t("Update Role", "ロールを変更"), type="primary", disabled=is_demo):
+                if not team_options:
+                    st.warning(t("No users registered to change role.", "変更対象のユーザーが登録されていません。"))
+                else:
+                    if update_user_role(current_h_id, target_role_tid, new_user_role):
+                        st.success(t(f"Successfully updated role for user '{target_role_tid}' to '{new_user_role}'!", f"ユーザー '{target_role_tid}' のロールを '{new_user_role}' に更新しました！"))
+                        st.rerun()
+                    else:
+                        st.error(t("Failed to update role.", "ロールの更新に失敗しました。"))
+
     st.divider()
-    st.markdown(f"### {t('Registered Teams', '登録済みチーム一覧')}")
+    st.markdown(f"### {t('Registered Users', '登録済みユーザー一覧')}")
 
     if not teams:
-        st.info(t("No teams registered yet.", "まだチームは登録されていません。"))
+        st.info(t("No users registered yet.", "まだユーザーは登録されていません。"))
     else:
         team_data = []
         for t_row in teams:
             team_data.append({
-                t("Team ID", "チームID"): t_row['team_id'],
+                t("User ID / Team ID", "ユーザーID / チームID"): t_row['team_id'],
                 t("Product Name", "プロダクト名"): t_row['product_name'] or "",
-                t("Team Name", "チーム名"): t_row['team_name'] or ""
+                t("Team Name", "チーム名"): t_row['team_name'] or "",
+                t("Role", "ロール"): t_row['role']
             })
         st.dataframe(pd.DataFrame(team_data), use_container_width=True, hide_index=True)
 
