@@ -84,6 +84,9 @@ def test_login_failed(mocker, mock_streamlit):
 def test_logout(mocker, mock_streamlit):
     st.session_state.logged_in = True
     st.session_state.sid = 'active-sid'
+    st.session_state.oidc_verified = True
+    st.session_state.oidc_email = 'test@example.com'
+    st.session_state.oidc_state = 'some-state'
 
     mock_delete = mocker.patch("core.auth.delete_session")
 
@@ -94,6 +97,9 @@ def test_logout(mocker, mock_streamlit):
     mock_delete.assert_called_once_with('active-sid')
     assert st.session_state.logged_in is False
     assert st.session_state.sid is None
+    assert st.session_state.oidc_verified is True
+    assert st.session_state.oidc_email == 'test@example.com'
+    assert st.session_state.oidc_state == 'some-state'
 
 def test_require_login_authorized(mock_streamlit):
     st.session_state.logged_in = True

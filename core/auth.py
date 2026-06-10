@@ -125,10 +125,13 @@ def logout():
     st.session_state.active_hackathon_id = None
     st.session_state.sid = None
 
-    # Clear OIDC state variables
-    for key in ['oidc_verified', 'oidc_email', 'oidc_state']:
-        if key in st.session_state:
-            del st.session_state[key]
+    # NOTE: Keep OIDC authentication state on app logout so that users do not have to
+    # re-authenticate with OIDC (Google) when they log out from a team session.
+    # If they want to change OIDC accounts, they can use the "Sign in with another account" button
+    # on the OIDC access control screen, or reload the browser tab.
+    # for key in ['oidc_verified', 'oidc_email', 'oidc_state']:
+    #     if key in st.session_state:
+    #         del st.session_state[key]
 
     st.rerun()
 
