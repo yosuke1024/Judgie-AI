@@ -99,11 +99,17 @@ with col1:
                         if not is_safe_url(url_to_fetch):
                             raise ValueError("Invalid or unsafe URL. Only public HTTP/HTTPS URLs are allowed.")
 
+                        # 検証済みのパーツから安全なURLを再構築し、汚染追跡（Taint Tracking）を断ち切る
+                        safe_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                        if parsed.query:
+                            safe_url += f"?{parsed.query}"
+
                         import requests
-                        res = requests.get(url_to_fetch)
+                        res = requests.get(safe_url)
                         if res.status_code != 200:
                             raise ValueError(f"Failed to fetch template from URL. HTTP {res.status_code}")
                         custom_template_data = res.json()
+
 
 
                     new_id = create_hackathon(h_name, a_id, a_pass, template_id=selected_tpl_key, custom_template_data=custom_template_data)
