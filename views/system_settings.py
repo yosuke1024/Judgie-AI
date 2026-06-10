@@ -17,7 +17,7 @@ tab1, tab2 = st.tabs([
 current_h_id = st.session_state.get('active_hackathon_id')
 is_demo = (current_h_id == 9999)
 if not current_h_id:
-    st.error(t("No active hackathon selected.", "アクティブなハッカソンがありません。"))
+    st.error(t("No active project selected.", "アクティブなプロジェクトがありません。"))
     st.stop()
 
 # --- TAB 1: Gemini Config ---
@@ -72,7 +72,7 @@ with tab1:
         else:
             st.success(t(
                 "✨ **Paid Tier Active:** Higher rate limits. Recommended models: `gemini-3.5-flash` (fast/value) or `gemini-3.1-pro` (high-accuracy reasoning).",
-                "✨ **有料プラン:** 制限が緩和されており、本番ハッカソン運用に適しています。`gemini-3.5-flash` (高速) または `gemini-3.1-pro` (高精度・コード審査向き) が推奨されます。"
+                "✨ **有料プラン:** 制限が緩和されており、本番プロジェクト運用に適しています。`gemini-3.5-flash` (高速) または `gemini-3.1-pro` (高精度・コード審査向き) が推奨されます。"
             ))
 
         # 2. Dynamic model selection
