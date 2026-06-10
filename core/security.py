@@ -6,13 +6,13 @@ import bcrypt
 
 
 def hash_passcode(passcode: str) -> str:
-    """平文のパスコードをハッシュ化する"""
+    """Hash a plain passcode"""
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(passcode.encode('utf-8'), salt)
     return hashed.decode('utf-8')
 
 def verify_passcode(plain_passcode: str, hashed_passcode: str) -> bool:
-    """平文のパスコードとハッシュ化されたパスコードが一致するか検証する"""
+    """Verify that the plain passcode matches the hashed passcode"""
     try:
         return bcrypt.checkpw(plain_passcode.encode('utf-8'), hashed_passcode.encode('utf-8'))
     except Exception:
@@ -20,7 +20,7 @@ def verify_passcode(plain_passcode: str, hashed_passcode: str) -> bool:
 
 
 def is_safe_url(url: str) -> bool:
-    """SSRF対策: 許可されたドメイン（GitHub等）のみを許可し、さらにローカルやプライベートIPへのリクエストを遮断する."""
+    """SSRF mitigation: Allow only authorized domains (e.g. GitHub) and block requests to local or private IPs."""
     try:
         parsed = urlparse(url)
         if parsed.scheme not in ('http', 'https'):
@@ -30,8 +30,8 @@ def is_safe_url(url: str) -> bool:
         if not hostname:
             return False
 
-        # CodeQLがサニタイザーとして認識しやすいように、許可されたドメインのホワイトリストチェックを行う
-        # 実用上、カスタムテンプレートの共有先はGitHub（またはRaw/Gist）に限定されます
+        # Check the host against a whitelist of allowed domains so that static analysis tools (like CodeQL) recognize this as a sanitizer
+        # In practice, custom template sharing is limited to GitHub (including raw and gist domains)
         allowed_domains = {
             'github.com',
             'raw.githubusercontent.com',
@@ -43,13 +43,13 @@ def is_safe_url(url: str) -> bool:
             return False
 
 
-        # ホスト名が直接IPアドレスの場合のチェック
+        # Check if the hostname is a direct IP address
         try:
             ip = ipaddress.ip_address(hostname)
             if ip.is_private or ip.is_loopback or ip.is_link_local:
                 return False
         except ValueError:
-            # ドメイン名の場合はDNS解決を行い、そのIPアドレスを検証する
+            # For domain names, resolve the DNS and validate the corresponding IP address
             try:
                 addr_info = socket.getaddrinfo(hostname, None)
                 for addr in addr_info:
