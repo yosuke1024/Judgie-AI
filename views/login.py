@@ -5,7 +5,7 @@ from core.db import Hackathon, SessionLocal
 from core.i18n import t
 
 st.title(t("⚖️ Judgie-AI Login", "⚖️ Judgie-AI ログイン"))
-st.markdown(t("Welcome to the AI-powered Hackathon Platform. Please log in.", "AIハッカソンプラットフォームへようこそ。ログインしてください。"))
+st.markdown(t("Welcome to the AI-powered Project Evaluation Platform. Please log in.", "AIプロジェクト評価プラットフォームへようこそ。ログインしてください。"))
 
 with st.container():
     st.subheader(t("Login", "ログイン"))
@@ -30,11 +30,11 @@ with st.container():
     active_hackathons = [h for h in hackathons if h.id != 9999]
 
     if not active_hackathons:
-        st.warning(t("No hackathons available yet. Please ask your super admin.", "現在参加できるハッカソンがありません。"))
+        st.warning(t("No projects available yet. Please ask your super admin.", "現在参加できるプロジェクトがありません。"))
     elif len(active_hackathons) == 1:
         single_h = active_hackathons[0]
         tenant_id = single_h.id
-        st.markdown(f"**{t('Hackathon', 'ハッカソン')}:** {single_h.name}")
+        st.markdown(f"**{t('Project', 'プロジェクト')}:** {single_h.name}")
 
         team_id = st.text_input(t("Team ID / Admin ID", "チームID / 管理者ID"), placeholder="e.g. team01 or admin")
         passcode = st.text_input(t("Passcode", "パスコード"), type="password")
@@ -60,7 +60,7 @@ with st.container():
                 default_index = keys.index(tid)
 
         tenant_id = st.selectbox(
-            t("Select Hackathon", "参加するハッカソンを選択"),
+            t("Select Project", "参加するプロジェクトを選択"),
             options=list(h_options.keys()),
             format_func=lambda x: h_options[x],
             index=default_index
@@ -90,7 +90,7 @@ with st.container():
                 st.success(t("Redirecting to team dashboard...", "チームダッシュボードへリダイレクト中..."))
                 st.rerun()
     with col_demo2:
-        if st.button(t("Try as Admin (Organizer)", "主催者・管理者として体験"), use_container_width=True):
+        if st.button(t("Try as Admin (Host)", "管理者・ホストとして体験"), use_container_width=True):
             from core.db import seed_demo_data
             seed_demo_data()
             if login("demo_admin", "demo123", tenant_id=9999):

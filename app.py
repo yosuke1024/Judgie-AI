@@ -14,7 +14,7 @@ verify_ip_address()
 if os.environ.get("OIDC_ENABLED") == "true":
     enforce_oidc_gateway()
 
-st.set_page_config(page_title="Judgie-AI | Hackathon Platform", page_icon="⚖️", layout="wide")
+st.set_page_config(page_title="Judgie-AI | Project Evaluation Platform", page_icon="⚖️", layout="wide")
 
 
 # Initialize DB and Session

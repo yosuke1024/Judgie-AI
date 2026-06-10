@@ -35,7 +35,7 @@ current_h_id = st.session_state.get('active_hackathon_id')
 is_demo = (current_h_id == 9999)
 
 if not current_h_id:
-    st.error(t("No active hackathon selected. Please ensure you are logged in correctly as a Tenant Admin.", "アクティブなハッカソンがありません。管理者の設定を確認してください。"))
+    st.error(t("No active project selected. Please ensure you are logged in correctly as a Tenant Admin.", "アクティブなプロジェクトがありません。管理者の設定を確認してください。"))
     st.stop()
 
 # Get hackathon details to check template_id
@@ -46,7 +46,7 @@ finally:
     db.close()
 
 if not hackathon:
-    st.error(t("Hackathon not found.", "ハッカソンが見つかりません。"))
+    st.error(t("Project not found.", "プロジェクトが見つかりません。"))
     st.stop()
 
 # Force template selection if not initialized yet (except in demo mode 9999)
@@ -60,7 +60,7 @@ if not hackathon.template_id and not is_demo:
     with st.form("admin_setup_form"):
         # Template Selection
         template_options = {
-            "hackathon": t("Hackathon Evaluation", "ハッカソン審査"),
+            "hackathon": t("Project Evaluation", "プロジェクト審査"),
             "startup_pitch": t("Startup Pitch Review", "スタートアップピッチ審査"),
             "hiring": t("Hiring & Technical Interview", "採用・技術面接評価"),
             "architecture": t("Software Architecture Review", "ソフトウェアアーキテクチャレビュー"),
@@ -141,7 +141,7 @@ with tab1:
     try:
         hackathon = db.query(Hackathon).filter(Hackathon.id == current_h_id).first()
         h_name = hackathon.name if hackathon else "Unknown"
-        st.info(f"**{t('Viewing Hackathon:', '表示中のハッカソン:')}** {h_name}")
+        st.info(f"**{t('Viewing Project:', '表示中のプロジェクト:')}** {h_name}")
 
         users = db.query(User).filter(User.hackathon_id == current_h_id, User.role == 'team').all()
         team_ids = [u.team_id for u in users]
@@ -166,7 +166,7 @@ with tab1:
     total_weight = sum(c['weight'] for c in criteria) if criteria else 1
 
     if not rows:
-        st.warning(t("No submissions yet for this hackathon.", "このハッカソンにはまだ提出物がありません。"))
+        st.warning(t("No submissions yet for this project.", "このプロジェクトにはまだ提出物がありません。"))
     else:
         data = []
         for r in rows:
@@ -719,8 +719,8 @@ with tab7:
         ))
         re_eval_options = {
             "cumulative": t(
-                "Cumulative (Include previous evaluation context. Recommended for hackathons)",
-                "累積（前回の評価内容や改善点をコンテキストに含め、改善度を評価に反映させます ※ハッカソン推奨）"
+                "Cumulative (Include previous evaluation context. Recommended for iterative projects)",
+                "累積（前回の評価内容や改善点をコンテキストに含め、改善度を評価に反映させます ※継続的なプロジェクト推奨）"
             ),
             "independent": t(
                 "Independent (Evaluate freshly from scratch. Recommended for hiring/recruiting)",

@@ -44,7 +44,7 @@ else:
     view_team_id = st.session_state.team_id
 
 if not view_team_id:
-    st.warning("No teams available in this hackathon.")
+    st.warning("No teams available in this project.")
     st.stop()
 
 # Fetch all evaluations for this team via service

@@ -14,12 +14,12 @@ lang = st.session_state.get('language', 'English')
 def t(en, ja): return en if lang == "English" else ja
 
 st.title(t("🔥 The Hype Board", "🔥 The Hype Board"))
-st.markdown(t("Overview of the hackathon heat and team rankings.", "ハッカソン全体の熱量と、全チームの暫定・最終スコアの俯瞰ビューです。"))
+st.markdown(t("Overview of the project heat and team rankings.", "プロジェクト全体の熱量と、全チームの暫定・最終スコアの俯瞰ビューです。"))
 
 current_h_id = st.session_state.get('active_hackathon_id')
 
 if not current_h_id:
-    st.error(t("No active hackathon selected.", "アクティブなハッカソンがありません。"))
+    st.error(t("No active project selected.", "アクティブなプロジェクトがありません。"))
     st.stop()
 
 # ------------------
@@ -161,7 +161,7 @@ else:
 # ------------------
 st.divider()
 st.subheader(t("🤖 Meet the AI Jury Panel", "🤖 審査員パネルの紹介"))
-st.markdown(t("This expert panel will evaluate your submissions.", "このハッカソンでは、以下の5名のAI審査員が容赦のない評価を行います。"))
+st.markdown(t("This expert panel will evaluate your submissions.", "本プロジェクトでは、以下の5名のAI審査員が容赦のない評価を行います。"))
 
 if active_personas:
     cols = st.columns(len(active_personas))
