@@ -149,20 +149,20 @@ def test_update_admin_passcode(db_session_fixture):
 def test_update_team_passcode(db_session_fixture):
     hid = create_hackathon("Hack1", "admin1", "pass123")
 
-    # 登録されたチームユーザーを作成
+    # Create a registered team user
     team_user = User(hackathon_id=hid, team_id="teamA", passcode=hash_passcode("teampass"), role="team")
     db_session_fixture.add(team_user)
     db_session_fixture.commit()
 
-    # 正しいチームIDとハッカソンIDで更新が成功することを確認
+    # Verify that the update succeeds with the correct team ID and hackathon ID
     assert update_team_passcode(hid, "teamA", "newteampass") is True
     assert verify_user("teamA", "newteampass", hackathon_id=hid) is not None
     assert verify_user("teamA", "teampass", hackathon_id=hid) is None
 
-    # 存在しないチームIDの更新が失敗することを確認
+    # Verify that the update fails for a non-existent team ID
     assert update_team_passcode(hid, "nonexistent", "somepass") is False
 
-    # 別のハッカソンIDを指定した場合に更新が適用されないことを確認
+    # Verify that the update is not applied if a different hackathon ID is specified
     assert update_team_passcode(999, "teamA", "anotherpass") is False
 
 def test_change_my_passcode(db_session_fixture):

@@ -96,10 +96,10 @@ This team is submitting a revised version. You MUST carefully review the action 
     else:
         final_str = "<submission_type>This is a CONSULTATION (work in progress). Provide constructive, coaching-focused feedback to help them improve before the final deadline.</submission_type>"
 
-    # AIレスポンス言語設定を取得
+    # Get AI response language settings
     languages = get_ai_response_languages(hackathon_id)
 
-    # 動的にJSONスキーマ指示文を構築
+    # Dynamically build JSON schema instruction sentences
     pu_fields = []
     ai_fields = []
     fb_fields = []
@@ -188,7 +188,7 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
     active_personas = [p for p in get_personas(hackathon_id) if p.get('active', False)]
     personas_str = "\n".join([f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n" for p in active_personas])
 
-    # AIレスポンス言語設定を取得
+    # Get AI response language settings
     languages = get_ai_response_languages(hackathon_id)
 
     qa_summary_fields = []
@@ -309,7 +309,7 @@ def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json,
         except Exception:
             pass
 
-    # AIレスポンス言語設定を取得
+    # Get AI response language settings
     languages = get_ai_response_languages(hackathon_id)
 
     question_fields = []
