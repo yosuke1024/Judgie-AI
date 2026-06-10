@@ -13,7 +13,6 @@ from core.db import (
     update_admin_passcode,
 )
 from core.i18n import t
-from core.security import is_safe_url
 
 # Only superadmin can access this
 require_login('superadmin')
