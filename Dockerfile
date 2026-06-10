@@ -1,28 +1,28 @@
-# 軽量な Python 3.11 公式スリムイメージを使用
+# Use the official lightweight Python 3.11 slim image
 FROM python:3.11-slim
 
-# コンテナ内の作業ディレクトリを設定
+# Set the working directory inside the container
 WORKDIR /app
 
-# 依存パッケージのインストールに必要な最小限のシステムツールをインストール
+# Install minimal system tools required to install dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Litestreamのダウンロードとインストール
+# Download and install Litestream
 ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.deb /tmp/litestream.deb
 RUN dpkg -i /tmp/litestream.deb && rm /tmp/litestream.deb
 
-# レイヤーキャッシュを有効活用するため、まず requirements.txt をコピーしてインストール
+# Copy requirements and install dependencies first to leverage Docker layer caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 残りのソースコードをコピー
+# Copy the remaining source code
 COPY . .
 
-# 起動スクリプトを実行可能にする
+# Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
 
-# エントリーポイントとして起動スクリプトを指定
+# Set the entrypoint script
 ENTRYPOINT ["/app/entrypoint.sh"]
