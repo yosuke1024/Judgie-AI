@@ -13,6 +13,7 @@ from core.db import (
     update_admin_passcode,
 )
 from core.i18n import t
+from core.security import is_safe_url
 
 # Only superadmin can access this
 require_login('superadmin')
@@ -78,8 +79,11 @@ with col1:
                 try:
                     custom_template_data = None
                     if selected_tpl_key == "custom" and custom_url.strip():
+                        url_to_fetch = custom_url.strip()
+                        if not is_safe_url(url_to_fetch):
+                            raise ValueError("Invalid or unsafe URL. Only public HTTP/HTTPS URLs are allowed.")
                         import requests
-                        res = requests.get(custom_url.strip())
+                        res = requests.get(url_to_fetch)
                         if res.status_code != 200:
                             raise ValueError(f"Failed to fetch template from URL. HTTP {res.status_code}")
                         custom_template_data = res.json()
