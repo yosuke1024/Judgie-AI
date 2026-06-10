@@ -30,14 +30,14 @@ if [ -n "$DATABASE_URL" ] && echo "$DATABASE_URL" | grep -q "^sqlite://"; then
         echo "LITESTREAM_REPLICA_URL is set. Restoring database from replica if exists..."
         # Only restore from replica if the database file does not exist yet
         if [ ! -f "$DB_PATH" ]; then
-            litestream restore -if-replica-exists "$DB_PATH" || echo "No replica found or restore failed. Starting with empty database."
+            litestream restore -config /app/litestream.yml -if-replica-exists "$DB_PATH" || echo "No replica found or restore failed. Starting with empty database."
         else
             echo "Database file already exists. Skipping restore."
         fi
 
         echo "Starting Litestream replication and Streamlit app..."
         # Run the Streamlit app under the control of litestream replicate
-        exec litestream replicate -exec "streamlit run app.py --server.port=${PORT} --server.address=0.0.0.0 --server.fileWatcherType=none"
+        exec litestream replicate -config /app/litestream.yml -exec "streamlit run app.py --server.port=${PORT} --server.address=0.0.0.0 --server.fileWatcherType=none"
     else
         echo "LITESTREAM_REPLICA_URL is not set. Running without replication..."
         exec streamlit run app.py --server.port=${PORT} --server.address=0.0.0.0 --server.fileWatcherType=none
