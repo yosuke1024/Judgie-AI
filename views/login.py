@@ -96,3 +96,14 @@ with st.container():
             if login("demo_admin", "demo123", tenant_id=9999):
                 st.success(t("Redirecting to admin console...", "管理コンソールへリダイレクト中..."))
                 st.rerun()
+
+    import os
+    super_admin_disabled = os.environ.get("DEFAULT_ADMIN_ID") is not None
+    if not super_admin_disabled:
+        st.markdown("---")
+        col_sa1, col_sa2 = st.columns([3, 1])
+        with col_sa2:
+            if st.button(t("🌍 Super Admin Login", "🌍 スーパー管理者"), key="go_to_super_admin", use_container_width=True):
+                st.query_params["admin"] = "true"
+                st.rerun()
+
