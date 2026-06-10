@@ -292,12 +292,15 @@ with tab2:
                 target_tid = st.text_input(t("User ID", "変更対象のユーザーID"), disabled=True, placeholder=t("No users registered", "登録済みのユーザーがありません"))
 
             change_pwd = st.text_input(t("New Passcode", "新しいパスコード"), type="password", disabled=is_demo)
+            confirm_pwd = st.text_input(t("Confirm New Passcode", "新しいパスコード（確認）"), type="password", disabled=is_demo)
 
             if st.form_submit_button(t("Update Passcode", "パスコードを変更"), type="primary", disabled=is_demo):
                 if not team_options:
                     st.warning(t("No users registered to change passcode.", "変更対象のユーザーが登録されていません。"))
-                elif not change_pwd:
-                    st.warning(t("Please enter a new passcode.", "新しいパスコードを入力してください。"))
+                elif not change_pwd or not confirm_pwd:
+                    st.warning(t("All fields required.", "すべて入力してください。"))
+                elif change_pwd != confirm_pwd:
+                    st.error(t("Passcodes do not match.", "新しいパスコードが一致しません。"))
                 else:
                     if update_team_passcode(current_h_id, target_tid, change_pwd.strip()):
                         st.success(t(f"Successfully updated passcode for user '{target_tid}'!", f"ユーザー '{target_tid}' のパスコードを更新しました！"))
