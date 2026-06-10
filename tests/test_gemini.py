@@ -129,7 +129,7 @@ def test_object_to_judges(mocker):
         text_content="print('hello')",
         gemini_media_files=None,
         previous_evaluation_json="{}",
-        objection_text="I objection"
+        chat_history_list=[{"sender": "team", "message_json": {"user_objection": "I objection"}}]
     )
 
     assert res["qa_summary_en"] == "Objection rejected"
