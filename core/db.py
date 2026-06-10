@@ -24,7 +24,6 @@ from core.security import hash_passcode, verify_passcode
 from core.templates import TEMPLATES
 
 
-
 def normalize_lang_to_key(lang_name: str) -> str:
     # Replace hyphens with spaces first so they become underscores
     cleaned = lang_name.replace('-', ' ')

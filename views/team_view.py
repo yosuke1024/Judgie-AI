@@ -9,13 +9,13 @@ from core.db import (
     change_my_passcode,
     db_session,
     get_criteria,
+    get_max_qa_turns,
+    get_re_evaluation_context_mode,
     get_team_profile,
     update_team_profile,
-    get_re_evaluation_context_mode,
-    get_max_qa_turns,
 )
 from core.i18n import t
-from core.services.evaluation_service import get_team_evaluations, submit_team_objection, get_team_chats
+from core.services.evaluation_service import get_team_chats, get_team_evaluations, submit_team_objection
 from core.services.submission_service import process_submission
 from core.ui_utils import get_avatar_html
 from views.components.charts import render_criteria_radar_chart, render_score_history_chart
@@ -371,20 +371,20 @@ with col2:
 
         # Get chat history for this evaluation
         chats = get_team_chats(selected_eval_id)
-        
+
         # Calculate turns used (each user question is a turn)
         turns_used = sum(1 for c in chats if c['sender'] == 'team')
-        
+
         if max_qa == 0:
             st.info(t("Q&A is disabled for this project.", "このプロジェクトではQ&Aは無効化されています。"))
-        
+
         # Render Chat Thread UI if there is any history
         if chats:
             st.markdown(f"#### 💬 {t('Discussion Thread', 'ディスカッションスレッド')}")
             for chat in chats:
                 is_user = (chat['sender'] == 'team')
                 msg_data = chat['message_json']
-                
+
                 if is_user:
                     with st.chat_message("user"):
                         st.markdown(f"**{t('Your Question / Objection:', 'あなたからの質問・反論:')}**")
@@ -392,7 +392,7 @@ with col2:
                 else:
                     with st.chat_message("assistant", avatar="🧑‍⚖️"):
                         st.markdown(f"**⚖️ {t('Panel Response:', '審査員からの回答:')}**")
-                        
+
                         # Support multiple languages in tabs
                         qa_tabs = st.tabs(tab_titles)
                         for idx, lang_name in enumerate(languages):
@@ -406,12 +406,12 @@ with col2:
                                     compat_key = compat_map.get(lang_key, 'en')
                                     qa_summary = msg_data.get(f'qa_summary_{compat_key}', '')
                                 st.info(qa_summary)
-                                
+
                                 for j in msg_data.get('judges_responses', []):
                                     j_name = j.get('judge_name', 'Judge')
                                     j_icon = avatar_map.get(j_name, '🧑‍⚖️')
                                     st.markdown(f'<div style="display: flex; align-items: center; margin-bottom: 10px;">{get_avatar_html(j_name, j_icon, size=24)}<strong style="margin-left: 8px;">{j_name}</strong></div>', unsafe_allow_html=True)
-                                    
+
                                     j_resp = j.get(f'response_{lang_key}')
                                     if not j_resp:
                                         compat_map = {
@@ -424,7 +424,7 @@ with col2:
 
         # Handle form visibility based on Q&A turn limit
         has_reached_limit = (max_qa != -1 and turns_used >= max_qa)
-        
+
         if max_qa > 0:
             if has_reached_limit:
                 st.success(t(
@@ -447,7 +447,7 @@ with col2:
                         with st.form("objection_form"):
                             obj_text = st.text_area(t("Your message to the judges:", "審査員へのメッセージ:"), height=150)
                             submit_obj = st.form_submit_button(t("Send Message ✊", "メッセージを送信 ✊"), type="primary")
-                            
+
                             if submit_obj:
                                 if not obj_text.strip():
                                     st.warning(t("Please enter your message.", "メッセージを入力してください。"))
@@ -455,7 +455,7 @@ with col2:
                                     with st.status(t("⚖️ Judges are discussing your point...", "⚖️ 審査員があなたの意見を議論中..."), expanded=True) as status:
                                         try:
                                             prev_eval_json_str = selected_eval['strengths_risks_json']
-                                            
+
                                             submit_team_objection(
                                                 hackathon_id=current_h_id,
                                                 eval_id=selected_eval['id'],

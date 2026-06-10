@@ -1,5 +1,6 @@
 from core.templates import TEMPLATES
 
+
 def test_templates_load():
     assert "hackathon" in TEMPLATES
     assert "startup_pitch" in TEMPLATES

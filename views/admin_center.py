@@ -12,17 +12,17 @@ from core.db import (
     get_admin_chats,
     get_ai_response_languages,
     get_criteria,
+    get_max_qa_turns,
     get_personas,
+    get_re_evaluation_context_mode,
     normalize_lang_to_key,
     save_admin_chat,
     set_ai_response_languages,
     set_criteria,
-    set_personas,
-    update_team_passcode,
-    get_re_evaluation_context_mode,
-    set_re_evaluation_context_mode,
-    get_max_qa_turns,
     set_max_qa_turns,
+    set_personas,
+    set_re_evaluation_context_mode,
+    update_team_passcode,
 )
 from core.i18n import t
 from core.security import hash_passcode
@@ -656,7 +656,7 @@ with tab7:
             "Define how many questions or objections a team/candidate can send to the AI judges.",
             "チームや候補者が、評価結果に対して最大何回AI審査員へ質問や反論を送信できるかを設定します。"
         ))
-        
+
         qa_options = {
             0: t("Disable Q&A (0 Turns)", "Q&A無効 (0回)"),
             1: t("1 Turn (One-shot Q&A)", "1往復のみ (デフォルト)"),
@@ -665,7 +665,7 @@ with tab7:
             5: t("5 Turns", "5往復"),
             -1: t("Unlimited Turns", "無制限")
         }
-        
+
         default_index = 1
         if curr_max_qa in qa_options:
             default_index = list(qa_options.keys()).index(curr_max_qa)

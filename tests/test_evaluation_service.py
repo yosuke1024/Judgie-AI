@@ -1,4 +1,3 @@
-import json
 
 from core.db import Evaluation, create_hackathon, save_evaluation
 from core.services.evaluation_service import get_team_evaluations, sanitize_objection_response, submit_team_objection
@@ -145,9 +144,9 @@ def test_submit_team_objection(mocker, db_session_fixture):
     from core.services.evaluation_service import get_team_chats
     chats = get_team_chats(eval_id)
     assert len(chats) == 2
-    
+
     assert chats[0]['sender'] == 'team'
     assert chats[0]['message_json']['user_objection'] == "Please reconsider"
-    
+
     assert chats[1]['sender'] == 'judges'
     assert chats[1]['message_json']['qa_summary_en'] == "Objection accepted"
