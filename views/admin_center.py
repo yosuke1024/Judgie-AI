@@ -15,6 +15,7 @@ from core.db import (
     get_max_qa_turns,
     get_personas,
     get_re_evaluation_context_mode,
+    initialize_hackathon_template,
     normalize_lang_to_key,
     save_admin_chat,
     set_ai_response_languages,
@@ -25,7 +26,7 @@ from core.db import (
     update_team_passcode,
 )
 from core.i18n import t
-from core.security import hash_passcode
+from core.security import hash_passcode, is_safe_url
 from core.ui_utils import encode_image_to_base64
 
 st.title(t("👑 Admin Command Center", "👑 管理者コマンドセンター"))
@@ -35,6 +36,91 @@ is_demo = (current_h_id == 9999)
 
 if not current_h_id:
     st.error(t("No active hackathon selected. Please ensure you are logged in correctly as a Tenant Admin.", "アクティブなハッカソンがありません。管理者の設定を確認してください。"))
+    st.stop()
+
+# Get hackathon details to check template_id
+db = SessionLocal()
+try:
+    hackathon = db.query(Hackathon).filter(Hackathon.id == current_h_id).first()
+finally:
+    db.close()
+
+if not hackathon:
+    st.error(t("Hackathon not found.", "ハッカソンが見つかりません。"))
+    st.stop()
+
+# Force template selection if not initialized yet (except in demo mode 9999)
+if not hackathon.template_id and not is_demo:
+    st.subheader(t("🚀 Project Setup: Select Evaluation Template", "🚀 プロジェクト初期セットアップ：評価テンプレートの選択"))
+    st.markdown(t(
+        "Please select a template to initialize this project. The template will automatically configure default evaluation criteria and AI judge personas.",
+        "このプロジェクトを初期化するためのテンプレートを選択してください。テンプレートに応じて、デフォルトの評価軸や審査員ペルソナが自動設定されます。"
+    ))
+
+    with st.form("admin_setup_form"):
+        # Template Selection
+        template_options = {
+            "hackathon": t("Hackathon Evaluation", "ハッカソン審査"),
+            "startup_pitch": t("Startup Pitch Review", "スタートアップピッチ審査"),
+            "hiring": t("Hiring & Technical Interview", "採用・技術面接評価"),
+            "architecture": t("Software Architecture Review", "ソフトウェアアーキテクチャレビュー"),
+            "custom": t("Custom (Import from URL)", "カスタム (URLからインポート)")
+        }
+        selected_tpl_key = st.selectbox(
+            t("Evaluation Template", "評価テンプレート"),
+            options=list(template_options.keys()),
+            format_func=lambda x: template_options[x]
+        )
+
+        custom_url = st.text_input(
+            t("Custom Template URL (JSON)", "カスタムテンプレートURL (JSON)"),
+            placeholder="https://raw.githubusercontent.com/.../template.json",
+            help=t("Required only if Custom template is selected.", "カスタムテンプレート選択時のみ必須です。")
+        )
+
+        if st.form_submit_button(t("Initialize Project", "プロジェクトを初期化する"), type="primary"):
+            if selected_tpl_key == "custom" and not custom_url.strip():
+                st.error(t("Please enter a custom template URL.", "カスタムテンプレートのURLを入力してください。"))
+            else:
+                try:
+                    custom_template_data = None
+                    if selected_tpl_key == "custom" and custom_url.strip():
+                        url_to_fetch = custom_url.strip()
+
+                        # SSRF validation
+                        from urllib.parse import urlparse
+                        parsed = urlparse(url_to_fetch)
+                        if parsed.scheme not in ('http', 'https'):
+                            raise ValueError("Invalid URL scheme. Only HTTP/HTTPS is allowed.")
+
+                        allowed_domains = {
+                            'github.com',
+                            'raw.githubusercontent.com',
+                            'gist.githubusercontent.com',
+                            'githubusercontent.com'
+                        }
+                        if parsed.hostname not in allowed_domains:
+                            raise ValueError("Access to this domain is not allowed for custom templates.")
+
+                        if not is_safe_url(url_to_fetch):
+                            raise ValueError("Invalid or unsafe URL. Only public HTTP/HTTPS URLs are allowed.")
+
+                        # Rebuild safe URL
+                        safe_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                        if parsed.query:
+                            safe_url += f"?{parsed.query}"
+
+                        import requests
+                        res = requests.get(safe_url)
+                        if res.status_code != 200:
+                            raise ValueError(f"Failed to fetch template from URL. HTTP {res.status_code}")
+                        custom_template_data = res.json()
+
+                    initialize_hackathon_template(current_h_id, selected_tpl_key, custom_template_data)
+                    st.success(t("Project successfully initialized!", "プロジェクトの初期化が完了しました！"))
+                    st.rerun()
+                except Exception as e:
+                    st.error(t(f"Failed to initialize project: {str(e)}", f"プロジェクトの初期化に失敗しました: {str(e)}"))
     st.stop()
 
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([

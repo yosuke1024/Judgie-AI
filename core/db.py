@@ -175,7 +175,7 @@ def init_db():
                 hackathon = Hackathon(
                     id=1,
                     name=h_name,
-                    template_id="hackathon",
+                    template_id=None,
                     re_evaluation_context_mode="cumulative",
                     max_qa_turns=1
                 )
@@ -190,11 +190,6 @@ def init_db():
                 )
                 db.add(admin_user)
                 db.flush()
-
-                # Initialize settings with defaults
-                set_personas(hackathon.id, get_personas(None), db=db)
-                set_criteria(hackathon.id, get_criteria(None), db=db)
-                set_ai_response_languages(hackathon.id, ["English", "Japanese"], db=db)
 
 def verify_user(team_id: str, passcode: str, hackathon_id: int = None) -> dict:
     # Block SuperAdmin login if single-tenant mode is enabled
@@ -346,9 +341,68 @@ def set_max_qa_turns(hackathon_id: int, turns: int):
         if h:
             h.max_qa_turns = turns
 
-def create_hackathon(name: str, admin_id: str, admin_pass: str, template_id: str = "hackathon", custom_template_data: dict = None) -> int:
+def create_hackathon(name: str, admin_id: str, admin_pass: str, template_id: str = None, custom_template_data: dict = None) -> int:
     with db_session() as db:
-        # Resolve template configuration
+        hackathon = Hackathon(
+            name=name,
+            template_id=template_id,
+            re_evaluation_context_mode="cumulative",
+            max_qa_turns=1
+        )
+        db.add(hackathon)
+        db.flush() # flush to get the ID
+
+        # Create the tenant admin
+        admin_user = User(
+            hackathon_id=hackathon.id,
+            team_id=admin_id,
+            passcode=hash_passcode(admin_pass),
+            role='admin'
+        )
+        db.add(admin_user)
+        db.flush()
+
+        # If template_id is specified directly (e.g. in legacy tests), initialize it
+        if template_id:
+            selected_criteria = None
+            selected_personas = None
+            re_eval_mode = "cumulative"
+            max_qa = 1
+
+            if custom_template_data:
+                selected_criteria = custom_template_data.get("criteria")
+                selected_personas = custom_template_data.get("personas")
+                re_eval_mode = custom_template_data.get("re_evaluation_context_mode", "cumulative")
+                max_qa = custom_template_data.get("max_qa_turns", 1)
+            elif template_id in TEMPLATES:
+                tpl = TEMPLATES[template_id]
+                selected_criteria = tpl.get("criteria")
+                selected_personas = tpl.get("personas")
+                re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
+                max_qa = tpl.get("max_qa_turns", 1)
+            else:
+                tpl = TEMPLATES["hackathon"]
+                selected_criteria = tpl.get("criteria")
+                selected_personas = tpl.get("personas")
+                re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
+                max_qa = tpl.get("max_qa_turns", 1)
+
+            hackathon.template_id = template_id
+            hackathon.re_evaluation_context_mode = re_eval_mode
+            hackathon.max_qa_turns = max_qa
+
+            set_personas(hackathon.id, selected_personas, db=db)
+            set_criteria(hackathon.id, selected_criteria, db=db)
+            set_ai_response_languages(hackathon.id, ["English", "Japanese"], db=db)
+
+        return hackathon.id
+
+def initialize_hackathon_template(hackathon_id: int, template_id: str, custom_template_data: dict = None):
+    with db_session() as db:
+        hackathon = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+        if not hackathon:
+            raise ValueError(f"Hackathon ID {hackathon_id} not found.")
+
         selected_criteria = None
         selected_personas = None
         re_eval_mode = "cumulative"
@@ -366,37 +420,15 @@ def create_hackathon(name: str, admin_id: str, admin_pass: str, template_id: str
             re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
             max_qa = tpl.get("max_qa_turns", 1)
         else:
-            tpl = TEMPLATES["hackathon"]
-            selected_criteria = tpl.get("criteria")
-            selected_personas = tpl.get("personas")
-            re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
-            max_qa = tpl.get("max_qa_turns", 1)
+            raise ValueError(f"Invalid template ID: {template_id}")
 
-        hackathon = Hackathon(
-            name=name,
-            template_id=template_id,
-            re_evaluation_context_mode=re_eval_mode,
-            max_qa_turns=max_qa
-        )
-        db.add(hackathon)
-        db.flush() # flush to get the ID
+        hackathon.template_id = template_id
+        hackathon.re_evaluation_context_mode = re_eval_mode
+        hackathon.max_qa_turns = max_qa
 
-        # Create the tenant admin
-        admin_user = User(
-            hackathon_id=hackathon.id,
-            team_id=admin_id,
-            passcode=hash_passcode(admin_pass),
-            role='admin'
-        )
-        db.add(admin_user)
-        db.flush()
-
-        # Initialize settings for this hackathon using the same transaction session
-        set_personas(hackathon.id, selected_personas, db=db)
-        set_criteria(hackathon.id, selected_criteria, db=db)
-        set_ai_response_languages(hackathon.id, ["English", "Japanese"], db=db)
-
-        return hackathon.id
+        set_personas(hackathon_id, selected_personas, db=db)
+        set_criteria(hackathon_id, selected_criteria, db=db)
+        set_ai_response_languages(hackathon_id, ["English", "Japanese"], db=db)
 
 def update_admin_passcode(hackathon_id: int, new_passcode: str):
     with db_session() as db:
