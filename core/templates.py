@@ -9,7 +9,7 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 if os.path.exists(TEMPLATES_DIR):
     for filename in sorted(os.listdir(TEMPLATES_DIR)):
-        if filename.endswith(".json"):
+        if filename.endswith(".json") and not filename.endswith(".sample.json"):
             template_id = os.path.splitext(filename)[0]
             file_path = os.path.join(TEMPLATES_DIR, filename)
             try:
@@ -17,4 +17,5 @@ if os.path.exists(TEMPLATES_DIR):
                     TEMPLATES[template_id] = json.load(f)
             except Exception as e:
                 raise RuntimeError(f"Failed to load template file '{filename}': {e}")
+
 

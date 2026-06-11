@@ -1,0 +1,28 @@
+{
+  "name": "Template Name (Display Name)",
+  "description": "Short description of what this template evaluates and who should use it.",
+  "re_evaluation_context_mode": "cumulative",
+  "max_qa_turns": 1,
+  "criteria": [
+    {
+      "name": "Criteria Name 1",
+      "weight": 50,
+      "description": "What judges evaluate:\n- Detail evaluation instructions...\n\nSignals of a strong submission:\n- Signal A\n- Signal B"
+    },
+    {
+      "name": "Criteria Name 2",
+      "weight": 50,
+      "description": "What judges evaluate:\n- Detail evaluation instructions...\n\nSignals of a strong submission:\n- Signal C\n- Signal D"
+    }
+  ],
+  "personas": [
+    {
+      "id": "1",
+      "name": "Judge Name",
+      "role": "Judge Role / Title (e.g. UX Designer)",
+      "avatar": "🧑‍⚖️",
+      "active": true,
+      "prompt": "[Core Identity & Background]\nYou are a judge specializing in...\n\n[Personality & Tone]\nProfessional, objective, and analytical...\n\n[Evaluation Framework]\n- Criteria 1: Detail check...\n- Criteria 2: Detail check..."
+    }
+  ]
+}
