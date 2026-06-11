@@ -30,6 +30,10 @@ jobs:
       run: |
         ruff check .
 
+    - name: Run Template Validation
+      run: |
+        pytest tests/test_templates_validation.py
+
     - name: Run tests with coverage
       run: |
         pytest --cov=core --cov=views --cov-report=term-missing | tee pytest-coverage.txt
@@ -37,3 +41,4 @@ jobs:
         echo '```text' >> $GITHUB_STEP_SUMMARY
         cat pytest-coverage.txt | grep -E "Name|TOTAL|core/|views/" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
+
