@@ -889,36 +889,40 @@ with tab7:
                 try:
                     url_to_fetch = import_url.strip()
 
-                    # Auto convert standard Gist URL to raw Gist URL
-                    if "gist.github.com" in url_to_fetch and not url_to_fetch.endswith("/raw"):
-                        from urllib.parse import urlparse
-                        parsed_gist = urlparse(url_to_fetch)
-                        path_parts = parsed_gist.path.strip("/").split("/")
-                        if len(path_parts) >= 2:
-                            # Standard Gist URL: https://gist.github.com/username/gist_id
-                            # Raw Gist URL: https://gist.githubusercontent.com/username/gist_id/raw
-                            url_to_fetch = f"https://gist.githubusercontent.com/{path_parts[0]}/{path_parts[1]}/raw"
-
-                    # SSRF validation
-                    from urllib.parse import urlparse
+                    from urllib.parse import urlparse, urlunparse
                     parsed = urlparse(url_to_fetch)
                     if parsed.scheme not in ('http', 'https'):
                         raise ValueError(t("Invalid URL scheme. Only HTTP/HTTPS is allowed.", "無効なURLスキームです。HTTPまたはHTTPSのみ許可されます。"))
 
+                    # Auto convert standard Gist URL to raw Gist URL
+                    hostname = parsed.hostname
+                    if hostname == "gist.github.com" and not parsed.path.endswith("/raw"):
+                        path_parts = parsed.path.strip("/").split("/")
+                        if len(path_parts) >= 2:
+                            # Standard Gist URL: https://gist.github.com/username/gist_id
+                            # Raw Gist URL: https://gist.githubusercontent.com/username/gist_id/raw
+                            raw_url = f"https://gist.githubusercontent.com/{path_parts[0]}/{path_parts[1]}/raw"
+                            parsed = urlparse(raw_url)
+                            hostname = parsed.hostname
+
+                    # SSRF validation using whitelisted domains
                     allowed_domains = {
                         'github.com',
                         'raw.githubusercontent.com',
                         'gist.githubusercontent.com',
                         'githubusercontent.com'
                     }
-                    if parsed.hostname not in allowed_domains:
+                    if hostname not in allowed_domains:
                         raise ValueError(t("Access to this domain is not allowed for security reasons.", "セキュリティ上の理由から、このドメインへのアクセスは許可されていません。"))
 
-                    if not is_safe_url(url_to_fetch):
+                    # Reconstruct URL to prevent SSRF detection and verify it
+                    safe_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+
+                    if not is_safe_url(safe_url):
                         raise ValueError(t("URL fails security checks.", "URLがセキュリティチェックに合格しませんでした。"))
 
                     import requests
-                    res = requests.get(url_to_fetch)
+                    res = requests.get(safe_url)
                     if res.status_code != 200:
                         raise ValueError(f"Failed to fetch template. HTTP {res.status_code}")
 
