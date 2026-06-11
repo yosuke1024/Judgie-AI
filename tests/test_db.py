@@ -16,6 +16,7 @@ from core.db import (
     get_ai_response_languages,
     get_consultation_count,
     get_criteria,
+    get_max_consultations,
     get_personas,
     get_session,
     get_setting,
@@ -26,6 +27,7 @@ from core.db import (
     save_objection_qa,
     set_ai_response_languages,
     set_criteria,
+    set_max_consultations,
     set_personas,
     set_setting,
     update_admin_passcode,
@@ -414,6 +416,7 @@ def test_initialize_hackathon_template(db_session_fixture):
     assert hackathon_updated.template_id == "startup_pitch"
     assert hackathon_updated.re_evaluation_context_mode == "independent"
     assert hackathon_updated.max_qa_turns == 3
+    assert hackathon_updated.max_consultations == 3
 
     # Check criteria and personas are initialized
     criteria = get_criteria(hid)
@@ -423,3 +426,17 @@ def test_initialize_hackathon_template(db_session_fixture):
     personas = get_personas(hid)
     assert len(personas) > 0
     assert personas[0]["name"] == "Marcus"
+
+def test_max_consultations(db_session_fixture):
+    hid = create_hackathon("Hack1", "admin1", "pass123")
+
+    # Check default
+    assert get_max_consultations(hid) == 3
+
+    # Set to custom value
+    set_max_consultations(hid, 5)
+    assert get_max_consultations(hid) == 5
+
+    # Set to unlimited
+    set_max_consultations(hid, -1)
+    assert get_max_consultations(hid) == -1

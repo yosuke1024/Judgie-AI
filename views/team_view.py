@@ -2,13 +2,13 @@ import json
 
 import streamlit as st
 
-from config import MAX_CONSULTATIONS
 from core.db import (
     Hackathon,
     User,
     change_my_passcode,
     db_session,
     get_criteria,
+    get_max_consultations,
     get_max_qa_turns,
     get_re_evaluation_context_mode,
     get_team_profile,
@@ -53,9 +53,13 @@ if not view_team_id:
 # Fetch all evaluations for this team via service
 eval_rows = get_team_evaluations(view_team_id)
 
+max_consultations = get_max_consultations(current_h_id)
 consultations_used = sum(1 for r in eval_rows if not r['is_final'])
 is_final_submitted = any(r['is_final'] for r in eval_rows)
-consultations_left = MAX_CONSULTATIONS - consultations_used
+if max_consultations == -1:
+    consultations_left = 999999
+else:
+    consultations_left = max(0, max_consultations - consultations_used)
 
 col1, col2 = st.columns([1, 1.5])
 
@@ -137,7 +141,8 @@ with col1:
         ))
         sub_c1, sub_c2 = st.columns(2)
         with sub_c1:
-            st.metric(t("Consultations Left", "残り相談回数"), "0 / 3")
+            demo_cons_limit = get_max_consultations(9999)
+            st.metric(t("Consultations Left", "残り相談回数"), f"0 / {demo_cons_limit}")
             st.button(t("Get AI Coaching", "AIコーチングを受ける"), type="secondary", disabled=True, key="demo_coach_btn", use_container_width=True)
         with sub_c2:
             st.metric(t("Final Submission", "最終提出"), t("Submitted", "提出済み"))
@@ -158,11 +163,12 @@ with col1:
             help=t("Max total size: 200MB.", "合計最大サイズは200MBです。")
         )
 
-        can_consult = consultations_left > 0
+        can_consult = (max_consultations == -1) or (consultations_left > 0)
+        cons_left_str = t("Unlimited", "無制限") if max_consultations == -1 else f"{consultations_left} / {max_consultations}"
 
         sub_c1, sub_c2 = st.columns(2)
         with sub_c1:
-            st.metric(t("Consultations Left", "残り相談回数"), f"{consultations_left} / {MAX_CONSULTATIONS}")
+            st.metric(t("Consultations Left", "残り相談回数"), cons_left_str)
             if st.button(t("Get AI Coaching", "AIコーチングを受ける"), type="secondary", disabled=not can_consult or not uploaded_files):
                 submit_type = "consultation"
             else:

@@ -45,6 +45,7 @@ class Hackathon(Base):
     template_id = Column(String, nullable=True)
     re_evaluation_context_mode = Column(String, default="cumulative", nullable=False)
     max_qa_turns = Column(Integer, default=1, nullable=False)
+    max_consultations = Column(Integer, default=3, nullable=False)
     created_at = Column(DateTime, default=func.now())
 
 class User(Base):
@@ -155,6 +156,11 @@ def init_db():
             conn.execute("ALTER TABLE hackathons ADD COLUMN max_qa_turns INTEGER DEFAULT 1;")
     except Exception:
         pass
+    try:
+        with engine.begin() as conn:
+            conn.execute("ALTER TABLE hackathons ADD COLUMN max_consultations INTEGER DEFAULT 3;")
+    except Exception:
+        pass
 
     with db_session() as db:
         default_admin_id = os.environ.get("DEFAULT_ADMIN_ID")
@@ -177,7 +183,8 @@ def init_db():
                     name=h_name,
                     template_id=None,
                     re_evaluation_context_mode="cumulative",
-                    max_qa_turns=1
+                    max_qa_turns=1,
+                    max_consultations=3
                 )
                 db.add(hackathon)
                 db.flush()
@@ -341,13 +348,29 @@ def set_max_qa_turns(hackathon_id: int, turns: int):
         if h:
             h.max_qa_turns = turns
 
+def get_max_consultations(hackathon_id: int) -> int:
+    if hackathon_id is None:
+        return 3
+    with db_session() as db:
+        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+        return h.max_consultations if h and h.max_consultations is not None else 3
+
+def set_max_consultations(hackathon_id: int, max_consultations: int):
+    if hackathon_id is None:
+        return
+    with db_session() as db:
+        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+        if h:
+            h.max_consultations = max_consultations
+
 def create_hackathon(name: str, admin_id: str, admin_pass: str, template_id: str = None, custom_template_data: dict = None) -> int:
     with db_session() as db:
         hackathon = Hackathon(
             name=name,
             template_id=template_id,
             re_evaluation_context_mode="cumulative",
-            max_qa_turns=1
+            max_qa_turns=1,
+            max_consultations=3
         )
         db.add(hackathon)
         db.flush() # flush to get the ID
@@ -368,28 +391,33 @@ def create_hackathon(name: str, admin_id: str, admin_pass: str, template_id: str
             selected_personas = None
             re_eval_mode = "cumulative"
             max_qa = 1
+            max_cons = 3
 
             if custom_template_data:
                 selected_criteria = custom_template_data.get("criteria")
                 selected_personas = custom_template_data.get("personas")
                 re_eval_mode = custom_template_data.get("re_evaluation_context_mode", "cumulative")
                 max_qa = custom_template_data.get("max_qa_turns", 1)
+                max_cons = custom_template_data.get("max_consultations", 3)
             elif template_id in TEMPLATES:
                 tpl = TEMPLATES[template_id]
                 selected_criteria = tpl.get("criteria")
                 selected_personas = tpl.get("personas")
                 re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
                 max_qa = tpl.get("max_qa_turns", 1)
+                max_cons = tpl.get("max_consultations", 3)
             else:
                 tpl = TEMPLATES["hackathon"]
                 selected_criteria = tpl.get("criteria")
                 selected_personas = tpl.get("personas")
                 re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
                 max_qa = tpl.get("max_qa_turns", 1)
+                max_cons = tpl.get("max_consultations", 3)
 
             hackathon.template_id = template_id
             hackathon.re_evaluation_context_mode = re_eval_mode
             hackathon.max_qa_turns = max_qa
+            hackathon.max_consultations = max_cons
 
             set_personas(hackathon.id, selected_personas, db=db)
             set_criteria(hackathon.id, selected_criteria, db=db)
@@ -407,24 +435,28 @@ def initialize_hackathon_template(hackathon_id: int, template_id: str, custom_te
         selected_personas = None
         re_eval_mode = "cumulative"
         max_qa = 1
+        max_cons = 3
 
         if custom_template_data:
             selected_criteria = custom_template_data.get("criteria")
             selected_personas = custom_template_data.get("personas")
             re_eval_mode = custom_template_data.get("re_evaluation_context_mode", "cumulative")
             max_qa = custom_template_data.get("max_qa_turns", 1)
+            max_cons = custom_template_data.get("max_consultations", 3)
         elif template_id in TEMPLATES:
             tpl = TEMPLATES[template_id]
             selected_criteria = tpl.get("criteria")
             selected_personas = tpl.get("personas")
             re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
             max_qa = tpl.get("max_qa_turns", 1)
+            max_cons = tpl.get("max_consultations", 3)
         else:
             raise ValueError(f"Invalid template ID: {template_id}")
 
         hackathon.template_id = template_id
         hackathon.re_evaluation_context_mode = re_eval_mode
         hackathon.max_qa_turns = max_qa
+        hackathon.max_consultations = max_cons
 
         set_personas(hackathon_id, selected_personas, db=db)
         set_criteria(hackathon_id, selected_criteria, db=db)
@@ -603,7 +635,11 @@ def seed_demo_data():
             return # Already seeded
 
         # Create Hackathon
-        demo_h = Hackathon(id=9999, name="Judgie Demo Hackathon")
+        demo_h = Hackathon(
+            id=9999,
+            name="Judgie Demo Hackathon",
+            max_consultations=3
+        )
         db.add(demo_h)
         db.flush()
 

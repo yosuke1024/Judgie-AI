@@ -12,6 +12,7 @@ from core.db import (
     get_admin_chats,
     get_ai_response_languages,
     get_criteria,
+    get_max_consultations,
     get_max_qa_turns,
     get_personas,
     get_re_evaluation_context_mode,
@@ -20,6 +21,7 @@ from core.db import (
     save_admin_chat,
     set_ai_response_languages,
     set_criteria,
+    set_max_consultations,
     set_max_qa_turns,
     set_personas,
     set_re_evaluation_context_mode,
@@ -760,6 +762,7 @@ with tab7:
 
     curr_mode = get_re_evaluation_context_mode(current_h_id)
     curr_max_qa = get_max_qa_turns(current_h_id)
+    curr_max_consultations = get_max_consultations(current_h_id)
 
     with st.form("project_behavior_settings_form"):
         st.subheader(t("🔄 Re-evaluation Context Mode", "🔄 再評価（イテレーション）時のコンテキスト"))
@@ -816,10 +819,42 @@ with tab7:
             label_visibility="collapsed"
         )
 
+        st.markdown("---")
+
+        st.subheader(t("📤 Max Consultations / Submissions Limit", "📤 最大提出・相談回数の制限"))
+        st.markdown(t(
+            "Define how many draft submissions (AI consultations) a team is allowed to get.",
+            "各チームが受けられるAIコーチング（相談提出）の最大回数を設定します。"
+        ))
+
+        cons_options = {
+            1: t("1 Consultation", "1回のみ"),
+            2: t("2 Consultations", "2回"),
+            3: t("3 Consultations (Default)", "3回 (デフォルト)"),
+            5: t("5 Consultations", "5回"),
+            10: t("10 Consultations", "10回"),
+            -1: t("Unlimited", "無制限")
+        }
+
+        default_cons_index = 2
+        if curr_max_consultations in cons_options:
+            default_cons_index = list(cons_options.keys()).index(curr_max_consultations)
+        else:
+            default_cons_index = 2
+
+        selected_max_cons = st.selectbox(
+            "max_consultations",
+            options=list(cons_options.keys()),
+            format_func=lambda x: cons_options[x],
+            index=default_cons_index,
+            label_visibility="collapsed"
+        )
+
         submitted_settings = st.form_submit_button(t("Save Project Settings", "プロジェクト設定を保存"), type="primary", disabled=is_demo)
         if submitted_settings:
             set_re_evaluation_context_mode(current_h_id, selected_mode)
             set_max_qa_turns(current_h_id, selected_max_qa)
+            set_max_consultations(current_h_id, selected_max_cons)
             st.success(t("Project settings saved successfully!", "プロジェクト設定を正常に保存しました！"))
             st.rerun()
 
@@ -846,6 +881,7 @@ with tab7:
         "description": tpl_desc,
         "re_evaluation_context_mode": curr_mode,
         "max_qa_turns": curr_max_qa,
+        "max_consultations": curr_max_consultations,
         "criteria": export_criteria,
         "personas": export_personas
     }
@@ -968,6 +1004,9 @@ with tab7:
                     if "max_qa_turns" in imported_data:
                         if isinstance(imported_data["max_qa_turns"], int):
                             set_max_qa_turns(current_h_id, imported_data["max_qa_turns"])
+                    if "max_consultations" in imported_data:
+                        if isinstance(imported_data["max_consultations"], int):
+                            set_max_consultations(current_h_id, imported_data["max_consultations"])
 
                     st.success(t("Template successfully imported!", "テンプレートのインポートに成功しました！"))
                     st.rerun()

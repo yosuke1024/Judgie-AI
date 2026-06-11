@@ -3,6 +3,7 @@
   "description": "Evaluate prototype completeness, technical implementation, UX, and presentation.",
   "re_evaluation_context_mode": "cumulative",
   "max_qa_turns": 1,
+  "max_consultations": 3,
   "criteria": [
     {
       "name": "Innovation & Creativity",

@@ -3,6 +3,7 @@
   "description": "Assess market opportunity, business model viability, CTO technical check, and VC pitch.",
   "re_evaluation_context_mode": "independent",
   "max_qa_turns": 3,
+  "max_consultations": 3,
   "criteria": [
     {
       "name": "Market Opportunity",

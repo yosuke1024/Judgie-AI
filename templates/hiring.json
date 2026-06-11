@@ -3,6 +3,7 @@
   "description": "Review candidate technical skills, system design depth, communication, and team fit.",
   "re_evaluation_context_mode": "independent",
   "max_qa_turns": 5,
+  "max_consultations": 3,
   "criteria": [
     {
       "name": "Technical Skill",
