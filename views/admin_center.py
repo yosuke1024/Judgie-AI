@@ -834,9 +834,16 @@ with tab7:
     # Retrieve current configurations for export
     export_criteria = get_criteria(current_h_id)
     export_personas = get_personas(current_h_id)
+
+    # Use template description if template_id exists, otherwise default to empty string
+    from core.templates import TEMPLATES
+    tpl_desc = ""
+    if hackathon.template_id and hackathon.template_id in TEMPLATES:
+        tpl_desc = TEMPLATES[hackathon.template_id].get("description", "")
+
     export_data = {
         "name": hackathon.name,
-        "description": hackathon.description or "",
+        "description": tpl_desc,
         "re_evaluation_context_mode": curr_mode,
         "max_qa_turns": curr_max_qa,
         "criteria": export_criteria,
