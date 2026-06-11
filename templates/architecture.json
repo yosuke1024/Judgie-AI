@@ -3,6 +3,7 @@
   "description": "Rigorous checks on scalability, reliability, security, maintainability, and cost efficiency.",
   "re_evaluation_context_mode": "independent",
   "max_qa_turns": 0,
+  "max_consultations": 3,
   "criteria": [
     {
       "name": "Reliability & Scalability",
