@@ -8,7 +8,7 @@ Currently, we support the latest version on the `main` branch.
 
 If you discover a security vulnerability within Judgie-AI, please do **NOT** open a public issue.
 
-Instead, please send an e-mail to the maintainers (or the standard Money Forward security contact). 
+Instead, please send an e-mail to the maintainers at suzuki.yosuke@pixapps.ai. 
 We will review all reports and respond as quickly as possible.
 
 Please include:
