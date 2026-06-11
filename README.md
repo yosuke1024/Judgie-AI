@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0">
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
   <img src="https://img.shields.io/badge/python-3.9+-blue.svg" alt="Python Version">
   <img src="https://img.shields.io/badge/Streamlit-1.50+-red.svg" alt="Streamlit">
   <a href="https://judgie-ai.streamlit.app"><img src="https://img.shields.io/badge/Streamlit_App-%23FE4B4B?logo=streamlit&logoColor=white" alt="Streamlit App"></a>
@@ -286,4 +286,4 @@ We welcome contributions from the community! Please read our [CONTRIBUTING.md](C
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
