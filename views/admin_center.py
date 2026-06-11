@@ -822,3 +822,148 @@ with tab7:
             set_max_qa_turns(current_h_id, selected_max_qa)
             st.success(t("Project settings saved successfully!", "プロジェクト設定を正常に保存しました！"))
             st.rerun()
+
+    # --- Export Template ---
+    st.markdown("---")
+    st.subheader(t("📤 Export Template", "📤 テンプレートのエクスポート"))
+    st.markdown(t(
+        "Export your current project settings (criteria and personas) as a JSON file to share with others.",
+        "現在のプロジェクト設定（評価基準と審査員ペルソナ）をJSONファイルとして書き出し、他の管理者と共有できます。"
+    ))
+
+    # Retrieve current configurations for export
+    export_criteria = get_criteria(current_h_id)
+    export_personas = get_personas(current_h_id)
+    export_data = {
+        "name": hackathon.name,
+        "description": hackathon.description or "",
+        "re_evaluation_context_mode": curr_mode,
+        "max_qa_turns": curr_max_qa,
+        "criteria": export_criteria,
+        "personas": export_personas
+    }
+    try:
+        export_json = json.dumps(export_data, indent=2, ensure_ascii=False)
+        st.download_button(
+            label=t("💾 Download Template JSON", "💾 テンプレートJSONをダウンロード"),
+            data=export_json,
+            file_name=f"judgie-template-{current_h_id}.json",
+            mime="application/json",
+            key=f"export_template_btn_{current_h_id}"
+        )
+    except Exception as e:
+        st.error(t(f"Failed to generate export file: {str(e)}", f"エクスポートファイルの生成に失敗しました: {str(e)}"))
+
+    # --- Import Template ---
+    st.markdown("---")
+    st.subheader(t("📥 Import External Template", "📥 外部テンプレートのインポート"))
+    st.markdown(t(
+        "Import evaluation criteria and AI judge personas from a GitHub Gist or public Raw JSON URL. **Warning: This will overwrite your current settings.**",
+        "GitHub Gistや公開されたRaw JSONのURLから評価基準とAIペルソナをインポートします。**警告：現在の設定は上書きされます。**"
+    ))
+
+    st.info(t(
+        "💡 **Looking for templates?** Visit the [PixApps Template Marketplace](https://pixapps.com/judgie-marketplace) (coming soon) to find and share templates!",
+        "💡 **テンプレートをお探しですか？** [PixApps テンプレートマーケットプレイス](https://pixapps.com/judgie-marketplace) (開発中) でテンプレートを探したり、共有したりできます！"
+    ))
+
+    with st.form("import_template_form"):
+        import_url = st.text_input(
+            t("Template JSON URL", "テンプレートJSONのURL"),
+            placeholder="https://gist.githubusercontent.com/.../raw/template.json",
+            help=t("Supports raw GitHub/Gist JSON URLs. Standard Gist URLs will be automatically converted.", "GitHubまたはGistのRaw JSON URLに対応しています。通常のGist URLは自動変換されます。")
+        )
+
+        confirm_import = st.checkbox(
+            t("I understand this will overwrite current criteria and personas.", "現在の評価基準と審査員設定が上書きされることを理解しています。")
+        )
+
+        submitted_import = st.form_submit_button(t("Run Import", "インポートを実行"), disabled=is_demo)
+
+        if submitted_import:
+            if not import_url.strip():
+                st.error(t("Please enter a URL.", "URLを入力してください。"))
+            elif not confirm_import:
+                st.error(t("Please check the confirmation box to proceed.", "上書きの確認チェックボックスにチェックを入れてください。"))
+            else:
+                try:
+                    url_to_fetch = import_url.strip()
+
+                    from urllib.parse import urlparse, urlunparse
+                    parsed = urlparse(url_to_fetch)
+                    if parsed.scheme not in ('http', 'https'):
+                        raise ValueError(t("Invalid URL scheme. Only HTTP/HTTPS is allowed.", "無効なURLスキームです。HTTPまたはHTTPSのみ許可されます。"))
+
+                    # Auto convert standard Gist URL to raw Gist URL
+                    hostname = parsed.hostname
+                    if hostname == "gist.github.com" and not parsed.path.endswith("/raw"):
+                        path_parts = parsed.path.strip("/").split("/")
+                        if len(path_parts) >= 2:
+                            # Standard Gist URL: https://gist.github.com/username/gist_id
+                            # Raw Gist URL: https://gist.githubusercontent.com/username/gist_id/raw
+                            raw_url = f"https://gist.githubusercontent.com/{path_parts[0]}/{path_parts[1]}/raw"
+                            parsed = urlparse(raw_url)
+                            hostname = parsed.hostname
+
+                    # SSRF validation using whitelisted domains
+                    allowed_domains = {
+                        'github.com',
+                        'raw.githubusercontent.com',
+                        'gist.githubusercontent.com',
+                        'githubusercontent.com'
+                    }
+                    if hostname not in allowed_domains:
+                        raise ValueError(t("Access to this domain is not allowed for security reasons.", "セキュリティ上の理由から、このドメインへのアクセスは許可されていません。"))
+
+                    # Reconstruct URL to prevent SSRF detection and verify it
+                    safe_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
+
+                    if not is_safe_url(safe_url):
+                        raise ValueError(t("URL fails security checks.", "URLがセキュリティチェックに合格しませんでした。"))
+
+                    import requests
+                    res = requests.get(safe_url)
+                    if res.status_code != 200:
+                        raise ValueError(f"Failed to fetch template. HTTP {res.status_code}")
+
+                    imported_data = res.json()
+
+                    # Basic schema validation
+                    if not isinstance(imported_data, dict):
+                        raise ValueError(t("Template must be a JSON object.", "テンプレートはJSONオブジェクトである必要があります。"))
+                    if "criteria" not in imported_data or "personas" not in imported_data:
+                        raise ValueError(t("JSON is missing 'criteria' or 'personas' keys.", "JSONに 'criteria' または 'personas' キーがありません。"))
+
+                    # Import criteria
+                    imported_criteria = imported_data["criteria"]
+                    if not isinstance(imported_criteria, list):
+                        raise ValueError(t("'criteria' must be a list.", "'criteria' はリストである必要があります。"))
+                    for idx, c in enumerate(imported_criteria):
+                        if not all(k in c for k in ("name", "weight", "description")):
+                            raise ValueError(t(f"Criteria at index {idx} is missing required fields.", f"インデックス {idx} の評価基準に必要なフィールドが不足しています。"))
+
+                    # Import personas
+                    imported_personas = imported_data["personas"]
+                    if not isinstance(imported_personas, list):
+                        raise ValueError(t("'personas' must be a list.", "'personas' はリストである必要があります。"))
+                    for idx, p in enumerate(imported_personas):
+                        if not all(k in p for k in ("id", "name", "role", "avatar", "prompt", "active")):
+                            raise ValueError(t(f"Persona at index {idx} is missing required fields.", f"インデックス {idx} のペルソナに必要なフィールドが不足しています。"))
+
+                    # Update database
+                    set_criteria(current_h_id, imported_criteria)
+                    set_personas(current_h_id, imported_personas)
+
+                    # Update optional project settings if provided
+                    if "re_evaluation_context_mode" in imported_data:
+                        if imported_data["re_evaluation_context_mode"] in ("cumulative", "independent"):
+                            set_re_evaluation_context_mode(current_h_id, imported_data["re_evaluation_context_mode"])
+                    if "max_qa_turns" in imported_data:
+                        if isinstance(imported_data["max_qa_turns"], int):
+                            set_max_qa_turns(current_h_id, imported_data["max_qa_turns"])
+
+                    st.success(t("Template successfully imported!", "テンプレートのインポートに成功しました！"))
+                    st.rerun()
+                except Exception as e:
+                    st.error(t(f"Import failed: {str(e)}", f"インポートに失敗しました: {str(e)}"))
+

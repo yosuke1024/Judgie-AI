@@ -16,6 +16,18 @@ By participating in this project, you are expected to uphold our [Code of Conduc
 - Open a new issue with a clear title and description.
 - Explain why this enhancement would be useful to most users.
 
+### Contributing Evaluation Templates
+One of the easiest ways to contribute to Judgie-AI is by adding new evaluation templates (e.g., for design reviews, marketing pitches, coding exams, etc.).
+
+1. Copy the sample file [templates/template.sample.json](templates/template.sample.json) as a reference.
+2. Create your new JSON file in the `templates/` directory (e.g., `templates/design_review.json`).
+3. Define your evaluation criteria (ensure the sum of all weights equals `100`) and AI judge personas.
+4. Run validation tests locally to verify your template's structure:
+   ```bash
+   pytest tests/test_templates_validation.py
+   ```
+5. Submit a Pull Request! Once merged, your template will be available as an official template.
+
 ### Pull Requests
 1. Fork the repo and create your branch from `main`.
 2. If you've added code that should be tested, add tests.
