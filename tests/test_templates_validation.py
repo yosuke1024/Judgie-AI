@@ -1,6 +1,6 @@
-import os
 import json
-import pytest
+import os
+
 from core.templates import TEMPLATES, TEMPLATES_DIR
 
 
