@@ -37,3 +37,7 @@ personas/*.md
 htmlcov/
 .pytest_cache/
 
+# Local Spec Documents
+docs/current/
+
+
