@@ -16,6 +16,7 @@ from core.db import (
     get_ai_response_languages,
     get_consultation_count,
     get_criteria,
+    get_max_consultations,
     get_personas,
     get_session,
     get_setting,
@@ -26,14 +27,13 @@ from core.db import (
     save_objection_qa,
     set_ai_response_languages,
     set_criteria,
+    set_max_consultations,
     set_personas,
     set_setting,
     update_admin_passcode,
     update_team_passcode,
     update_team_profile,
     verify_user,
-    get_max_consultations,
-    set_max_consultations,
 )
 from core.security import hash_passcode, verify_passcode
 
