@@ -20,6 +20,10 @@ def validate_template_schema(tpl_id, tpl):
     """Helper to validate template schema structure."""
     assert "name" in tpl, f"Template '{tpl_id}' is missing 'name'"
     assert "description" in tpl, f"Template '{tpl_id}' is missing 'description'"
+    assert "tags" in tpl, f"Template '{tpl_id}' is missing 'tags'"
+    assert isinstance(tpl["tags"], list), f"Tags in '{tpl_id}' must be a list"
+    for t in tpl["tags"]:
+        assert isinstance(t, str), f"Each tag in '{tpl_id}' must be a string"
     assert "criteria" in tpl, f"Template '{tpl_id}' is missing 'criteria'"
     assert "personas" in tpl, f"Template '{tpl_id}' is missing 'personas'"
 

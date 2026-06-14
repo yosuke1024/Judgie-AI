@@ -1,6 +1,12 @@
 {
   "name": "Hiring & Technical Interview",
   "description": "Review candidate technical skills, system design depth, communication, and team fit.",
+  "tags": [
+    "Hiring",
+    "Interview",
+    "HR",
+    "Engineering"
+  ],
   "re_evaluation_context_mode": "independent",
   "max_qa_turns": 5,
   "max_consultations": 3,
