@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     func,
+    text,
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -138,27 +139,33 @@ def init_db():
     # Run dynamic schema migrations to add columns/tables if not exists
     try:
         with engine.begin() as conn:
-            conn.execute("ALTER TABLE admin_chats ADD COLUMN qa_json TEXT;")
+            conn.execute(text("ALTER TABLE admin_chats ADD COLUMN qa_json TEXT;"))
     except Exception:
         pass
     try:
         with engine.begin() as conn:
-            conn.execute("ALTER TABLE hackathons ADD COLUMN template_id TEXT;")
+            conn.execute(text("ALTER TABLE hackathons ADD COLUMN template_id TEXT;"))
     except Exception:
         pass
     try:
         with engine.begin() as conn:
-            conn.execute("ALTER TABLE hackathons ADD COLUMN re_evaluation_context_mode TEXT DEFAULT 'cumulative';")
+            conn.execute(
+                text(
+                    "ALTER TABLE hackathons ADD COLUMN re_evaluation_context_mode TEXT DEFAULT 'cumulative';"
+                )
+            )
     except Exception:
         pass
     try:
         with engine.begin() as conn:
-            conn.execute("ALTER TABLE hackathons ADD COLUMN max_qa_turns INTEGER DEFAULT 1;")
+            conn.execute(text("ALTER TABLE hackathons ADD COLUMN max_qa_turns INTEGER DEFAULT 1;"))
     except Exception:
         pass
     try:
         with engine.begin() as conn:
-            conn.execute("ALTER TABLE hackathons ADD COLUMN max_consultations INTEGER DEFAULT 3;")
+            conn.execute(
+                text("ALTER TABLE hackathons ADD COLUMN max_consultations INTEGER DEFAULT 3;")
+            )
     except Exception:
         pass
 
