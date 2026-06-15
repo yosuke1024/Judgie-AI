@@ -10,6 +10,7 @@
   <img src="https://img.shields.io/badge/Streamlit-1.50+-red.svg" alt="Streamlit">
   <a href="https://judgie-ai.streamlit.app"><img src="https://img.shields.io/badge/Streamlit_App-%23FE4B4B?logo=streamlit&logoColor=white" alt="Streamlit App"></a>
   <a href="https://railway.com/deploy/judgieai"><img src="https://railway.com/button.svg" alt="Deploy on Railway"></a>
+  <a href="https://github.com/sponsors/yosuke1024"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github-sponsors" alt="Sponsor"></a>
 </p>
 
 **Judgie-AI** is a multi-tenant **AI Evaluation Platform** that automates and enhances the judging, feedback, and coaching process for various workflows (including Hackathons, Startup Pitches, Hiring Evaluations, and Software Architecture Reviews). Leveraging Google Gemini's multimodal capabilities, it evaluates submissions (source code ZIPs, demo videos, PDF slides, resumes) from the diverse perspectives of a customizable panel of AI expert personas, providing actionable coaching, scoring, and multi-turn Q&A dialogue.
@@ -281,6 +282,14 @@ Judgie-AI features a comprehensive test suite. For details on how to run tests l
 
 ### Contributing
 We welcome contributions from the community! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) to learn how to get started, set up your development environment, and submit pull requests.
+
+---
+
+## 💖 Sponsors
+
+If you find Judgie-AI helpful and want to support its active development, please consider sponsoring this project!
+
+- [GitHub Sponsors](https://github.com/sponsors/yosuke1024)
 
 ---
 
