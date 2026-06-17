@@ -12,6 +12,7 @@ from core.db import (
     get_max_qa_turns,
     get_re_evaluation_context_mode,
     get_team_profile,
+    is_video_upload_enabled,
     update_team_profile,
 )
 from core.i18n import t
@@ -156,9 +157,17 @@ with col1:
                 "プロジェクト内に `node_modules`, `.git`, `venv` などの巨大なディレクトリが含まれていると、アップロード制限（200MB）を超えたり、AIの解析エラーの原因になります。以下のコマンドを参考に、不要なファイルを除外してZIP化してください。\n\n**Mac/LinuxでのZIP作成例:**\n```bash\nzip -r submission.zip . -x \"node_modules/*\" -x \".git/*\" -x \"venv/*\" -x \".next/*\"\n```"
             ))
 
+        video_enabled = is_video_upload_enabled(current_h_id)
+        if video_enabled:
+            allowed_types = ["zip", "mp4", "mov", "pdf"]
+            uploader_label = t("Artifacts (ZIP, MP4, MOV, PDF)", "成果物ファイル (ZIP, MP4, MOV, PDF)")
+        else:
+            allowed_types = ["zip", "pdf"]
+            uploader_label = t("Artifacts (ZIP, PDF) (Video uploads are disabled)", "成果物ファイル (ZIP, PDF) (動画のアップロードは無効化されています)")
+
         uploaded_files = st.file_uploader(
-            t("Artifacts (ZIP, MP4, MOV, PDF)", "成果物ファイル (ZIP, MP4, MOV, PDF)"),
-            type=["zip", "mp4", "mov", "pdf"],
+            uploader_label,
+            type=allowed_types,
             accept_multiple_files=True,
             help=t("Max total size: 200MB.", "合計最大サイズは200MBです。")
         )

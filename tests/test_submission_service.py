@@ -83,6 +83,7 @@ def test_process_submission_with_zip_and_media(mocker):
     mock_media.read.return_value = b"video_data"
 
     # Mocking related utility functions
+    mocker.patch("core.services.submission_service.is_video_upload_enabled", return_value=True)
     mock_extract = mocker.patch("core.services.submission_service.extract_text_from_zip", return_value="print('hello')")
 
     mock_file_obj = mocker.MagicMock()
@@ -117,3 +118,24 @@ def test_process_submission_with_zip_and_media(mocker):
     mock_save.assert_called_once_with(1, "teamA", ANY, is_final=False, source_text="print('hello')", gemini_file_ids=["files/mock-media-id"])
 
     assert res["product_understanding_english"] == "nice"
+
+
+def test_process_submission_with_video_disabled(mocker):
+    # Simulate uploading a video file when video upload is disabled
+    mock_media = mocker.MagicMock()
+    mock_media.name = "demo.mp4"
+
+    mocker.patch("core.services.submission_service.is_video_upload_enabled", return_value=False)
+
+    import pytest
+    with pytest.raises(ValueError) as excinfo:
+        process_submission(
+            hackathon_id=1,
+            team_id="teamA",
+            uploaded_files=[mock_media],
+            prev_evaluations_json="{}",
+            is_final=False
+        )
+
+    assert "Video uploads" in str(excinfo.value)
+

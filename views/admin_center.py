@@ -17,6 +17,7 @@ from core.db import (
     get_personas,
     get_re_evaluation_context_mode,
     initialize_hackathon_template,
+    is_video_upload_enabled,
     normalize_lang_to_key,
     save_admin_chat,
     set_ai_response_languages,
@@ -25,6 +26,7 @@ from core.db import (
     set_max_qa_turns,
     set_personas,
     set_re_evaluation_context_mode,
+    set_video_upload_enabled,
     update_team_passcode,
     update_user_role,
 )
@@ -763,6 +765,7 @@ with tab7:
     curr_mode = get_re_evaluation_context_mode(current_h_id)
     curr_max_qa = get_max_qa_turns(current_h_id)
     curr_max_consultations = get_max_consultations(current_h_id)
+    curr_video_enabled = is_video_upload_enabled(current_h_id)
 
     with st.form("project_behavior_settings_form"):
         st.subheader(t("🔄 Re-evaluation Context Mode", "🔄 再評価（イテレーション）時のコンテキスト"))
@@ -850,11 +853,25 @@ with tab7:
             label_visibility="collapsed"
         )
 
+        st.markdown("---")
+
+        st.subheader(t("🎥 Video Upload Restriction", "🎥 動画アップロードの制限"))
+        st.markdown(t(
+            "Enable or disable video artifact uploads (MP4, MOV). Disabling videos helps reduce API usage costs.",
+            "成果物としての動画ファイル (MP4, MOV) のアップロードを有効または無効にします。動画を無効にすることで、API利用料金を抑制できます。"
+        ))
+        selected_video_enabled = st.checkbox(
+            t("Enable Video Uploads (MP4, MOV)", "動画アップロードを有効にする (MP4, MOV)"),
+            value=curr_video_enabled,
+            disabled=is_demo
+        )
+
         submitted_settings = st.form_submit_button(t("Save Project Settings", "プロジェクト設定を保存"), type="primary", disabled=is_demo)
         if submitted_settings:
             set_re_evaluation_context_mode(current_h_id, selected_mode)
             set_max_qa_turns(current_h_id, selected_max_qa)
             set_max_consultations(current_h_id, selected_max_cons)
+            set_video_upload_enabled(current_h_id, selected_video_enabled)
             st.success(t("Project settings saved successfully!", "プロジェクト設定を正常に保存しました！"))
             st.rerun()
 
