@@ -307,6 +307,19 @@ def set_ai_response_languages(hackathon_id: int, languages: list[str], db=None):
     set_setting(hackathon_id, 'ai_response_languages', json.dumps(languages), db=db)
 
 
+def is_video_upload_enabled(hackathon_id: int) -> bool:
+    """
+    Returns True if video uploads (MP4, MOV) are enabled for the hackathon.
+    Defaults to True if not configured.
+    """
+    val = get_setting(hackathon_id, 'video_upload_enabled')
+    return val != "false"
+
+
+def set_video_upload_enabled(hackathon_id: int, enabled: bool, db=None):
+    set_setting(hackathon_id, 'video_upload_enabled', "true" if enabled else "false", db=db)
+
+
 def get_criteria(hackathon_id):
     val = get_setting(hackathon_id, 'evaluation_criteria')
     if val:

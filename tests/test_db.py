@@ -22,6 +22,7 @@ from core.db import (
     get_setting,
     get_team_profile,
     init_db,
+    is_video_upload_enabled,
     save_admin_chat,
     save_evaluation,
     save_objection_qa,
@@ -30,6 +31,7 @@ from core.db import (
     set_max_consultations,
     set_personas,
     set_setting,
+    set_video_upload_enabled,
     update_admin_passcode,
     update_team_passcode,
     update_team_profile,
@@ -440,3 +442,18 @@ def test_max_consultations(db_session_fixture):
     # Set to unlimited
     set_max_consultations(hid, -1)
     assert get_max_consultations(hid) == -1
+
+
+def test_video_upload_enabled(db_session_fixture):
+    hid = create_hackathon("Hack1", "admin1", "pass123")
+
+    # Check default (should be True)
+    assert is_video_upload_enabled(hid) is True
+
+    # Set to False
+    set_video_upload_enabled(hid, False)
+    assert is_video_upload_enabled(hid) is False
+
+    # Set to True
+    set_video_upload_enabled(hid, True)
+    assert is_video_upload_enabled(hid) is True

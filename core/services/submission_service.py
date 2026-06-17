@@ -1,7 +1,7 @@
 import os
 import tempfile
 
-from core.db import save_evaluation
+from core.db import is_video_upload_enabled, save_evaluation
 from core.file_handler import extract_text_from_zip
 from core.gemini import analyze_submission, upload_to_gemini, wait_for_files_active
 
@@ -11,6 +11,8 @@ def process_submission(hackathon_id: int, team_id: str, uploaded_files: list, pr
     Handles the entire submission workflow: extraction, Gemini upload, polling, and parsing.
     Includes defensive fallback structures to protect against LLM schema malformations.
     """
+    video_enabled = is_video_upload_enabled(hackathon_id)
+
     text_content = ""
     gemini_media_files = []
 
@@ -20,6 +22,12 @@ def process_submission(hackathon_id: int, team_id: str, uploaded_files: list, pr
             text_content += extract_text_from_zip(uf)
         elif uf.name.endswith((".mp4", ".mov", ".pdf")):
             ext = os.path.splitext(uf.name)[1]
+            if ext.lower() in (".mp4", ".mov") and not video_enabled:
+                raise ValueError(
+                    "Video uploads (MP4, MOV) are disabled for this project. / "
+                    "このプロジェクトでは動画のアップロードは無効化されています。"
+                )
+
             with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
                 tmp.write(uf.read())
                 tmp_path = tmp.name
