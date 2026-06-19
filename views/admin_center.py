@@ -581,11 +581,21 @@ with tab5:
         else:
             eval_dict_map = {}
             eval_options = []
+
+            # Map IDs to names matching team_view.py numbering (asc order count)
+            eval_labels = {}
+            for i, e in enumerate(reversed(evals)):
+                if e['is_final']:
+                    eval_labels[e['id']] = f"⭐ {t('Final Submission', '最終提出')}"
+                else:
+                    eval_labels[e['id']] = f"🔄 {t('Consultation', '相談')} {i+1}"
+
             for r in evals:
                 r_dict = dict(r)
                 e_id = r_dict['id']
                 eval_dict_map[e_id] = r_dict
-                label = f"{'⭐ Final' if r_dict['is_final'] else '🔄 Consultation'} (ID: {e_id}) - {r_dict['evaluated_at']}"
+                base_label = eval_labels[e_id]
+                label = f"{base_label} (ID: {e_id}) - {r_dict['evaluated_at']}"
                 eval_options.append((e_id, label))
 
             selected_eval_id = st.selectbox(
