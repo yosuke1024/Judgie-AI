@@ -6,12 +6,15 @@ from core.db import (
     Hackathon,
     Session,
     Setting,
+    TeamChat,
     User,
     change_my_passcode,
     create_hackathon,
     create_session,
+    delete_evaluation,
     delete_hackathon,
     delete_session,
+    delete_team,
     get_admin_chats,
     get_ai_response_languages,
     get_consultation_count,
@@ -457,3 +460,113 @@ def test_video_upload_enabled(db_session_fixture):
     # Set to True
     set_video_upload_enabled(hid, True)
     assert is_video_upload_enabled(hid) is True
+
+
+def test_delete_team_cascades(db_session_fixture):
+    init_db()
+    hid = create_hackathon("HackToDeleteTeam", "del_team_admin", "pass123", template_id="hackathon")
+
+    # Create two team users
+    team1 = User(hackathon_id=hid, team_id="team1", passcode="pass1", role="team")
+    team2 = User(hackathon_id=hid, team_id="team2", passcode="pass2", role="team")
+    db_session_fixture.add(team1)
+    db_session_fixture.add(team2)
+    db_session_fixture.commit()
+
+    # Submission for team1
+    from core.db import Submission
+    sub1 = Submission(hackathon_id=hid, team_id="team1", files_json="[]")
+    db_session_fixture.add(sub1)
+    db_session_fixture.commit()
+
+    # Evaluation for team1
+    result_data = {
+        "scores": {"Innovation & Creativity": 4.0},
+        "impact_score": 4.0,
+        "three_line_summary_en": "summary",
+        "three_line_summary_ja": "概要",
+        "judges_feedback": []
+    }
+    save_evaluation(hid, "team1", result_data, is_final=True, source_text="code", gemini_file_ids=["fileA"])
+    eval_rec = db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid, Evaluation.team_id == "team1").first()
+    assert eval_rec is not None
+    eval_id = eval_rec.id
+
+    # Chats for team1
+    save_admin_chat(eval_id, "Q", "問", "A", "答")
+    team_chat = TeamChat(evaluation_id=eval_id, sender="team", message_json="{}")
+    db_session_fixture.add(team_chat)
+    db_session_fixture.commit()
+
+    # Session for team1
+    create_session("team1", "team", hid)
+
+    # Verify everything exists before deletion
+    assert db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "team1").first() is not None
+    assert db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "team2").first() is not None
+    assert db_session_fixture.query(Submission).filter(Submission.hackathon_id == hid, Submission.team_id == "team1").first() is not None
+    assert db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid, Evaluation.team_id == "team1").first() is not None
+    assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is not None
+    assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).first() is not None
+    assert db_session_fixture.query(Session).filter(Session.hackathon_id == hid, Session.team_id == "team1").first() is not None
+
+    # Delete team1
+    delete_team(hid, "team1")
+
+    # Verify team1 data is gone
+    db_session_fixture.expire_all()
+    assert db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "team1").first() is None
+    assert db_session_fixture.query(Submission).filter(Submission.hackathon_id == hid, Submission.team_id == "team1").first() is None
+    assert db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid, Evaluation.team_id == "team1").first() is None
+    assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is None
+    assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).first() is None
+    assert db_session_fixture.query(Session).filter(Session.hackathon_id == hid, Session.team_id == "team1").first() is None
+
+    # Verify team2 and admin are NOT deleted
+    assert db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "team2").first() is not None
+    assert db_session_fixture.query(User).filter(User.hackathon_id == hid, User.role == "admin").first() is not None
+
+
+def test_delete_evaluation_cascades(db_session_fixture):
+    init_db()
+    hid = create_hackathon("HackToDeleteEval", "del_eval_admin", "pass123", template_id="hackathon")
+
+    result_data = {
+        "scores": {"Innovation & Creativity": 4.0},
+        "impact_score": 4.0,
+        "three_line_summary_en": "summary",
+        "three_line_summary_ja": "概要",
+        "judges_feedback": []
+    }
+
+    # Save two evaluations
+    save_evaluation(hid, "team1", result_data, is_final=False, source_text="code1", gemini_file_ids=[])
+    save_evaluation(hid, "team1", result_data, is_final=True, source_text="code2", gemini_file_ids=[])
+
+    evals = db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid, Evaluation.team_id == "team1").all()
+    assert len(evals) == 2
+    eval1_id = evals[0].id
+    eval2_id = evals[1].id
+
+    # Add chats to eval1
+    save_admin_chat(eval1_id, "Q", "問", "A", "答")
+    team_chat = TeamChat(evaluation_id=eval1_id, sender="team", message_json="{}")
+    db_session_fixture.add(team_chat)
+    db_session_fixture.commit()
+
+    # Verify eval1 and chats exist
+    assert db_session_fixture.query(Evaluation).filter(Evaluation.id == eval1_id).first() is not None
+    assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval1_id).first() is not None
+    assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval1_id).first() is not None
+
+    # Delete eval1
+    delete_evaluation(hid, eval1_id)
+
+    # Verify eval1 and its chats are gone
+    db_session_fixture.expire_all()
+    assert db_session_fixture.query(Evaluation).filter(Evaluation.id == eval1_id).first() is None
+    assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval1_id).first() is None
+    assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval1_id).first() is None
+
+    # Verify eval2 is still present
+    assert db_session_fixture.query(Evaluation).filter(Evaluation.id == eval2_id).first() is not None
