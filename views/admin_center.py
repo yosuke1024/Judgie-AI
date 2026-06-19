@@ -9,6 +9,8 @@ from core.db import (
     Hackathon,
     SessionLocal,
     User,
+    delete_evaluation,
+    delete_team,
     get_admin_chats,
     get_ai_response_languages,
     get_criteria,
@@ -339,6 +341,31 @@ with tab2:
                     else:
                         st.error(t("Failed to update role.", "ロールの更新に失敗しました。"))
 
+        st.markdown("---")
+        st.markdown(f"### {t('Delete User / Team', 'ユーザー・チームの削除')}")
+        st.caption(t("Permanently delete a user and all of their associated data (submissions, evaluations, chat history).", "ユーザーと、そのユーザーに関連するすべてのデータ（提出物、評価、チャット履歴）を永久に削除します。"))
+
+        with st.form("delete_user_team_form"):
+            if team_options:
+                target_del_tid = st.selectbox(t("Select User ID to Delete", "削除対象のユーザーID"), team_options, disabled=is_demo, key="delete_target_tid")
+            else:
+                target_del_tid = st.text_input(t("User ID", "削除対象のユーザーID"), disabled=True, placeholder=t("No users registered", "登録済みのユーザーがありません"), key="delete_target_tid")
+
+            confirm_del_team = st.checkbox(t("I understand that all data for this user/team will be permanently deleted and cannot be recovered.", "このユーザー/チームのすべてのデータが永久に削除され、復元できないことを理解しました。"))
+
+            if st.form_submit_button(t("Delete User / Team", "ユーザー・チームを削除"), type="secondary", disabled=is_demo):
+                if not team_options:
+                    st.warning(t("No users registered to delete.", "削除対象のユーザーが登録されていません。"))
+                elif not confirm_del_team:
+                    st.error(t("Please check the confirmation box to delete the user/team.", "削除するには確認のチェックボックスをオンにしてください。"))
+                else:
+                    try:
+                        delete_team(current_h_id, target_del_tid)
+                        st.success(t(f"Successfully deleted user/team '{target_del_tid}'.", f"ユーザー/チーム '{target_del_tid}' を正常に削除しました！"))
+                        st.rerun()
+                    except Exception as e:
+                        st.error(t(f"Failed to delete user/team: {str(e)}", f"ユーザー/チームの削除に失敗しました: {str(e)}"))
+
     st.divider()
     st.markdown(f"### {t('Registered Users', '登録済みユーザー一覧')}")
 
@@ -568,6 +595,27 @@ with tab5:
                 key="admin_center_submission_select"
             )
             selected_eval = eval_dict_map[selected_eval_id]
+
+            # Delete Submission History Section
+            with st.expander(t("⚠️ Delete this Submission History", "⚠️ この提出履歴の削除")):
+                st.markdown(t(
+                    "Deleting this submission history will permanently remove its evaluation scores, feedback, and Q&A chat history from the database.",
+                    "この提出履歴を削除すると、その評価スコア、フィードバック、およびQ&Aチャット履歴がデータベースから永久に削除されます。"
+                ))
+                confirm_del_eval = st.checkbox(
+                    t("I understand this action is permanent and want to delete this submission history.", "この操作は永久的であり、この提出履歴を削除することに同意します。"),
+                    key=f"confirm_del_eval_{selected_eval_id}"
+                )
+                if st.button(t("Delete Submission History", "提出履歴を削除"), type="secondary", disabled=is_demo, key=f"del_eval_btn_{selected_eval_id}"):
+                    if not confirm_del_eval:
+                        st.error(t("Please check the confirmation box.", "確認のチェックボックスをオンにしてください。"))
+                    else:
+                        try:
+                            delete_evaluation(current_h_id, selected_eval_id)
+                            st.success(t("Submission history deleted successfully!", "提出履歴を正常に削除しました！"))
+                            st.rerun()
+                        except Exception as e:
+                            st.error(t(f"Failed to delete submission history: {str(e)}", f"提出履歴の削除に失敗しました: {str(e)}"))
 
             source_text = selected_eval.get('source_text')
             gemini_file_ids = selected_eval.get('gemini_file_ids')

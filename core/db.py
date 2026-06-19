@@ -646,6 +646,44 @@ def delete_hackathon(hackathon_id: int):
         db.query(Hackathon).filter(Hackathon.id == hackathon_id).delete(synchronize_session=False)
 
 
+def delete_team(hackathon_id: int, team_id: str):
+    with db_session() as db:
+        # 1. AdminChat and TeamChat (Chat history linked to evaluations)
+        eval_ids = [e.id for e in db.query(Evaluation).filter(Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == team_id).all()]
+        if eval_ids:
+            db.query(AdminChat).filter(AdminChat.evaluation_id.in_(eval_ids)).delete(synchronize_session=False)
+            db.query(TeamChat).filter(TeamChat.evaluation_id.in_(eval_ids)).delete(synchronize_session=False)
+
+        # 2. Evaluation
+        db.query(Evaluation).filter(Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == team_id).delete(synchronize_session=False)
+
+        # 3. Submission
+        db.query(Submission).filter(Submission.hackathon_id == hackathon_id, Submission.team_id == team_id).delete(synchronize_session=False)
+
+        # 4. Session
+        db.query(Session).filter(Session.hackathon_id == hackathon_id, Session.team_id == team_id).delete(synchronize_session=False)
+
+        # 5. User (Only delete teams/observers, do NOT delete admins/superadmins)
+        db.query(User).filter(
+            User.hackathon_id == hackathon_id,
+            User.team_id == team_id,
+            User.role.in_(['team', 'observer'])
+        ).delete(synchronize_session=False)
+
+
+def delete_evaluation(hackathon_id: int, evaluation_id: int):
+    with db_session() as db:
+        # Verify the evaluation belongs to the hackathon
+        eval_record = db.query(Evaluation).filter(Evaluation.id == evaluation_id, Evaluation.hackathon_id == hackathon_id).first()
+        if eval_record:
+            # 1. AdminChat and TeamChat
+            db.query(AdminChat).filter(AdminChat.evaluation_id == evaluation_id).delete(synchronize_session=False)
+            db.query(TeamChat).filter(TeamChat.evaluation_id == evaluation_id).delete(synchronize_session=False)
+
+            # 2. Evaluation
+            db.delete(eval_record)
+
+
 def seed_demo_data():
     """Seeds rich mock data for the Guest Demo Mode (Hackathon ID 9999)."""
     with db_session() as db:
