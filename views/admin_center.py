@@ -583,14 +583,12 @@ with tab5:
             eval_options = []
 
             # Map IDs to names matching team_view.py numbering (asc order count)
-            consultation_count = 0
             eval_labels = {}
-            for e in reversed(evals):
+            for i, e in enumerate(reversed(evals)):
                 if e['is_final']:
                     eval_labels[e['id']] = f"⭐ {t('Final Submission', '最終提出')}"
                 else:
-                    consultation_count += 1
-                    eval_labels[e['id']] = f"🔄 {t('Consultation', '相談')} {consultation_count}"
+                    eval_labels[e['id']] = f"🔄 {t('Consultation', '相談')} {i+1}"
 
             for r in evals:
                 r_dict = dict(r)
