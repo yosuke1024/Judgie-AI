@@ -9,10 +9,11 @@ from core.db import get_ai_response_languages, get_criteria, get_personas, get_s
 
 def get_gemini_client(hackathon_id, api_key_override=None):
     """Returns an initialized Gemini client using the database or key override."""
-    api_key = api_key_override if api_key_override else get_setting(hackathon_id, 'gemini_api_key')
+    api_key = api_key_override if api_key_override else get_setting(hackathon_id, "gemini_api_key")
     if not api_key:
         raise ValueError("Gemini API Key has not been set by the Admin yet. Please contact the organizer.")
     return genai.Client(api_key=api_key)
+
 
 def configure_gemini(hackathon_id, api_key_override=None):
     """
@@ -21,6 +22,7 @@ def configure_gemini(hackathon_id, api_key_override=None):
     """
     # Verify that we can obtain a client (will raise ValueError if missing)
     get_gemini_client(hackathon_id, api_key_override=api_key_override)
+
 
 def list_available_gemini_models(hackathon_id, api_key_override=None):
     """
@@ -32,7 +34,7 @@ def list_available_gemini_models(hackathon_id, api_key_override=None):
         models = client.models.list()
         gemini_models = []
         for m in models:
-            if m.supported_actions and 'generateContent' in m.supported_actions:
+            if m.supported_actions and "generateContent" in m.supported_actions:
                 name = m.name.replace("models/", "")
                 if name.startswith("gemini-"):
                     gemini_models.append(name)
@@ -41,12 +43,14 @@ def list_available_gemini_models(hackathon_id, api_key_override=None):
     except Exception as e:
         raise ValueError(f"Failed to fetch models from Gemini API: {str(e)}")
 
+
 def upload_to_gemini(hackathon_id, file_path, mime_type=None):
     """Uploads the given file to Gemini."""
     client = get_gemini_client(hackathon_id)
     config = types.UploadFileConfig(mime_type=mime_type) if mime_type else None
     file = client.files.upload(file=file_path, config=config)
     return file
+
 
 def wait_for_files_active(hackathon_id, files):
     """Waits for the given files to be active in Gemini."""
@@ -59,20 +63,28 @@ def wait_for_files_active(hackathon_id, files):
         if file.state.name == "FAILED":
             raise ValueError(f"File processing failed: {file.name}")
 
-def analyze_submission(hackathon_id, text_content, gemini_media_files=None, previous_evaluations_json=None, is_final=False):
+
+def analyze_submission(
+    hackathon_id, text_content, gemini_media_files=None, previous_evaluations_json=None, is_final=False
+):
     """
     Calls Gemini API with multimodal input and returns structured JSON.
     Uses 'gemini-3.1-pro' to handle large contexts (code + video).
     """
     client = get_gemini_client(hackathon_id)
 
-    model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
+    model_name = get_setting(hackathon_id, "gemini_model") or "gemini-2.5-flash"
 
     criteria = get_criteria(hackathon_id)
-    active_personas = [p for p in get_personas(hackathon_id) if p.get('active', False)]
+    active_personas = [p for p in get_personas(hackathon_id) if p.get("active", False)]
 
     criteria_str = "\n".join([f"- {c['name']} (Weight: {c['weight']}%): {c.get('description', '')}" for c in criteria])
-    personas_str = "\n".join([f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n" for p in active_personas])
+    personas_str = "\n".join(
+        [
+            f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n"
+            for p in active_personas
+        ]
+    )
 
     context_str = ""
     if previous_evaluations_json:
@@ -106,9 +118,15 @@ This team is submitting a revised version. You MUST carefully review the action 
 
     for lang in languages:
         lang_key = normalize_lang_to_key(lang)
-        pu_fields.append(f'    "product_understanding_{lang_key}": "Detailed explanation of how the AI understands the product\'s problem, solution, and core value in {lang}."')
-        ai_fields.append(f'    "action_items_{lang_key}": [\n        "Top priority action item 1 in {lang}",\n        "Top priority action item 2 in {lang}",\n        "Top priority action item 3 in {lang}"\n    ]')
-        fb_fields.append(f'            "feedback_{lang_key}": "Deeply detailed, highly informative feedback in {lang} based on their persona and previous context."')
+        pu_fields.append(
+            f'    "product_understanding_{lang_key}": "Detailed explanation of how the AI understands the product\'s problem, solution, and core value in {lang}."'
+        )
+        ai_fields.append(
+            f'    "action_items_{lang_key}": [\n        "Top priority action item 1 in {lang}",\n        "Top priority action item 2 in {lang}",\n        "Top priority action item 3 in {lang}"\n    ]'
+        )
+        fb_fields.append(
+            f'            "feedback_{lang_key}": "Deeply detailed, highly informative feedback in {lang} based on their persona and previous context."'
+        )
 
     pu_fields_str = ",\n".join(pu_fields)
     ai_fields_str = ",\n".join(ai_fields)
@@ -173,9 +191,10 @@ Output a strictly valid JSON object with the following structure:
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             temperature=0.4,
-        )
+        ),
     )
     return json.loads(response.text)
+
 
 def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_evaluation_json, chat_history_list):
     """
@@ -183,10 +202,15 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
     """
     client = get_gemini_client(hackathon_id)
 
-    model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
+    model_name = get_setting(hackathon_id, "gemini_model") or "gemini-2.5-flash"
 
-    active_personas = [p for p in get_personas(hackathon_id) if p.get('active', False)]
-    personas_str = "\n".join([f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n" for p in active_personas])
+    active_personas = [p for p in get_personas(hackathon_id) if p.get("active", False)]
+    personas_str = "\n".join(
+        [
+            f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n"
+            for p in active_personas
+        ]
+    )
 
     # Get AI response language settings
     languages = get_ai_response_languages(hackathon_id)
@@ -196,8 +220,12 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
 
     for lang in languages:
         lang_key = normalize_lang_to_key(lang)
-        qa_summary_fields.append(f'    "qa_summary_{lang_key}": "A brief 2-3 sentence summary of the panel\'s overall stance on the latest objection in {lang}."')
-        response_fields.append(f'            "response_{lang_key}": "Direct, persona-driven response to the team\'s latest point in {lang}."')
+        qa_summary_fields.append(
+            f'    "qa_summary_{lang_key}": "A brief 2-3 sentence summary of the panel\'s overall stance on the latest objection in {lang}."'
+        )
+        response_fields.append(
+            f'            "response_{lang_key}": "Direct, persona-driven response to the team\'s latest point in {lang}."'
+        )
 
     qa_summary_str = ",\n".join(qa_summary_fields)
     response_fields_str = ",\n".join(response_fields)
@@ -222,11 +250,11 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
                 if isinstance(msg_data, dict):
                     # Fallback lookup for a summary to represent the AI's turn
                     summary = (
-                        msg_data.get("qa_summary_english") or
-                        msg_data.get("qa_summary_en") or
-                        msg_data.get("qa_summary_japanese") or
-                        msg_data.get("qa_summary_ja") or
-                        "Response provided."
+                        msg_data.get("qa_summary_english")
+                        or msg_data.get("qa_summary_en")
+                        or msg_data.get("qa_summary_japanese")
+                        or msg_data.get("qa_summary_ja")
+                        or "Response provided."
                     )
                     chat_thread_str += f"- [{sender_label}]: {summary}\n"
                 else:
@@ -282,18 +310,21 @@ Output a strictly valid JSON object with the following structure:
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             temperature=0.4,
-        )
+        ),
     )
     return json.loads(response.text)
 
-def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json, previous_evaluation_json, admin_question):
+
+def admin_chat_about_submission(
+    hackathon_id, source_text, gemini_file_ids_json, previous_evaluation_json, admin_question
+):
     """
     Allows Hackathon Admin to ask a specific question about a team's submission,
     using the originally uploaded source code and media files as context.
     """
     client = get_gemini_client(hackathon_id)
 
-    model_name = get_setting(hackathon_id, 'gemini_model') or "gemini-2.5-flash"
+    model_name = get_setting(hackathon_id, "gemini_model") or "gemini-2.5-flash"
 
     # Reconstruct Gemini File objects
     gemini_media_files = []
@@ -317,7 +348,9 @@ def admin_chat_about_submission(hackathon_id, source_text, gemini_file_ids_json,
 
     for lang in languages:
         lang_key = normalize_lang_to_key(lang)
-        question_fields.append(f'  "question_{lang_key}": "Translation or original of the administrator\'s question in {lang}"')
+        question_fields.append(
+            f'  "question_{lang_key}": "Translation or original of the administrator\'s question in {lang}"'
+        )
         answer_fields.append(f'  "answer_{lang_key}": "Detailed response in {lang} based on the source code and files"')
 
     question_str = ",\n".join(question_fields)
@@ -366,8 +399,6 @@ Output a strictly valid JSON object with the following structure:
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             temperature=0.4,
-        )
+        ),
     )
     return json.loads(response.text)
-
-

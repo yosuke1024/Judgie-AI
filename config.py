@@ -46,5 +46,5 @@ SCORING_WEIGHTS = {
     "Problem Solving & Impact": 0.20,
     "Product & UX": 0.15,
     "Working Prototype": 0.15,
-    "Presentation": 0.10
+    "Presentation": 0.10,
 }

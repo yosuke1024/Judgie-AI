@@ -9,6 +9,7 @@ def test_hash_passcode():
     assert len(hashed) > 0
     assert isinstance(hashed, str)
 
+
 def test_verify_passcode():
     passcode = "securepass"
     hashed = hash_passcode(passcode)

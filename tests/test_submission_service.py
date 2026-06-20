@@ -19,9 +19,9 @@ def test_sanitize_evaluation_response():
                 "judge_persona": "UX focused",
                 "judge_scores": [{"criteria_name": "Product & UX", "score": 4.0}],
                 "feedback_en": "Great UI",
-                "feedback_ja": "素晴らしいUI"
+                "feedback_ja": "素晴らしいUI",
             }
-        ]
+        ],
     }
 
     res = sanitize_evaluation_response(input_data)
@@ -35,15 +35,15 @@ def test_sanitize_evaluation_response():
         "action_items_english": "not_a_list",
         "judges_feedback": [
             "not_a_dict",
-            {"judge_name": "David"}  # Partial missing keys
-        ]
+            {"judge_name": "David"},  # Partial missing keys
+        ],
     }
     res_bad = sanitize_evaluation_response(bad_input)
     assert isinstance(res_bad["action_items_english"], list)
     assert res_bad["action_items_english"] == ["not_a_list"]
     assert len(res_bad["judges_feedback"]) == 1
     assert res_bad["judges_feedback"][0]["judge_name"] == "David"
-    assert res_bad["judges_feedback"][0]["judge_role"] == "Expert Panelist" # Default fallback
+    assert res_bad["judges_feedback"][0]["judge_role"] == "Expert Panelist"  # Default fallback
 
     # Dynamic multi-language case
     custom_langs = ["English", "Spanish", "French"]
@@ -57,13 +57,8 @@ def test_sanitize_evaluation_response():
         "scores": {"Innovation": 4.5},
         "impact_score": 4.0,
         "judges_feedback": [
-            {
-                "judge_name": "Lisa",
-                "feedback_en": "Great UI",
-                "feedback_es": "Buen UI",
-                "feedback_french": "Bon UI"
-            }
-        ]
+            {"judge_name": "Lisa", "feedback_en": "Great UI", "feedback_es": "Buen UI", "feedback_french": "Bon UI"}
+        ],
     }
     res_multi = sanitize_evaluation_response(input_multilang, custom_langs)
     assert res_multi["product_understanding_english"] == "understanding"
@@ -72,6 +67,7 @@ def test_sanitize_evaluation_response():
     assert res_multi["action_items_french"] == ["item1_fr"]
     assert res_multi["judges_feedback"][0]["feedback_spanish"] == "Buen UI"
     assert res_multi["judges_feedback"][0]["feedback_french"] == "Bon UI"
+
 
 def test_process_submission_with_zip_and_media(mocker):
     # Simulate uploading a ZIP file and an MP4 video file
@@ -92,12 +88,10 @@ def test_process_submission_with_zip_and_media(mocker):
 
     mock_wait = mocker.patch("core.services.submission_service.wait_for_files_active")
 
-    mock_analysis = mocker.patch("core.services.submission_service.analyze_submission", return_value={
-        "product_understanding_en": "nice",
-        "scores": {},
-        "impact_score": 4.0,
-        "judges_feedback": []
-    })
+    mock_analysis = mocker.patch(
+        "core.services.submission_service.analyze_submission",
+        return_value={"product_understanding_en": "nice", "scores": {}, "impact_score": 4.0, "judges_feedback": []},
+    )
 
     mock_save = mocker.patch("core.services.submission_service.save_evaluation")
 
@@ -107,15 +101,19 @@ def test_process_submission_with_zip_and_media(mocker):
         team_id="teamA",
         uploaded_files=[mock_zip, mock_media],
         prev_evaluations_json="{}",
-        is_final=False
+        is_final=False,
     )
 
     # Verify each processing step is executed with correct arguments
     mock_extract.assert_called_once_with(mock_zip)
     mock_upload.assert_called_once_with(1, ANY, mime_type="video/mp4")
     mock_wait.assert_called_once_with(1, [mock_file_obj])
-    mock_analysis.assert_called_once_with(1, "print('hello')", [mock_file_obj], previous_evaluations_json="{}", is_final=False)
-    mock_save.assert_called_once_with(1, "teamA", ANY, is_final=False, source_text="print('hello')", gemini_file_ids=["files/mock-media-id"])
+    mock_analysis.assert_called_once_with(
+        1, "print('hello')", [mock_file_obj], previous_evaluations_json="{}", is_final=False
+    )
+    mock_save.assert_called_once_with(
+        1, "teamA", ANY, is_final=False, source_text="print('hello')", gemini_file_ids=["files/mock-media-id"]
+    )
 
     assert res["product_understanding_english"] == "nice"
 
@@ -128,14 +126,10 @@ def test_process_submission_with_video_disabled(mocker):
     mocker.patch("core.services.submission_service.is_video_upload_enabled", return_value=False)
 
     import pytest
+
     with pytest.raises(ValueError) as excinfo:
         process_submission(
-            hackathon_id=1,
-            team_id="teamA",
-            uploaded_files=[mock_media],
-            prev_evaluations_json="{}",
-            is_final=False
+            hackathon_id=1, team_id="teamA", uploaded_files=[mock_media], prev_evaluations_json="{}", is_final=False
         )
 
     assert "Video uploads" in str(excinfo.value)
-

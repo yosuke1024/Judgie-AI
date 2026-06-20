@@ -23,8 +23,8 @@ seed_demo_data()
 init_session()
 
 # Global Language Setting
-if 'language' not in st.session_state:
-    st.session_state.language = 'English'
+if "language" not in st.session_state:
+    st.session_state.language = "English"
 
 with st.sidebar:
     st.session_state.language = st.radio("Language / 言語", ["English", "日本語"])
@@ -33,6 +33,7 @@ with st.sidebar:
         st.markdown(f"**Logged in as:** `{st.session_state.team_id}` ({st.session_state.role})")
         if st.button("Logout", use_container_width=True):
             from core.auth import logout
+
             logout()
 
     st.markdown("---")
@@ -47,7 +48,7 @@ with st.sidebar:
             Built with ❤️ by <a href='https://pixapps.ai' target='_blank' style='color: #38bdf8; text-decoration: none; font-weight: bold;'>PixApps.ai</a>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
 # Check if SuperAdmin should be disabled (Single-tenant mode)
@@ -70,13 +71,13 @@ if not st.session_state.logged_in:
         pages = [super_login_page, manual_page]
     else:
         pages = [login_page, manual_page]
-elif st.session_state.role == 'superadmin' and not super_admin_disabled:
+elif st.session_state.role == "superadmin" and not super_admin_disabled:
     pages = [superadmin_page, manual_page]
-elif st.session_state.role == 'admin':
+elif st.session_state.role == "admin":
     pages = [admin_page, team_page, leaderboard_page, settings_page, manual_page]
-elif st.session_state.role == 'team':
+elif st.session_state.role == "team":
     pages = [team_page, leaderboard_page, manual_page]
-elif st.session_state.role == 'observer':
+elif st.session_state.role == "observer":
     pages = [team_page, leaderboard_page, manual_page]
 else:
     # Fallback in case a superadmin session is active but now disabled
@@ -86,5 +87,5 @@ pg = st.navigation(pages)
 pg.run()
 
 # Force restore query parameter after navigation routing is done
-if st.session_state.get('logged_in') and st.session_state.get('sid'):
-    st.query_params['sid'] = st.session_state.sid
+if st.session_state.get("logged_in") and st.session_state.get("sid"):
+    st.query_params["sid"] = st.session_state.sid
