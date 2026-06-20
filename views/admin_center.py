@@ -130,14 +130,15 @@ if not hackathon.template_id and not is_demo:
                     st.error(t(f"Failed to initialize project: {str(e)}", f"プロジェクトの初期化に失敗しました: {str(e)}"))
     st.stop()
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     t("📊 Live Scoreboard", "📊 スコアボード"),
     t("🏢 Team Management", "🏢 チーム管理"),
     t("⚖️ Evaluation Criteria", "⚖️ 評価軸"),
     t("🧑‍🏫 Judges (Personas)", "🧑‍🏫 審査員ペルソナ"),
     t("💬 Submissions & AI Chat", "💬 提出物とAIチャット"),
     t("🤖 AI Response Settings", "🤖 AIレスポンス設定"),
-    t("⚙️ Project Settings", "⚙️ プロジェクト詳細設定")
+    t("⚙️ Project Settings", "⚙️ プロジェクト詳細設定"),
+    t("📥 Export Data", "📥 データエクスポート")
 ])
 
 # --- TAB 1: Live Scoreboard ---
@@ -1087,4 +1088,93 @@ with tab7:
                     st.rerun()
                 except Exception as e:
                     st.error(t(f"Import failed: {str(e)}", f"インポートに失敗しました: {str(e)}"))
+
+# --- TAB 8: Export Data ---
+with tab8:
+    st.markdown(f"### 📥 {t('Export Data', 'データエクスポート')}")
+    st.markdown(t(
+        "Export evaluations, reports, and full datasets before shutting down the environment.",
+        "環境を停止する前に、これまでの評価結果やレポート、全データを出力・ダウンロードします。"
+    ))
+
+    # Import export services
+    from core.services.export_service import (
+        export_hackathon_to_markdown,
+        generate_team_pdf_report,
+        generate_all_teams_pdf_zip
+    )
+
+    st.markdown("---")
+    st.subheader(t("📓 NotebookLM Integration (Markdown Export)", "📓 NotebookLM 連携（全データ Markdown 出力）"))
+    st.markdown(t(
+        "Export all registered team profiles, evaluations, score breakdowns, Q&A discussion histories, and extracted submission source codes into a single, unified Markdown file. You can import this file directly into NotebookLM to ask custom questions about the teams' technical details.",
+        "全チームのプロフィール、スコア内訳、審査員フィードバック、Q&A履歴、そして提出されたZIP内の全ソースコードテキストを含む、統合されたマークダウンファイルを書き出します。これをNotebookLMに登録すれば、詳細な実装についてチャットで質問できます。"
+    ))
+
+    try:
+        md_content = export_hackathon_to_markdown(current_h_id)
+        st.download_button(
+            label=t("💾 Download All Data (Markdown)", "💾 全データMarkdownをダウンロード"),
+            data=md_content,
+            file_name=f"judgie-export-{current_h_id}.md",
+            mime="text/markdown",
+            key=f"export_md_btn_{current_h_id}"
+        )
+    except Exception as e:
+        st.error(t(f"Failed to generate Markdown export: {str(e)}", f"Markdownエクスポートの生成に失敗しました: {str(e)}"))
+
+    st.markdown("---")
+    st.subheader(t("📄 Team PDF Reports", "📄 チーム個別評価レポート PDF"))
+    st.markdown(t(
+        "Generate a structured, multilingual PDF report for each team containing their final scores, score breakdowns, next steps, and detailed judges' feedback. The PDF dynamically embeds all configured languages sequentially.",
+        "各チームの総合スコア、スコア内訳、ネクストステップ、審査員個別フィードバックを綺麗なレイアウトでまとめたPDFレポートを生成します。設定された全言語が1つのPDFに統合されて出力されます。"
+    ))
+
+    db = SessionLocal()
+    try:
+        # Get team IDs for dropdown
+        users = db.query(User).filter(User.hackathon_id == current_h_id, User.role == 'team').order_by(User.team_id).all()
+        pdf_teams = [u.team_id for u in users]
+    finally:
+        db.close()
+
+    if not pdf_teams:
+        st.warning(t("No teams registered yet to generate PDF reports.", "PDFレポートを生成するためのチームがまだ登録されていません。"))
+    else:
+        selected_pdf_team = st.selectbox(t("Select Team to Generate PDF", "PDFレポートを生成するチームを選択"), pdf_teams, key="pdf_team_select")
+        
+        try:
+            pdf_bytes = generate_team_pdf_report(current_h_id, selected_pdf_team)
+            st.download_button(
+                label=t(f"📥 Download PDF for {selected_pdf_team}", f"📥 {selected_pdf_team} のPDFをダウンロード"),
+                data=pdf_bytes,
+                file_name=f"report_{selected_pdf_team}.pdf",
+                mime="application/pdf",
+                key=f"dl_pdf_btn_{selected_pdf_team}"
+            )
+        except Exception as e:
+            st.error(t(f"Failed to generate PDF: {str(e)}", f"PDFの生成に失敗しました: {str(e)}"))
+
+    st.markdown("---")
+    st.subheader(t("📦 Batch PDF Report Export (ZIP)", "📦 全チームPDFレポート一括エクスポート (ZIP)"))
+    st.markdown(t(
+        "Generate evaluation PDF reports for all registered teams and export them as a single ZIP archive.",
+        "すべての登録チームのPDFレポートを生成し、1つのZIPアーカイブとしてまとめてダウンロードします。"
+    ))
+
+    if not pdf_teams:
+        st.write(t("No data to export.", "エクスポートするデータがありません。"))
+    else:
+        try:
+            zip_bytes = generate_all_teams_pdf_zip(current_h_id)
+            st.download_button(
+                label=t("📥 Download All PDFs ZIP", "📥 全チームPDFのZIPをダウンロード"),
+                data=zip_bytes,
+                file_name=f"judgie-reports-{current_h_id}.zip",
+                mime="application/zip",
+                key=f"dl_all_pdf_zip_btn_{current_h_id}"
+            )
+        except Exception as e:
+            st.error(t(f"Failed to generate ZIP: {str(e)}", f"ZIPの作成に失敗しました: {str(e)}"))
+
 
