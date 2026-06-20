@@ -229,19 +229,26 @@ For detailed instructions on how to use the platform as a Team (Participant), Pr
 
 ## ⚙️ Configuration & Security
 
-### Optional OIDC Gateway Authentication
-For private or enterprise deployments (e.g., replacing GCP Cloud Load Balancing / IAP setups to run with $0 fixed-cost), you can lock the entire application behind a generic OIDC (OpenID Connect / Google OAuth) gate.
+### Optional OIDC Gateway & Auto-Login Authentication (SSO)
+For private or enterprise deployments, you can configure Judgie-AI to run in Single Sign-On (SSO) mode using OIDC (OpenID Connect / Google OAuth). 
 
-To enable OIDC gateway authentication, configure the following variables in your `.env` file (or Cloud Run environment variables):
-- `OIDC_ENABLED=true` (Set to `false` or omit to bypass OIDC and use normal passcode login only)
+When OIDC is enabled, **passcode-based login is completely disabled**. Users are authenticated via their OIDC identity provider, and are automatically logged into the application using their registered email address.
+
+To enable OIDC authentication, configure the following variables in your `.env` file (or Cloud Run environment variables):
+- `OIDC_ENABLED=true` (Set to `false` or omit to bypass OIDC and use normal passcode login)
 - `OIDC_ISSUER=https://accounts.google.com` (Your OIDC identity provider issuer URL, defaults to Google)
 - `OIDC_CLIENT_ID=your-client-id`
 - `OIDC_CLIENT_SECRET=your-client-secret`
 - `OIDC_REDIRECT_URI=http://localhost:8501/` (Your application's base URL)
 - `OIDC_ALLOWED_DOMAINS=yourcompany.com` (Comma-separated list of allowed email domains. Leave empty to allow any authenticated user)
 - `OIDC_ALLOWED_EMAILS=admin@gmail.com` (Comma-separated list of allowed individual emails)
+- `DEFAULT_ADMIN_EMAIL=organizer@company.com` (Optional: The email address of the initial Tenant Admin. Used during startup automatic provisioning in single-tenant deployments)
 
-When OIDC is enabled, users must authenticate and pass domain/email whitelisting before they can access the standard Judgie-AI login interface. If disabled (default), the OIDC screen is bypassed.
+#### How it works:
+1. **SSO Redirect:** When users visit the site, they are redirected to the OIDC provider (e.g., Google Sign-In) to authenticate.
+2. **Auto-Login:** Once authenticated, Judgie-AI verifies the email against the `users` database table. If a match is found, the user is automatically logged in under their corresponding role (`admin`, `team`, `observer`) without any passcode prompts.
+3. **Registration:** Tenant Admins must register participants' email addresses beforehand in the Admin Command Center (passcodes are generated randomly behind the scenes). For new projects, the initial admin email can be set via `DEFAULT_ADMIN_EMAIL` or designated during project creation in the Super Admin Console.
+4. **Access Denied:** If an authenticated user's email is not registered in the database, access is blocked and an "Account Not Registered" error page is displayed.
 
 * **Passcode Hashing:** Team and admin passcodes are safely hashed using `bcrypt` before being stored in the database.
 * **IP Firewall:** An optional IP-based firewall is supported via the `ALLOWED_IPS` environment variable (comma-separated IP addresses) to restrict platform access.
