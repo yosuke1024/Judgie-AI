@@ -7,3 +7,4 @@ psycopg2-binary>=2.9.9
 bcrypt>=4.2.0
 requests>=2.31.0
 fpdf2>=2.7.9
+matplotlib>=3.8.0
