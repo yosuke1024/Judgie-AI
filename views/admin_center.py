@@ -1432,42 +1432,46 @@ with tab8:
 
     # Import export services
     from core.services.export_service import (
-        export_hackathon_to_markdown,
+        export_hackathon_to_markdown_zip,
         generate_all_teams_pdf_zip,
         generate_team_pdf_report,
     )
 
     st.markdown("---")
-    st.subheader(t("📓 NotebookLM Integration (Markdown Export)", "📓 NotebookLM 連携（全データ Markdown 出力）"))
+    st.subheader(
+        t("📓 NotebookLM Integration (Markdown ZIP Export)", "📓 NotebookLM 連携（チーム別 Markdown 一括エクスポート）")
+    )
     st.markdown(
         t(
-            "Export all registered team profiles, evaluations, score breakdowns, Q&A discussion histories, and extracted submission source codes into a single, unified Markdown file. You can import this file directly into NotebookLM to ask custom questions about the teams' technical details.",
-            "全チームのプロフィール、スコア内訳、審査員フィードバック、Q&A履歴、そして提出されたZIP内の全ソースコードテキストを含む、統合されたマークダウンファイルを書き出します。これをNotebookLMに登録すれば、詳細な実装についてチャットで質問できます。",
+            "Export registered team profiles, evaluations, score breakdowns, Q&A discussion histories, and extracted submission source codes as individual Markdown files, bundled in a single ZIP. You can upload this ZIP or files to NotebookLM to ask custom questions about specific teams.",
+            "登録されたチームごとのプロフィール、スコア内訳、審査員フィードバック、Q&A履歴、提出ソースコードをそれぞれ個別のマークダウンファイルとして生成し、1つのZIPファイルにまとめてエクスポートします。このZIPを展開してNotebookLMにアップロードすれば、チーム別の詳細な情報を学習させて質問ができます。",
         )
     )
 
-    md_ready_key = f"md_ready_{current_h_id}"
-    if md_ready_key not in st.session_state:
-        st.session_state[md_ready_key] = None
+    md_zip_ready_key = f"md_zip_ready_{current_h_id}"
+    if md_zip_ready_key not in st.session_state:
+        st.session_state[md_zip_ready_key] = None
 
     col_md_gen, col_md_dl = st.columns(2)
     with col_md_gen:
-        if st.button(t("📝 Prepare Markdown Export", "📝 Markdownデータを生成する"), key="prep_md_btn"):
-            with st.spinner(t("Generating Markdown data...", "Markdownデータを生成中...")):
+        if st.button(t("📝 Prepare Markdown ZIP", "📝 Markdown ZIPを生成する"), key="prep_md_zip_btn"):
+            with st.spinner(t("Generating Markdown files ZIP...", "Markdown ZIPを生成中...")):
                 try:
-                    st.session_state[md_ready_key] = export_hackathon_to_markdown(current_h_id)
-                    st.success(t("Markdown generated!", "Markdownの生成が完了しました！"))
+                    st.session_state[md_zip_ready_key] = export_hackathon_to_markdown_zip(current_h_id)
+                    st.success(t("Markdown ZIP generated!", "Markdown ZIPの生成が完了しました！"))
                 except Exception as e:
-                    st.error(t(f"Failed to generate Markdown: {str(e)}", f"Markdownの生成に失敗しました: {str(e)}"))
+                    st.error(
+                        t(f"Failed to generate Markdown ZIP: {str(e)}", f"Markdown ZIPの生成に失敗しました: {str(e)}")
+                    )
 
     with col_md_dl:
-        if st.session_state[md_ready_key] is not None:
+        if st.session_state[md_zip_ready_key] is not None:
             st.download_button(
-                label=t("💾 Download All Data (Markdown)", "💾 全データMarkdownをダウンロード"),
-                data=st.session_state[md_ready_key],
-                file_name=f"judgie-export-{current_h_id}.md",
-                mime="text/markdown",
-                key=f"export_md_btn_{current_h_id}",
+                label=t("💾 Download All Markdown Files (ZIP)", "💾 全チームMarkdown (ZIP) をダウンロード"),
+                data=st.session_state[md_zip_ready_key],
+                file_name=f"judgie-markdown-export-{current_h_id}.zip",
+                mime="application/zip",
+                key=f"export_md_zip_btn_{current_h_id}",
                 use_container_width=True,
             )
 
