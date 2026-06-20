@@ -5,8 +5,8 @@ from core.db import User, create_hackathon, save_evaluation, set_ai_response_lan
 from core.services.export_service import (
     export_hackathon_to_markdown,
     export_hackathon_to_markdown_zip,
-    generate_all_teams_pdf_zip,
-    generate_team_pdf_report,
+    generate_all_teams_markdown_zip,
+    generate_team_markdown_report,
 )
 
 
@@ -75,21 +75,21 @@ def test_export_service_logic(db_session_fixture):
     assert "Great pitch" in md_content
     assert "print('Hello Alpha App!')" in md_content
 
-    # Verify PDF report generation
-    pdf_bytes = generate_team_pdf_report(h_id, "team_alpha")
-    assert isinstance(pdf_bytes, bytes)
-    assert len(pdf_bytes) > 0
-    assert pdf_bytes.startswith(b"%PDF-")
+    # Verify Markdown report generation (without source code)
+    rep_md = generate_team_markdown_report(h_id, "team_alpha")
+    assert "Alpha Team" in rep_md
+    assert "Alpha AppはXを解決します。" in rep_md
+    assert "print('Hello Alpha App!')" not in rep_md  # Code should not be in human report
 
     # Verify ZIP batch export
-    zip_bytes = generate_all_teams_pdf_zip(h_id)
+    zip_bytes = generate_all_teams_markdown_zip(h_id)
     assert isinstance(zip_bytes, bytes)
     assert len(zip_bytes) > 0
 
     # Ensure it's a valid ZIP and contains the correct report
     zip_file = zipfile.ZipFile(io.BytesIO(zip_bytes))
     file_list = zip_file.namelist()
-    assert "report_team_alpha.pdf" in file_list
+    assert "report_team_alpha.md" in file_list
 
     # Verify Markdown ZIP export
     zip_md_bytes = export_hackathon_to_markdown_zip(h_id)

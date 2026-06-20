@@ -1433,8 +1433,8 @@ with tab8:
     # Import export services
     from core.services.export_service import (
         export_hackathon_to_markdown_zip,
-        generate_all_teams_pdf_zip,
-        generate_team_pdf_report,
+        generate_all_teams_markdown_zip,
+        generate_team_markdown_report,
     )
 
     st.markdown("---")
@@ -1476,11 +1476,11 @@ with tab8:
             )
 
     st.markdown("---")
-    st.subheader(t("📄 Team PDF Reports", "📄 チーム個別評価レポート PDF"))
+    st.subheader(t("📄 Team Markdown Reports", "📄 チーム個別評価レポート Markdown"))
     st.markdown(
         t(
-            "Generate a structured, multilingual PDF report for each team containing their final scores, score breakdowns, next steps, and detailed judges' feedback. The PDF dynamically embeds all configured languages sequentially.",
-            "各チームの総合スコア、スコア内訳、ネクストステップ、審査員個別フィードバックを綺麗なレイアウトでまとめたPDFレポートを生成します。設定された全言語が1つのPDFに統合されて出力されます。",
+            "Generate a structured, multilingual Markdown report for each team containing their final scores, score breakdowns, next steps, and detailed judges' feedback. The Markdown dynamically embeds all configured languages sequentially.",
+            "各チームの総合スコア、スコア内訳、ネクストステップ、審査員個別フィードバックをフォーマットしたMarkdownレポートを生成します。設定された全言語が1つのMarkdownに統合されて出力されます。",
         )
     )
 
@@ -1490,57 +1490,69 @@ with tab8:
         users = (
             db.query(User).filter(User.hackathon_id == current_h_id, User.role == "team").order_by(User.team_id).all()
         )
-        pdf_teams = [u.team_id for u in users]
+        report_teams = [u.team_id for u in users]
     finally:
         db.close()
 
-    if not pdf_teams:
+    if not report_teams:
         st.warning(
             t(
-                "No teams registered yet to generate PDF reports.",
-                "PDFレポートを生成するためのチームがまだ登録されていません。",
+                "No teams registered yet to generate reports.",
+                "レポートを生成するためのチームがまだ登録されていません。",
             )
         )
     else:
-        selected_pdf_team = st.selectbox(
-            t("Select Team to Generate PDF", "PDFレポートを生成するチームを選択"), pdf_teams, key="pdf_team_select"
+        selected_report_team = st.selectbox(
+            t("Select Team to Generate Report", "レポートを生成するチームを選択"),
+            report_teams,
+            key="report_team_select",
         )
 
-        pdf_ready_key = f"pdf_ready_{current_h_id}_{selected_pdf_team}"
-        if pdf_ready_key not in st.session_state:
-            st.session_state[pdf_ready_key] = None
+        report_ready_key = f"report_ready_{current_h_id}_{selected_report_team}"
+        if report_ready_key not in st.session_state:
+            st.session_state[report_ready_key] = None
 
-        col_pdf_gen, col_pdf_dl = st.columns(2)
-        with col_pdf_gen:
-            if st.button(t("📄 Prepare PDF Report", "📄 PDFレポートを生成する"), key="gen_pdf_btn"):
-                with st.spinner(t("Generating PDF report...", "PDFレポートを生成中...")):
+        col_rep_gen, col_rep_dl = st.columns(2)
+        with col_rep_gen:
+            if st.button(t("📄 Prepare Markdown Report", "📄 Markdownレポートを生成する"), key="gen_report_btn"):
+                with st.spinner(t("Generating Markdown report...", "Markdownレポートを生成中...")):
                     try:
-                        st.session_state[pdf_ready_key] = generate_team_pdf_report(current_h_id, selected_pdf_team)
-                        st.success(t("PDF Report generated!", "PDFレポートの生成が完了しました！"))
+                        st.session_state[report_ready_key] = generate_team_markdown_report(
+                            current_h_id, selected_report_team
+                        )
+                        st.success(t("Markdown Report generated!", "Markdownレポートの生成が完了しました！"))
                     except Exception as e:
-                        st.error(t(f"Failed to generate PDF: {str(e)}", f"PDFの生成に失敗しました: {str(e)}"))
+                        st.error(
+                            t(
+                                f"Failed to generate Markdown report: {str(e)}",
+                                f"Markdownレポートの生成に失敗しました: {str(e)}",
+                            )
+                        )
 
-        with col_pdf_dl:
-            if st.session_state[pdf_ready_key] is not None:
+        with col_rep_dl:
+            if st.session_state[report_ready_key] is not None:
                 st.download_button(
-                    label=t(f"📥 Download PDF for {selected_pdf_team}", f"📥 {selected_pdf_team} のPDFをダウンロード"),
-                    data=st.session_state[pdf_ready_key],
-                    file_name=f"report_{selected_pdf_team}.pdf",
-                    mime="application/pdf",
-                    key=f"dl_pdf_btn_{selected_pdf_team}",
+                    label=t(
+                        f"📥 Download Markdown for {selected_report_team}",
+                        f"📥 {selected_report_team} のMarkdownをダウンロード",
+                    ),
+                    data=st.session_state[report_ready_key],
+                    file_name=f"report_{selected_report_team}.md",
+                    mime="text/markdown",
+                    key=f"dl_report_btn_{selected_report_team}",
                     use_container_width=True,
                 )
 
     st.markdown("---")
-    st.subheader(t("📦 Batch PDF Report Export (ZIP)", "📦 全チームPDFレポート一括エクスポート (ZIP)"))
+    st.subheader(t("📦 Batch Markdown Report Export (ZIP)", "📦 全チーム評価レポート一括エクスポート (ZIP)"))
     st.markdown(
         t(
-            "Generate evaluation PDF reports for all registered teams and export them as a single ZIP archive.",
-            "すべての登録チームのPDFレポートを生成し、1つのZIPアーカイブとしてまとめてダウンロードします。",
+            "Generate evaluation Markdown reports for all registered teams and export them as a single ZIP archive.",
+            "すべての登録チームのMarkdownレポートを生成し、1つのZIPアーカイブとしてまとめてダウンロードします。",
         )
     )
 
-    if not pdf_teams:
+    if not report_teams:
         st.write(t("No data to export.", "エクスポートするデータがありません。"))
     else:
         zip_ready_key = f"zip_ready_{current_h_id}"
@@ -1549,12 +1561,17 @@ with tab8:
 
         col_zip_gen, col_zip_dl = st.columns(2)
         with col_zip_gen:
-            if st.button(t("📦 Prepare All PDFs (ZIP)", "📦 全チームのPDFを準備する (ZIP)"), key="gen_all_pdf_zip_btn"):
+            if st.button(
+                t("📦 Prepare All Markdowns (ZIP)", "📦 全チームのレポートを準備する (ZIP)"), key="gen_all_rep_zip_btn"
+            ):
                 with st.spinner(
-                    t("Generating all PDF reports and creating ZIP...", "全チームのPDFレポートを生成し、ZIPを作成中...")
+                    t(
+                        "Generating all Markdown reports and creating ZIP...",
+                        "全チームのMarkdownレポートを生成し、ZIPを作成中...",
+                    )
                 ):
                     try:
-                        st.session_state[zip_ready_key] = generate_all_teams_pdf_zip(current_h_id)
+                        st.session_state[zip_ready_key] = generate_all_teams_markdown_zip(current_h_id)
                         st.success(t("ZIP archive generated successfully!", "ZIPアーカイブの生成が完了しました！"))
                     except Exception as e:
                         st.error(t(f"Failed to generate ZIP: {str(e)}", f"ZIPの作成に失敗しました: {str(e)}"))
@@ -1562,10 +1579,10 @@ with tab8:
         with col_zip_dl:
             if st.session_state[zip_ready_key] is not None:
                 st.download_button(
-                    label=t("📥 Download All PDFs ZIP", "📥 全チームPDFのZIPをダウンロード"),
+                    label=t("📥 Download All Markdowns ZIP", "📥 全チームレポートのZIPをダウンロード"),
                     data=st.session_state[zip_ready_key],
                     file_name=f"judgie-reports-{current_h_id}.zip",
                     mime="application/zip",
-                    key=f"dl_all_pdf_zip_btn_{current_h_id}",
+                    key=f"dl_all_rep_zip_btn_{current_h_id}",
                     use_container_width=True,
                 )
