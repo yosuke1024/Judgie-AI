@@ -567,7 +567,12 @@ def generate_team_pdf_report(hackathon_id: int, team_id: str) -> bytes:
                     or ev_fb.get(f"summary_{lang_key}")
                     or ev_fb.get(f"summary_{compat_key}")
                 )
-                with pdf.table(col_widths=(190,), borders_layout="NONE", fill_color=(248, 250, 252)) as table:
+                with pdf.table(
+                    col_widths=(190,),
+                    borders_layout="NONE",
+                    cell_fill_color=(248, 250, 252),
+                    first_row_as_headings=False,
+                ) as table:
                     row = table.row()
                     row.cell(
                         pdf.safe_text(
@@ -581,7 +586,10 @@ def generate_team_pdf_report(hackathon_id: int, team_id: str) -> bytes:
                 if action_items:
                     items_str = "\n".join([f"👉 {item}" for item in action_items])
                     with pdf.table(
-                        col_widths=(190,), borders_layout="NONE", fill_color=(239, 246, 255)
+                        col_widths=(190,),
+                        borders_layout="NONE",
+                        cell_fill_color=(239, 246, 255),
+                        first_row_as_headings=False,
                     ) as table:  # Tinted blue card
                         row = table.row()
                         row.cell(pdf.safe_text(f"🚀 Next Steps (Action Items) / 最優先アクション:\n\n{items_str}"))
@@ -612,17 +620,26 @@ def generate_team_pdf_report(hackathon_id: int, team_id: str) -> bytes:
                             temp_images_to_delete.append(avatar_img_path)
 
                     pdf.set_font(font_name, size=9.5)
-                    with pdf.table(col_widths=(45, 145), borders_layout="NONE", fill_color=(248, 250, 252)) as table:
+                    with pdf.table(
+                        col_widths=(15, 30, 145),
+                        borders_layout="NONE",
+                        cell_fill_color=(248, 250, 252),
+                        first_row_as_headings=False,
+                    ) as table:
                         row = table.row()
 
-                        # Left Cell: Avatar image or initials, Judge Info
-                        left_content = f"{j_name}\n({j_role})"
-                        cell_1 = row.cell()
+                        # Column 1: Avatar Image or emoji
                         if avatar_img_path:
-                            cell_1.image(avatar_img_path, width=15)
-                        cell_1.write(pdf.safe_text(left_content))
+                            row.cell(img=avatar_img_path)
+                        else:
+                            emoji = raw_avatar if (raw_avatar and not raw_avatar.startswith("data:image")) else "🧑‍⚖️"
+                            row.cell(pdf.safe_text(emoji), align="CENTER")
 
-                        # Right Cell: Feedback Comment
+                        # Column 2: Judge Info
+                        left_content = f"{j_name}\n({j_role})"
+                        row.cell(pdf.safe_text(left_content))
+
+                        # Column 3: Feedback Comment
                         row.cell(pdf.safe_text(j_text))
                     pdf.ln(4)
 
@@ -642,7 +659,10 @@ def generate_team_pdf_report(hackathon_id: int, team_id: str) -> bytes:
                     if tc.sender == "team":
                         pdf.set_font(font_name, size=10)
                         with pdf.table(
-                            col_widths=(190,), borders_layout="NONE", fill_color=(254, 243, 199)
+                            col_widths=(190,),
+                            borders_layout="NONE",
+                            cell_fill_color=(254, 243, 199),
+                            first_row_as_headings=False,
                         ) as table:  # Tinted yellow for user questions
                             row = table.row()
                             row.cell(pdf.safe_text(f"🙋 Team Question:\n{msg.get('user_objection', '')}"))
@@ -660,7 +680,10 @@ def generate_team_pdf_report(hackathon_id: int, team_id: str) -> bytes:
                         summary_txt = "\n".join(qa_summary_list)
 
                         with pdf.table(
-                            col_widths=(190,), borders_layout="NONE", fill_color=(241, 245, 249)
+                            col_widths=(190,),
+                            borders_layout="NONE",
+                            cell_fill_color=(241, 245, 249),
+                            first_row_as_headings=False,
                         ) as table:  # Slate-100 card
                             row = table.row()
                             row.cell(pdf.safe_text(f"⚖️ Judges Panel Responses:\n\n{summary_txt}"))
