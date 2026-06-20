@@ -88,6 +88,10 @@ def init_session():
 
 def login(team_id, passcode, tenant_id=None):
     """Attempt to login and set session state."""
+    if os.environ.get("OIDC_ENABLED") == "true" and tenant_id != 9999:
+        # Block passcode login when OIDC is enabled, except for the Demo Hackathon (9999)
+        return False
+
     user_info = verify_user(team_id, passcode, hackathon_id=tenant_id)
     if user_info:
         st.session_state.logged_in = True
@@ -114,6 +118,30 @@ def login(team_id, passcode, tenant_id=None):
 
         return True
     return False
+
+
+def login_by_email(email: str, hackathon_id: int = None) -> bool:
+    """Authenticate user using OIDC email address and initialize session."""
+    from core.db import User, db_session
+
+    with db_session() as db:
+        query = db.query(User).filter(User.email == email)
+        if hackathon_id is not None:
+            query = query.filter(User.hackathon_id == hackathon_id)
+        user = query.first()
+
+        if user:
+            st.session_state.logged_in = True
+            st.session_state.role = user.role
+            st.session_state.team_id = user.team_id
+            st.session_state.active_hackathon_id = user.hackathon_id
+
+            # Create persistent session
+            sid = create_session(user.team_id, user.role, user.hackathon_id)
+            st.session_state.sid = sid
+            st.query_params["sid"] = sid
+            return True
+        return False
 
 
 def logout():

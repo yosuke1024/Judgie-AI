@@ -220,13 +220,13 @@ with tab2:
     db = SessionLocal()
     try:
         results = (
-            db.query(User.team_id, User.product_name, User.team_name, User.role)
+            db.query(User.team_id, User.product_name, User.team_name, User.role, User.email)
             .filter(User.hackathon_id == current_h_id, User.role.in_(["team", "observer"]))
             .order_by(User.id.desc())
             .all()
         )
         teams = [
-            {"team_id": r.team_id, "product_name": r.product_name, "team_name": r.team_name, "role": r.role}
+            {"team_id": r.team_id, "product_name": r.product_name, "team_name": r.team_name, "role": r.role, "email": r.email}
             for r in results
         ]
     finally:
@@ -234,14 +234,25 @@ with tab2:
 
     col_csv, col_manual = st.columns(2)
 
+    import os
+    oidc_enabled = os.environ.get("OIDC_ENABLED") == "true"
+
     with col_csv:
         st.markdown(f"### {t('Import Users (CSV)', 'ユーザー一括登録 (CSV)')}")
-        st.caption(
-            t(
-                "CSV Format: team_id, passcode, role (optional: team / observer)",
-                "CSV形式: 1列目にID、2列目にpasscode、3列目にrole（省略時はteam、その他はobserverを指定可能）",
+        if oidc_enabled:
+            st.caption(
+                t(
+                    "CSV Format: team_id, role, email  (or: team_id, email)",
+                    "CSV形式: 1列目にID、2列目にrole（team / observer）、3列目にemail",
+                )
             )
-        )
+        else:
+            st.caption(
+                t(
+                    "CSV Format: team_id, passcode, role (optional: team / observer)",
+                    "CSV形式: 1列目にID、2列目にpasscode、3列目にrole（省略時はteam、その他はobserverを指定可能）",
+                )
+            )
 
         uploaded_csv = st.file_uploader(t("Upload CSV", "CSVをアップロード"), type=["csv"], disabled=is_demo)
         if uploaded_csv is not None:
@@ -253,14 +264,36 @@ with tab2:
                     try:
                         for _, row in df_csv.iterrows():
                             tid = str(row[0]).strip()
-                            pwd = str(row[1]).strip()
+                            pwd = None
                             role_val = "team"
-                            if len(row) > 2:
-                                potential_role = str(row[2]).strip().lower()
-                                if potential_role in ["team", "observer"]:
-                                    role_val = potential_role
+                            email_val = None
 
-                            if tid and pwd:
+                            if oidc_enabled:
+                                if len(row) == 2:
+                                    email_val = str(row[1]).strip()
+                                elif len(row) == 3:
+                                    potential_role = str(row[1]).strip().lower()
+                                    if potential_role in ["team", "observer"]:
+                                        role_val = potential_role
+                                    email_val = str(row[2]).strip()
+                                elif len(row) >= 4:
+                                    pwd = str(row[1]).strip()
+                                    potential_role = str(row[2]).strip().lower()
+                                    if potential_role in ["team", "observer"]:
+                                        role_val = potential_role
+                                    email_val = str(row[3]).strip()
+                            else:
+                                pwd = str(row[1]).strip()
+                                if len(row) > 2:
+                                    potential_role = str(row[2]).strip().lower()
+                                    if potential_role in ["team", "observer"]:
+                                        role_val = potential_role
+
+                            if not pwd:
+                                import secrets
+                                pwd = secrets.token_urlsafe(32)
+
+                            if tid:
                                 existing = db.query(User).filter_by(team_id=tid).first()
                                 if not existing:
                                     db.add(
@@ -269,6 +302,7 @@ with tab2:
                                             team_id=tid,
                                             passcode=hash_passcode(pwd),
                                             role=role_val,
+                                            email=email_val,
                                         )
                                     )
                                     count += 1
@@ -296,7 +330,13 @@ with tab2:
             )
         with st.form("manual_add_team_form"):
             new_tid = st.text_input(t("User ID / Team ID", "ユーザーID / チームID"), disabled=is_demo)
-            new_pwd = st.text_input(t("Passcode", "パスコード"), disabled=is_demo)
+            if oidc_enabled:
+                new_email = st.text_input(t("Email Address (for OIDC)", "メールアドレス (OIDC用)"), disabled=is_demo)
+                new_pwd = None
+            else:
+                new_pwd = st.text_input(t("Passcode", "パスコード"), disabled=is_demo)
+                new_email = None
+
             new_role = st.selectbox(
                 t("Role", "ロール"),
                 ["team", "observer"],
@@ -308,7 +348,8 @@ with tab2:
                 disabled=is_demo,
             )
             if st.form_submit_button(t("Add User", "ユーザーを追加"), type="primary", disabled=is_demo):
-                if new_tid and new_pwd:
+                is_valid = (new_tid and new_email) if oidc_enabled else (new_tid and new_pwd)
+                if is_valid:
                     db = SessionLocal()
                     try:
                         existing = db.query(User).filter_by(team_id=new_tid.strip()).first()
@@ -320,12 +361,18 @@ with tab2:
                                 )
                             )
                         else:
+                            pwd = new_pwd.strip() if new_pwd else None
+                            if not pwd:
+                                import secrets
+                                pwd = secrets.token_urlsafe(32)
+
                             db.add(
                                 User(
                                     hackathon_id=current_h_id,
                                     team_id=new_tid.strip(),
-                                    passcode=hash_passcode(new_pwd.strip()),
+                                    passcode=hash_passcode(pwd),
                                     role=new_role,
+                                    email=new_email.strip() if new_email else None,
                                 )
                             )
                             db.commit()
@@ -337,48 +384,52 @@ with tab2:
                     finally:
                         db.close()
                 else:
-                    st.warning(
-                        t("Both User ID and Passcode are required.", "ユーザーIDとパスコードの両方を入力してください。")
+                    if oidc_enabled:
+                        st.warning(t("Both User ID and Email are required.", "ユーザーIDとメールアドレスの両方を入力してください。"))
+                    else:
+                        st.warning(
+                            t("Both User ID and Passcode are required.", "ユーザーIDとパスコードの両方を入力してください。")
+                        )
+
+        if not oidc_enabled:
+            st.markdown("---")
+            st.markdown(f"### {t('Change Passcode', 'パスコード変更')}")
+            st.caption(t("Update the passcode for an existing user.", "登録済みのユーザーのパスコードを変更します。"))
+
+            with st.form("change_team_passcode_form"):
+                team_options = [t_row["team_id"] for t_row in teams]
+                if team_options:
+                    target_tid = st.selectbox(t("Select User ID", "変更対象のユーザーID"), team_options, disabled=is_demo)
+                else:
+                    target_tid = st.text_input(
+                        t("User ID", "変更対象のユーザーID"),
+                        disabled=True,
+                        placeholder=t("No users registered", "登録済みのユーザーがありません"),
                     )
 
-        st.markdown("---")
-        st.markdown(f"### {t('Change Passcode', 'パスコード変更')}")
-        st.caption(t("Update the passcode for an existing user.", "登録済みのユーザーのパスコードを変更します。"))
-
-        with st.form("change_team_passcode_form"):
-            team_options = [t_row["team_id"] for t_row in teams]
-            if team_options:
-                target_tid = st.selectbox(t("Select User ID", "変更対象のユーザーID"), team_options, disabled=is_demo)
-            else:
-                target_tid = st.text_input(
-                    t("User ID", "変更対象のユーザーID"),
-                    disabled=True,
-                    placeholder=t("No users registered", "登録済みのユーザーがありません"),
+                change_pwd = st.text_input(t("New Passcode", "新しいパスコード"), type="password", disabled=is_demo)
+                confirm_pwd = st.text_input(
+                    t("Confirm New Passcode", "新しいパスコード（確認）"), type="password", disabled=is_demo
                 )
 
-            change_pwd = st.text_input(t("New Passcode", "新しいパスコード"), type="password", disabled=is_demo)
-            confirm_pwd = st.text_input(
-                t("Confirm New Passcode", "新しいパスコード（確認）"), type="password", disabled=is_demo
-            )
-
-            if st.form_submit_button(t("Update Passcode", "パスコードを変更"), type="primary", disabled=is_demo):
-                if not team_options:
-                    st.warning(t("No users registered to change passcode.", "変更対象のユーザーが登録されていません。"))
-                elif not change_pwd or not confirm_pwd:
-                    st.warning(t("All fields required.", "すべて入力してください。"))
-                elif change_pwd != confirm_pwd:
-                    st.error(t("Passcodes do not match.", "新しいパスコードが一致しません。"))
-                else:
-                    if update_team_passcode(current_h_id, target_tid, change_pwd.strip()):
-                        st.success(
-                            t(
-                                f"Successfully updated passcode for user '{target_tid}'!",
-                                f"ユーザー '{target_tid}' のパスコードを更新しました！",
-                            )
-                        )
-                        st.rerun()
+                if st.form_submit_button(t("Update Passcode", "パスコードを変更"), type="primary", disabled=is_demo):
+                    if not team_options:
+                        st.warning(t("No users registered to change passcode.", "変更対象のユーザーが登録されていません。"))
+                    elif not change_pwd or not confirm_pwd:
+                        st.warning(t("All fields required.", "すべて入力してください。"))
+                    elif change_pwd != confirm_pwd:
+                        st.error(t("Passcodes do not match.", "新しいパスコードが一致しません。"))
                     else:
-                        st.error(t("Failed to update passcode.", "パスコードの更新に失敗しました。"))
+                        if update_team_passcode(current_h_id, target_tid, change_pwd.strip()):
+                            st.success(
+                                t(
+                                    f"Successfully updated passcode for user '{target_tid}'!",
+                                    f"ユーザー '{target_tid}' のパスコードを更新しました！",
+                                )
+                            )
+                            st.rerun()
+                        else:
+                            st.error(t("Failed to update passcode.", "パスコードの更新に失敗しました。"))
 
         st.markdown("---")
         st.markdown(f"### {t('Change User Role', 'ユーザーのロール変更')}")
@@ -490,14 +541,15 @@ with tab2:
     else:
         team_data = []
         for t_row in teams:
-            team_data.append(
-                {
-                    t("User ID / Team ID", "ユーザーID / チームID"): t_row["team_id"],
-                    t("Product Name", "プロダクト名"): t_row["product_name"] or "",
-                    t("Team Name", "チーム名"): t_row["team_name"] or "",
-                    t("Role", "ロール"): t_row["role"],
-                }
-            )
+            row_dict = {
+                t("User ID / Team ID", "ユーザーID / チームID"): t_row["team_id"],
+                t("Product Name", "プロダクト名"): t_row["product_name"] or "",
+                t("Team Name", "チーム名"): t_row["team_name"] or "",
+                t("Role", "ロール"): t_row["role"],
+            }
+            if oidc_enabled:
+                row_dict[t("Email", "メールアドレス")] = t_row["email"] or ""
+            team_data.append(row_dict)
         st.dataframe(pd.DataFrame(team_data), use_container_width=True, hide_index=True)
 
 # --- TAB 3: Evaluation Criteria ---

@@ -254,11 +254,43 @@ def enforce_oidc_gateway():
             st.session_state.oidc_verified = True
             st.session_state.oidc_email = email
 
-            # Clear OAuth parameters from the browser address bar, but restore original query params
-            st.query_params.clear()
-            for k, v in restored_params.items():
-                st.query_params[k] = v
-            st.rerun()
+            # Try automatic login using OIDC email
+            from core.auth import login_by_email
+
+            tenant_param = restored_params.get("tenant")
+            hackathon_id = int(tenant_param) if (tenant_param and tenant_param.isdigit()) else None
+
+            if login_by_email(email, hackathon_id):
+                # Clear OAuth parameters and restore original query params
+                st.query_params.clear()
+                for k, v in restored_params.items():
+                    if k != "tenant":
+                        st.query_params[k] = v
+                st.rerun()
+            else:
+                # OIDC authorized but no user mapped to this email in DB
+                st.markdown(
+                    f"""
+                    <div style="display: flex; justify-content: center; padding: 40px 10px;">
+                        <div style="max-width: 450px; width: 100%; padding: 40px; background: rgba(239, 68, 68, 0.08); backdrop-filter: blur(12px); border-radius: 16px; border: 1px solid rgba(239, 68, 68, 0.2); text-align: center; box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.25);">
+                            <h2 style="color: #ef4444; font-size: 1.6em; margin-bottom: 15px; font-weight: 700;">🚫 Account Not Registered</h2>
+                            <p style="color: #f1f5f9; font-size: 0.95em; line-height: 1.5; margin-bottom: 20px;">
+                                Your email <strong>{email}</strong> is authorized to access the gateway, but is not registered in Judgie-AI as a participant or administrator.
+                            </p>
+                            <p style="color: #94a3b8; font-size: 0.85em; margin-bottom: 30px;">
+                                Please contact your project administrator to register your email.
+                            </p>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                if st.button("Sign in with another account", use_container_width=True):
+                    st.query_params.clear()
+                    if "oidc_state" in st.session_state:
+                        del st.session_state.oidc_state
+                    st.rerun()
+                st.stop()
         else:
             # Render access denied message with account detail
             st.markdown(

@@ -60,6 +60,7 @@ class User(Base):
     team_id = Column(String, nullable=False)
     passcode = Column(String, nullable=False)
     role = Column(String, nullable=False)  # 'superadmin', 'admin', 'team'
+    email = Column(String, nullable=True)
     product_name = Column(String)
     team_name = Column(String)
     one_liner = Column(String)
@@ -175,6 +176,11 @@ def init_db():
             conn.execute(text("ALTER TABLE hackathons ADD COLUMN max_consultations INTEGER DEFAULT 3;"))
     except Exception:
         pass
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN email TEXT;"))
+    except Exception:
+        pass
 
     with db_session() as db:
         default_admin_id = os.environ.get("DEFAULT_ADMIN_ID")
@@ -208,6 +214,7 @@ def init_db():
                     team_id=default_admin_id,
                     passcode=hash_passcode(default_admin_pass),
                     role="admin",
+                    email=os.environ.get("DEFAULT_ADMIN_EMAIL"),
                 )
                 db.add(admin_user)
                 db.flush()
@@ -416,7 +423,7 @@ def set_max_consultations(hackathon_id: int, max_consultations: int):
 
 
 def create_hackathon(
-    name: str, admin_id: str, admin_pass: str, template_id: str = None, custom_template_data: dict = None
+    name: str, admin_id: str, admin_pass: str = None, template_id: str = None, custom_template_data: dict = None, admin_email: str = None
 ) -> int:
     with db_session() as db:
         hackathon = Hackathon(
@@ -430,7 +437,17 @@ def create_hackathon(
         db.flush()  # flush to get the ID
 
         # Create the tenant admin
-        admin_user = User(hackathon_id=hackathon.id, team_id=admin_id, passcode=hash_passcode(admin_pass), role="admin")
+        if not admin_pass:
+            import secrets
+            admin_pass = secrets.token_urlsafe(32)
+
+        admin_user = User(
+            hackathon_id=hackathon.id,
+            team_id=admin_id,
+            passcode=hash_passcode(admin_pass),
+            role="admin",
+            email=admin_email,
+        )
         db.add(admin_user)
         db.flush()
 

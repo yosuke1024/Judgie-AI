@@ -35,7 +35,17 @@ with st.container():
     # Exclude demo hackathon (ID: 9999) from the active login hackathons
     active_hackathons = [h for h in hackathons if h.id != 9999]
 
-    if not active_hackathons:
+    import os
+    oidc_enabled = os.environ.get("OIDC_ENABLED") == "true"
+
+    if oidc_enabled:
+        st.info(
+            t(
+                "OIDC Authentication is enabled. Please sign in via the secure gate. If you are seeing this screen, your account may not be registered in the project.",
+                "OIDC認証が有効です。セキュアゲートからログインしてください。この画面が表示されている場合、アカウントがプロジェクトに登録されていない可能性があります。"
+            )
+        )
+    elif not active_hackathons:
         st.warning(
             t("No projects available yet. Please ask your super admin.", "現在参加できるプロジェクトがありません。")
         )
