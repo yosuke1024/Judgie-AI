@@ -28,7 +28,8 @@ def setup_temp_avatar():
         os.rmdir(avatars_dir)
         os.rmdir(os.path.join(base_dir, "assets"))
     except OSError:
-        pass # Do not delete if other files exist inside the directory
+        pass  # Do not delete if other files exist inside the directory
+
 
 def test_get_avatar_html_with_file(setup_temp_avatar):
     persona_name, _ = setup_temp_avatar
@@ -39,6 +40,7 @@ def test_get_avatar_html_with_file(setup_temp_avatar):
     assert "data:image/png;base64," in html
     assert "width: 50px" in html
 
+
 def test_get_avatar_html_fallback():
     # Test fallback with a non-existent persona name
     html = get_avatar_html("Non Existent Judge", default_avatar="🧑‍⚖️", size=60)
@@ -46,6 +48,7 @@ def test_get_avatar_html_fallback():
     # Verify fallback to DiceBear API url
     assert "https://api.dicebear.com/7.x/micah/svg?seed=NonExistentJudge" in html
     assert "width: 60px" in html
+
 
 def test_get_avatar_html_with_base64_data_uri():
     # Test when default_avatar is a Base64 data URI
@@ -56,6 +59,7 @@ def test_get_avatar_html_with_base64_data_uri():
     assert f'src="{base64_avatar}"' in html
     assert "width: 45px" in html
 
+
 def test_encode_image_to_base64():
     # Test encoding helper function
     fake_data = b"hello world"
@@ -63,4 +67,3 @@ def test_encode_image_to_base64():
     result = encode_image_to_base64(fake_data, mime)
 
     assert result == "data:image/png;base64,aGVsbG8gd29ybGQ="
-

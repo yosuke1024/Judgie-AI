@@ -6,7 +6,9 @@ from core.file_handler import extract_text_from_zip
 from core.gemini import analyze_submission, upload_to_gemini, wait_for_files_active
 
 
-def process_submission(hackathon_id: int, team_id: str, uploaded_files: list, prev_evaluations_json: str, is_final: bool) -> dict:
+def process_submission(
+    hackathon_id: int, team_id: str, uploaded_files: list, prev_evaluations_json: str, is_final: bool
+) -> dict:
     """
     Handles the entire submission workflow: extraction, Gemini upload, polling, and parsing.
     Includes defensive fallback structures to protect against LLM schema malformations.
@@ -49,19 +51,23 @@ def process_submission(hackathon_id: int, team_id: str, uploaded_files: list, pr
         text_content,
         gemini_media_files,
         previous_evaluations_json=prev_evaluations_json,
-        is_final=is_final
+        is_final=is_final,
     )
 
     # Defensive programming: ensure the JSON structure conforms to what UI expects
     from core.db import get_ai_response_languages
+
     languages = get_ai_response_languages(hackathon_id)
     result_json = sanitize_evaluation_response(result_json, languages)
 
     # Save the normalized evaluation to database
     g_file_names = [f.name for f in gemini_media_files] if gemini_media_files else []
-    save_evaluation(hackathon_id, team_id, result_json, is_final=is_final, source_text=text_content, gemini_file_ids=g_file_names)
+    save_evaluation(
+        hackathon_id, team_id, result_json, is_final=is_final, source_text=text_content, gemini_file_ids=g_file_names
+    )
 
     return result_json
+
 
 def sanitize_evaluation_response(data: dict, languages: list[str] = None) -> dict:
     """
@@ -70,20 +76,30 @@ def sanitize_evaluation_response(data: dict, languages: list[str] = None) -> dic
     if languages is None:
         languages = ["English", "Japanese"]
     from core.db import normalize_lang_to_key
+
     if not isinstance(data, dict):
         data = {}
 
     sanitized = {
         "scores": data.get("scores", {}),
         "impact_score": float(data.get("impact_score", 0.0)),
-        "judges_feedback": data.get("judges_feedback", [])
+        "judges_feedback": data.get("judges_feedback", []),
     }
 
     # Compatibility mapping for legacy keys
     compat_map = {
-        "english": "en", "japanese": "ja", "日本語": "ja", "英語": "en",
-        "spanish": "es", "french": "fr", "german": "de", "korean": "ko",
-        "chinese": "zh", "vietnamese": "vi", "thai": "th", "indonesian": "id"
+        "english": "en",
+        "japanese": "ja",
+        "日本語": "ja",
+        "英語": "en",
+        "spanish": "es",
+        "french": "fr",
+        "german": "de",
+        "korean": "ko",
+        "chinese": "zh",
+        "vietnamese": "vi",
+        "thai": "th",
+        "indonesian": "id",
     }
 
     # Dynamically populate product_understanding and action_items for each language
@@ -115,7 +131,7 @@ def sanitize_evaluation_response(data: dict, languages: list[str] = None) -> dic
             "judge_name": j.get("judge_name", "Judge"),
             "judge_role": j.get("judge_role", "Expert Panelist"),
             "judge_persona": j.get("judge_persona", ""),
-            "judge_scores": j.get("judge_scores", [])
+            "judge_scores": j.get("judge_scores", []),
         }
         if not isinstance(normalized_j["judge_scores"], list):
             normalized_j["judge_scores"] = []

@@ -17,5 +17,3 @@ if os.path.exists(TEMPLATES_DIR):
                     TEMPLATES[template_id] = json.load(f)
             except Exception as e:
                 raise RuntimeError(f"Failed to load template file '{filename}': {e}")
-
-

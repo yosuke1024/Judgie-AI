@@ -1,17 +1,11 @@
 import io
-import json
 import zipfile
-import pytest
-from core.db import (
-    create_hackathon,
-    save_evaluation,
-    set_ai_response_languages,
-    User
-)
+
+from core.db import User, create_hackathon, save_evaluation, set_ai_response_languages
 from core.services.export_service import (
     export_hackathon_to_markdown,
+    generate_all_teams_pdf_zip,
     generate_team_pdf_report,
-    generate_all_teams_pdf_zip
 )
 
 
@@ -20,10 +14,7 @@ def test_export_service_logic(db_session_fixture):
 
     # 1. Create a hackathon and configure language settings
     h_id = create_hackathon(
-        name="Test Export Hackathon",
-        admin_id="test_export_admin",
-        admin_pass="admin123",
-        template_id="hackathon"
+        name="Test Export Hackathon", admin_id="test_export_admin", admin_pass="admin123", template_id="hackathon"
     )
 
     set_ai_response_languages(h_id, ["English", "Japanese"])
@@ -36,7 +27,7 @@ def test_export_service_logic(db_session_fixture):
         role="team",
         team_name="Alpha Team",
         product_name="Alpha App",
-        one_liner="Best app ever"
+        one_liner="Best app ever",
     )
     db.add(team_user)
     db.commit()
@@ -49,7 +40,7 @@ def test_export_service_logic(db_session_fixture):
             "Problem Solving & Impact": 5.0,
             "Product & UX": 4.0,
             "Working Prototype": 4.0,
-            "Presentation": 4.0
+            "Presentation": 4.0,
         },
         "impact_score": 4.0,
         "product_understanding_english": "Alpha App solves X.",
@@ -61,9 +52,9 @@ def test_export_service_logic(db_session_fixture):
                 "judge_name": "Alex",
                 "judge_role": "VC",
                 "feedback_english": "Great pitch",
-                "feedback_japanese": "素晴らしいピッチ"
+                "feedback_japanese": "素晴らしいピッチ",
             }
-        ]
+        ],
     }
 
     save_evaluation(
@@ -71,7 +62,7 @@ def test_export_service_logic(db_session_fixture):
         team_id="team_alpha",
         result_json=result_json,
         is_final=True,
-        source_text="print('Hello Alpha App!')"
+        source_text="print('Hello Alpha App!')",
     )
 
     # Verify Markdown export

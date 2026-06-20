@@ -8,13 +8,14 @@ import bcrypt
 def hash_passcode(passcode: str) -> str:
     """Hash a plain passcode"""
     salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(passcode.encode('utf-8'), salt)
-    return hashed.decode('utf-8')
+    hashed = bcrypt.hashpw(passcode.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
+
 
 def verify_passcode(plain_passcode: str, hashed_passcode: str) -> bool:
     """Verify that the plain passcode matches the hashed passcode"""
     try:
-        return bcrypt.checkpw(plain_passcode.encode('utf-8'), hashed_passcode.encode('utf-8'))
+        return bcrypt.checkpw(plain_passcode.encode("utf-8"), hashed_passcode.encode("utf-8"))
     except Exception:
         return False
 
@@ -23,7 +24,7 @@ def is_safe_url(url: str) -> bool:
     """SSRF mitigation: Allow only authorized domains (e.g. GitHub) and block requests to local or private IPs."""
     try:
         parsed = urlparse(url)
-        if parsed.scheme not in ('http', 'https'):
+        if parsed.scheme not in ("http", "https"):
             return False
 
         hostname = parsed.hostname
@@ -33,15 +34,14 @@ def is_safe_url(url: str) -> bool:
         # Check the host against a whitelist of allowed domains so that static analysis tools (like CodeQL) recognize this as a sanitizer
         # In practice, custom template sharing is limited to GitHub (including raw and gist domains)
         allowed_domains = {
-            'github.com',
-            'raw.githubusercontent.com',
-            'gist.githubusercontent.com',
-            'githubusercontent.com'
+            "github.com",
+            "raw.githubusercontent.com",
+            "gist.githubusercontent.com",
+            "githubusercontent.com",
         }
 
         if hostname not in allowed_domains:
             return False
-
 
         # Check if the hostname is a direct IP address
         try:
@@ -62,5 +62,3 @@ def is_safe_url(url: str) -> bool:
         return True
     except Exception:
         return False
-
-

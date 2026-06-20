@@ -22,6 +22,7 @@ def test_configure_gemini_success(mocker):
 
     mock_client_cls.assert_called_once_with(api_key="test_api_key")
 
+
 def test_configure_gemini_missing_key(mocker):
     # Case where API key is missing
     mocker.patch("core.gemini.get_setting", return_value=None)
@@ -30,6 +31,7 @@ def test_configure_gemini_missing_key(mocker):
         configure_gemini(1)
 
     assert "Gemini API Key has not been set" in str(excinfo.value)
+
 
 def test_upload_to_gemini(mocker):
     mocker.patch("core.gemini.get_setting", return_value="test_api_key")
@@ -43,6 +45,7 @@ def test_upload_to_gemini(mocker):
 
     assert res == "mock_file_obj"
     mock_client.files.upload.assert_called_once()
+
 
 def test_wait_for_files_active_success(mocker):
     mocker.patch("core.gemini.get_setting", return_value="test_api_key")
@@ -62,6 +65,7 @@ def test_wait_for_files_active_success(mocker):
 
     wait_for_files_active(1, [mock_file_input])
     assert mock_client.files.get.call_count == 2
+
 
 def test_wait_for_files_active_failed(mocker):
     mocker.patch("core.gemini.get_setting", return_value="test_api_key")
@@ -83,16 +87,20 @@ def test_wait_for_files_active_failed(mocker):
 
     assert "File processing failed" in str(excinfo.value)
 
+
 def test_analyze_submission(mocker):
     mocker.patch("core.gemini.get_setting", return_value="test_api_key")
     mocker.patch("core.gemini.get_ai_response_languages", return_value=["English", "Japanese"])
 
     # Mock criteria & personas settings
     mocker.patch("core.gemini.get_criteria", return_value=[{"name": "Innovation", "weight": 50, "description": "desc"}])
-    mocker.patch("core.gemini.get_personas", return_value=[
-        {"name": "Alex", "active": True, "prompt": "prompt1"},
-        {"name": "David", "active": False, "prompt": "prompt2"} # Inactive judge
-    ])
+    mocker.patch(
+        "core.gemini.get_personas",
+        return_value=[
+            {"name": "Alex", "active": True, "prompt": "prompt1"},
+            {"name": "David", "active": False, "prompt": "prompt2"},  # Inactive judge
+        ],
+    )
 
     # Mock Client instance and generate_content
     mock_response = MagicMock()
@@ -106,12 +114,13 @@ def test_analyze_submission(mocker):
         text_content="print('hello')",
         gemini_media_files=["media_mock"],
         previous_evaluations_json='{"prev": "data"}',
-        is_final=True
+        is_final=True,
     )
 
     assert res["scores"]["Innovation"] == 4.5
     assert res["impact_score"] == 4.5
     mock_client.models.generate_content.assert_called_once()
+
 
 def test_object_to_judges(mocker):
     mocker.patch("core.gemini.get_setting", return_value="test_api_key")
@@ -129,10 +138,11 @@ def test_object_to_judges(mocker):
         text_content="print('hello')",
         gemini_media_files=None,
         previous_evaluation_json="{}",
-        chat_history_list=[{"sender": "team", "message_json": {"user_objection": "I objection"}}]
+        chat_history_list=[{"sender": "team", "message_json": {"user_objection": "I objection"}}],
     )
 
     assert res["qa_summary_en"] == "Objection rejected"
+
 
 def test_admin_chat_about_submission(mocker):
     mocker.patch("core.gemini.get_setting", return_value="test_api_key")
@@ -155,11 +165,12 @@ def test_admin_chat_about_submission(mocker):
         source_text="source",
         gemini_file_ids_json='["files/test"]',
         previous_evaluation_json="{}",
-        admin_question="what is this?"
+        admin_question="what is this?",
     )
 
     assert res["answer_en"] == "Ans"
     assert res["answer_ja"] == "Ans_ja"
+
 
 def test_list_available_gemini_models(mocker):
     mocker.patch("core.gemini.get_setting", return_value="test_api_key")
@@ -188,4 +199,3 @@ def test_list_available_gemini_models(mocker):
     res = list_available_gemini_models(1)
 
     assert res == ["gemini-2.5-flash", "gemini-3.1-pro"]
-
