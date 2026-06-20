@@ -4,6 +4,7 @@ import zipfile
 from core.db import User, create_hackathon, save_evaluation, set_ai_response_languages
 from core.services.export_service import (
     export_hackathon_to_markdown,
+    export_hackathon_to_markdown_zip,
     generate_all_teams_pdf_zip,
     generate_team_pdf_report,
 )
@@ -89,3 +90,21 @@ def test_export_service_logic(db_session_fixture):
     zip_file = zipfile.ZipFile(io.BytesIO(zip_bytes))
     file_list = zip_file.namelist()
     assert "report_team_alpha.pdf" in file_list
+
+    # Verify Markdown ZIP export
+    zip_md_bytes = export_hackathon_to_markdown_zip(h_id)
+    assert isinstance(zip_md_bytes, bytes)
+    assert len(zip_md_bytes) > 0
+
+    zip_md_file = zipfile.ZipFile(io.BytesIO(zip_md_bytes))
+    md_file_list = zip_md_file.namelist()
+    assert "00_project_meta.md" in md_file_list
+    assert "team_team_alpha_markdown.md" in md_file_list
+
+    meta_content = zip_md_file.read("00_project_meta.md").decode("utf-8")
+    assert "Test Export Hackathon" in meta_content
+
+    team_md_content = zip_md_file.read("team_team_alpha_markdown.md").decode("utf-8")
+    assert "Alpha Team" in team_md_content
+    assert "Alpha AppはXを解決します。" in team_md_content
+    assert "print('Hello Alpha App!')" in team_md_content
