@@ -1,6 +1,11 @@
 {
   "name": "Hackathon Evaluation",
   "description": "Evaluate prototype completeness, technical implementation, UX, and presentation.",
+  "tags": [
+    "Hackathon",
+    "Product",
+    "General"
+  ],
   "re_evaluation_context_mode": "cumulative",
   "max_qa_turns": 1,
   "max_consultations": 3,

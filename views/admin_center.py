@@ -1284,8 +1284,10 @@ with tab7:
     from core.templates import TEMPLATES
 
     tpl_desc = ""
+    tpl_tags = []
     if hackathon.template_id and hackathon.template_id in TEMPLATES:
         tpl_desc = TEMPLATES[hackathon.template_id].get("description", "")
+        tpl_tags = TEMPLATES[hackathon.template_id].get("tags", [])
 
     export_data = {
         "name": hackathon.name,
@@ -1295,6 +1297,7 @@ with tab7:
         "max_consultations": curr_max_consultations,
         "criteria": export_criteria,
         "personas": export_personas,
+        "tags": tpl_tags
     }
     try:
         export_json = json.dumps(export_data, indent=2, ensure_ascii=False)
@@ -1425,6 +1428,12 @@ with tab7:
                                 "JSONに 'criteria' または 'personas' キーがありません。",
                             )
                         )
+
+                    # Import tags if present
+                    if "tags" in imported_data:
+                        imported_tags = imported_data["tags"]
+                        if not isinstance(imported_tags, list) or not all(isinstance(t, str) for t in imported_tags):
+                            raise ValueError(t("'tags' must be a list of strings.", "'tags' は文字列のリストである必要があります。"))
 
                     # Import criteria
                     imported_criteria = imported_data["criteria"]

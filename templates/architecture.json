@@ -1,6 +1,11 @@
 {
   "name": "Software Architecture Review",
   "description": "Rigorous checks on scalability, reliability, security, maintainability, and cost efficiency.",
+  "tags": [
+    "Architecture",
+    "System Design",
+    "Engineering"
+  ],
   "re_evaluation_context_mode": "independent",
   "max_qa_turns": 0,
   "max_consultations": 3,

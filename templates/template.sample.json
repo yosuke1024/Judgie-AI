@@ -1,6 +1,10 @@
 {
   "name": "Template Name (Display Name)",
   "description": "Short description of what this template evaluates and who should use it.",
+  "tags": [
+    "Sample",
+    "Tutorial"
+  ],
   "re_evaluation_context_mode": "cumulative",
   "max_qa_turns": 1,
   "criteria": [
