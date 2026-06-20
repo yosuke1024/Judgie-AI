@@ -10,6 +10,7 @@
   <img src="https://img.shields.io/badge/Streamlit-1.50+-red.svg" alt="Streamlit">
   <a href="https://judgie-ai.streamlit.app"><img src="https://img.shields.io/badge/Streamlit_App-%23FE4B4B?logo=streamlit&logoColor=white" alt="Streamlit App"></a>
   <a href="https://railway.com/deploy/judgieai"><img src="https://railway.com/button.svg" alt="Deploy on Railway"></a>
+  <a href="https://github.com/sponsors/yosuke1024"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github-sponsors" alt="Sponsor"></a>
 </p>
 
 **Judgie-AI** is a multi-tenant **AI Evaluation Platform** that automates and enhances the judging, feedback, and coaching process for various workflows (including Hackathons, Startup Pitches, Hiring Evaluations, and Software Architecture Reviews). Leveraging Google Gemini's multimodal capabilities, it evaluates submissions (source code ZIPs, demo videos, PDF slides, resumes) from the diverse perspectives of a customizable panel of AI expert personas, providing actionable coaching, scoring, and multi-turn Q&A dialogue.
@@ -228,19 +229,26 @@ For detailed instructions on how to use the platform as a Team (Participant), Pr
 
 ## ⚙️ Configuration & Security
 
-### Optional OIDC Gateway Authentication
-For private or enterprise deployments (e.g., replacing GCP Cloud Load Balancing / IAP setups to run with $0 fixed-cost), you can lock the entire application behind a generic OIDC (OpenID Connect / Google OAuth) gate.
+### Optional OIDC Gateway & Auto-Login Authentication (SSO)
+For private or enterprise deployments, you can configure Judgie-AI to run in Single Sign-On (SSO) mode using OIDC (OpenID Connect / Google OAuth). 
 
-To enable OIDC gateway authentication, configure the following variables in your `.env` file (or Cloud Run environment variables):
-- `OIDC_ENABLED=true` (Set to `false` or omit to bypass OIDC and use normal passcode login only)
+When OIDC is enabled, **passcode-based login is completely disabled**. Users are authenticated via their OIDC identity provider, and are automatically logged into the application using their registered email address.
+
+To enable OIDC authentication, configure the following variables in your `.env` file (or Cloud Run environment variables):
+- `OIDC_ENABLED=true` (Set to `false` or omit to bypass OIDC and use normal passcode login)
 - `OIDC_ISSUER=https://accounts.google.com` (Your OIDC identity provider issuer URL, defaults to Google)
 - `OIDC_CLIENT_ID=your-client-id`
 - `OIDC_CLIENT_SECRET=your-client-secret`
 - `OIDC_REDIRECT_URI=http://localhost:8501/` (Your application's base URL)
 - `OIDC_ALLOWED_DOMAINS=yourcompany.com` (Comma-separated list of allowed email domains. Leave empty to allow any authenticated user)
 - `OIDC_ALLOWED_EMAILS=admin@gmail.com` (Comma-separated list of allowed individual emails)
+- `DEFAULT_ADMIN_EMAIL=organizer@company.com` (Optional: The email address of the initial Tenant Admin. Used during startup automatic provisioning in single-tenant deployments)
 
-When OIDC is enabled, users must authenticate and pass domain/email whitelisting before they can access the standard Judgie-AI login interface. If disabled (default), the OIDC screen is bypassed.
+#### How it works:
+1. **SSO Redirect:** When users visit the site, they are redirected to the OIDC provider (e.g., Google Sign-In) to authenticate.
+2. **Auto-Login:** Once authenticated, Judgie-AI verifies the email against the `users` database table. If a match is found, the user is automatically logged in under their corresponding role (`admin`, `team`, `observer`) without any passcode prompts.
+3. **Registration:** Tenant Admins must register participants' email addresses beforehand in the Admin Command Center (passcodes are generated randomly behind the scenes). For new projects, the initial admin email can be set via `DEFAULT_ADMIN_EMAIL` or designated during project creation in the Super Admin Console.
+4. **Access Denied:** If an authenticated user's email is not registered in the database, access is blocked and an "Account Not Registered" error page is displayed.
 
 * **Passcode Hashing:** Team and admin passcodes are safely hashed using `bcrypt` before being stored in the database.
 * **IP Firewall:** An optional IP-based firewall is supported via the `ALLOWED_IPS` environment variable (comma-separated IP addresses) to restrict platform access.
@@ -281,6 +289,14 @@ Judgie-AI features a comprehensive test suite. For details on how to run tests l
 
 ### Contributing
 We welcome contributions from the community! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) to learn how to get started, set up your development environment, and submit pull requests.
+
+---
+
+## 💖 Sponsors
+
+If you find Judgie-AI helpful and want to support its active development, please consider sponsoring this project!
+
+- [GitHub Sponsors](https://github.com/sponsors/yosuke1024)
 
 ---
 

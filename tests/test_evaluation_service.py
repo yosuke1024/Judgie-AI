@@ -1,4 +1,3 @@
-
 from core.db import Evaluation, create_hackathon, save_evaluation
 from core.services.evaluation_service import get_team_evaluations, sanitize_objection_response, submit_team_objection
 
@@ -12,40 +11,33 @@ def test_get_team_evaluations(db_session_fixture):
         "impact_score": 4.0,
         "three_line_summary_en": "summary",
         "three_line_summary_ja": "サマリー",
-        "judges_feedback": []
+        "judges_feedback": [],
     }
     save_evaluation(hid, "teamA", result_data, is_final=False)
     save_evaluation(hid, "teamA", result_data, is_final=True)
-    save_evaluation(hid, "teamB", result_data, is_final=False) # Different team
+    save_evaluation(hid, "teamB", result_data, is_final=False)  # Different team
 
     evals = get_team_evaluations("teamA")
     assert len(evals) == 2
     assert evals[0]["is_final"] is False
     assert evals[1]["is_final"] is True
 
+
 def test_sanitize_objection_response():
     # 1. Normal case
     input_data = {
         "qa_summary_en": "Objection reviewed",
         "qa_summary_ja": "精査されました",
-        "judges_responses": [
-            {
-                "judge_name": "Alex",
-                "response_en": "Eng response",
-                "response_ja": "日本語回答"
-            }
-        ]
+        "judges_responses": [{"judge_name": "Alex", "response_en": "Eng response", "response_ja": "日本語回答"}],
     }
     res = sanitize_objection_response(input_data)
     assert res["qa_summary_en"] == "Objection reviewed"
     assert res["judges_responses"][0]["judge_name"] == "Alex"
 
     # 2. Missing values or incorrect formats
-    bad_input = {
-        "judges_responses": "invalid_type_not_list"
-    }
+    bad_input = {"judges_responses": "invalid_type_not_list"}
     res_bad = sanitize_objection_response(bad_input)
-    assert res_bad["qa_summary_en"] == "Objection evaluated by the expert panel." # Default value
+    assert res_bad["qa_summary_en"] == "Objection evaluated by the expert panel."  # Default value
     assert res_bad["judges_responses"] == []
 
     # 3. Non-dict input format
@@ -57,7 +49,7 @@ def test_sanitize_objection_response():
     bad_responses = {
         "judges_responses": [
             "not_a_dict",
-            {"judge_name": "David"} # Partial missing keys
+            {"judge_name": "David"},  # Partial missing keys
         ]
     }
     res_mixed = sanitize_objection_response(bad_responses)
@@ -65,9 +57,11 @@ def test_sanitize_objection_response():
     assert res_mixed["judges_responses"][0]["judge_name"] == "David"
     assert res_mixed["judges_responses"][0]["response_en"] == "No detailed response in English."
 
+
 def test_sanitize_objection_response_multilingual(db_session_fixture):
     # Set up a hackathon with multilingual AI response settings
     from core.db import create_hackathon, set_ai_response_languages
+
     hid = create_hackathon("HackMulti", "admin_multi", "pass123", template_id="hackathon")
     set_ai_response_languages(hid, ["English", "Japanese", "Korean"])
 
@@ -82,7 +76,7 @@ def test_sanitize_objection_response_multilingual(db_session_fixture):
                 "response_japanese": "Marcus response in Japanese",
                 "response_korean": "Marcus response in Korean",
             }
-        ]
+        ],
     }
 
     res = sanitize_objection_response(input_data, hid)
@@ -108,14 +102,17 @@ def test_sanitize_objection_response_multilingual(db_session_fixture):
     assert judges[0]["response_en"] == "No detailed response in English."
     assert judges[0]["response_ja"] == "日本語の回答がありません。"
 
+
 def test_submit_team_objection(mocker, db_session_fixture):
     hid = create_hackathon("Hack1", "admin1", "pass123", template_id="hackathon")
 
     # Pre-save target evaluation records
     result_data = {
-        "scores": {}, "impact_score": 3.0,
-        "three_line_summary_en": "summary", "three_line_summary_ja": "サマリー",
-        "judges_feedback": []
+        "scores": {},
+        "impact_score": 3.0,
+        "three_line_summary_en": "summary",
+        "three_line_summary_ja": "サマリー",
+        "judges_feedback": [],
     }
     save_evaluation(hid, "teamA", result_data, is_final=False)
     eval_rec = db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "teamA").first()
@@ -125,16 +122,13 @@ def test_submit_team_objection(mocker, db_session_fixture):
     mock_llm_response = {
         "qa_summary_en": "Objection accepted",
         "qa_summary_ja": "受け入れられました",
-        "judges_responses": [{"judge_name": "Lisa", "response_en": "I agree"}]
+        "judges_responses": [{"judge_name": "Lisa", "response_en": "I agree"}],
     }
     mocker.patch("core.services.evaluation_service.object_to_judges", return_value=mock_llm_response)
 
     # Execute
     res = submit_team_objection(
-        hackathon_id=hid,
-        eval_id=eval_id,
-        prev_eval_json='{"scores": {}}',
-        objection_text="Please reconsider"
+        hackathon_id=hid, eval_id=eval_id, prev_eval_json='{"scores": {}}', objection_text="Please reconsider"
     )
 
     assert res["qa_summary_en"] == "Objection accepted"
@@ -142,11 +136,12 @@ def test_submit_team_objection(mocker, db_session_fixture):
     # Verify DB update in TeamChat table
     db_session_fixture.expire_all()
     from core.services.evaluation_service import get_team_chats
+
     chats = get_team_chats(eval_id)
     assert len(chats) == 2
 
-    assert chats[0]['sender'] == 'team'
-    assert chats[0]['message_json']['user_objection'] == "Please reconsider"
+    assert chats[0]["sender"] == "team"
+    assert chats[0]["message_json"]["user_objection"] == "Please reconsider"
 
-    assert chats[1]['sender'] == 'judges'
-    assert chats[1]['message_json']['qa_summary_en'] == "Objection accepted"
+    assert chats[1]["sender"] == "judges"
+    assert chats[1]["message_json"]["qa_summary_en"] == "Objection accepted"

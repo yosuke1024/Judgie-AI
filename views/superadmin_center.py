@@ -15,13 +15,18 @@ from core.db import (
 from core.i18n import t
 
 # Only superadmin can access this
-require_login('superadmin')
+require_login("superadmin")
 
 st.title(t("🌍 Super Admin Console", "🌍 スーパー管理者コンソール"))
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.markdown(t("Manage isolated project tenants and tenant admins.", "プロジェクト（テナント）の作成と管理者アカウントの発行を行います。"))
+    st.markdown(
+        t(
+            "Manage isolated project tenants and tenant admins.",
+            "プロジェクト（テナント）の作成と管理者アカウントの発行を行います。",
+        )
+    )
 with col_btn:
     with st.popover(t("⚙️ Change Password", "⚙️ パスワード変更")):
         with st.form("change_my_pass_form"):
@@ -46,18 +51,28 @@ st.divider()
 col1, col2 = st.columns([1, 1.5])
 
 with col1:
+    import os
+    oidc_enabled = os.environ.get("OIDC_ENABLED") == "true"
+
     st.subheader(t("➕ Create New Project", "➕ 新規プロジェクトの作成"))
     with st.form("superadmin_create_form"):
         h_name = st.text_input(t("Project Name", "プロジェクト名"), placeholder="e.g. Summer AI Project 2026")
         a_id = st.text_input(t("Tenant Admin ID", "テナント管理者 ID"), placeholder="e.g. admin_summer26")
-        a_pass = st.text_input(t("Tenant Admin Password", "テナント管理者パスワード"), type="password")
+
+        if oidc_enabled:
+            a_email = st.text_input(t("Tenant Admin Email", "テナント管理者メールアドレス"), placeholder="e.g. admin@company.com")
+            a_pass = None
+        else:
+            a_pass = st.text_input(t("Tenant Admin Password", "テナント管理者パスワード"), type="password")
+            a_email = None
 
         if st.form_submit_button(t("Create Project", "プロジェクトを作成"), type="primary"):
-            if not h_name or not a_id or not a_pass:
+            is_valid = (h_name and a_id and a_email) if oidc_enabled else (h_name and a_id and a_pass)
+            if not is_valid:
                 st.error(t("All fields are required.", "すべての項目を入力してください。"))
             else:
                 try:
-                    new_id = create_hackathon(h_name, a_id, a_pass, template_id=None, custom_template_data=None)
+                    new_id = create_hackathon(h_name, a_id, a_pass, template_id=None, custom_template_data=None, admin_email=a_email)
                     st.success(f"Successfully created Project '{h_name}' (ID: {new_id}) with Admin '{a_id}'!")
                     st.rerun()
                 except Exception as e:
@@ -68,15 +83,21 @@ with col2:
 
     db = SessionLocal()
     try:
-        results = db.query(
-            Hackathon.id, Hackathon.name, Hackathon.created_at, User.team_id.label('admin_id')
-        ).outerjoin(
-            User, (Hackathon.id == User.hackathon_id) & (User.role == 'admin')
-        ).order_by(Hackathon.id.desc()).all()
+        results = (
+            db.query(Hackathon.id, Hackathon.name, Hackathon.created_at, User.team_id.label("admin_id"), User.email.label("admin_email"))
+            .outerjoin(User, (Hackathon.id == User.hackathon_id) & (User.role == "admin"))
+            .order_by(Hackathon.id.desc())
+            .all()
+        )
 
-        rows = [{'id': r.id, 'name': r.name, 'created_at': r.created_at, 'admin_id': r.admin_id} for r in results]
+        rows = [{"id": r.id, "name": r.name, "created_at": r.created_at, "admin_id": r.admin_id, "admin_email": r.admin_email} for r in results]
 
-        counts = db.query(User.hackathon_id, func.count(User.id).label('team_count')).filter(User.role == 'team').group_by(User.hackathon_id).all()
+        counts = (
+            db.query(User.hackathon_id, func.count(User.id).label("team_count"))
+            .filter(User.role == "team")
+            .group_by(User.hackathon_id)
+            .all()
+        )
         team_counts = {c.hackathon_id: c.team_count for c in counts}
     finally:
         db.close()
@@ -86,55 +107,94 @@ with col2:
     else:
         data = []
         for r in rows:
-            data.append({
-                "ID": r['id'],
-                t("Name", "名前"): r['name'],
-                t("Admin ID", "管理者ID"): r['admin_id'],
-                t("Teams", "参加チーム数"): team_counts.get(r['id'], 0),
-                t("Created At", "作成日時"): r['created_at']
-            })
+            row_dict = {
+                "ID": r["id"],
+                t("Name", "名前"): r["name"],
+                t("Admin ID", "管理者ID"): r["admin_id"],
+                t("Teams", "参加チーム数"): team_counts.get(r["id"], 0),
+                t("Created At", "作成日時"): r["created_at"],
+            }
+            if oidc_enabled:
+                row_dict[t("Admin Email", "管理者メールアドレス")] = r["admin_email"] or ""
+            data.append(row_dict)
         st.dataframe(pd.DataFrame(data), use_container_width=True, hide_index=True)
 
-        st.divider()
-        st.subheader(t("🔑 Reset Admin Password", "🔑 管理者パスワードのリセット"))
+        if not oidc_enabled:
+            st.divider()
+            st.subheader(t("🔑 Reset Admin Password", "🔑 管理者パスワードのリセット"))
 
-        hackathon_options = {r['id']: f"[{r['id']}] {r['name']} (Admin: {r['admin_id']})" for r in rows if r['admin_id']}
+            hackathon_options = {
+                r["id"]: f"[{r['id']}] {r['name']} (Admin: {r['admin_id']})" for r in rows if r["admin_id"]
+            }
 
-        if hackathon_options:
-            with st.form("reset_pass_form"):
-                selected_h_id = st.selectbox(t("Select Tenant", "テナントを選択"), options=list(hackathon_options.keys()), format_func=lambda x: hackathon_options[x])
-                new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
-                confirm_pass = st.text_input(t("Confirm New Password", "新しいパスワード（確認）"), type="password")
-                if st.form_submit_button(t("Reset Password", "パスワードをリセット"), type="primary"):
-                    if not new_pass or not confirm_pass:
-                        st.error(t("All fields required.", "すべて入力してください。"))
-                    elif new_pass != confirm_pass:
-                        st.error(t("Passwords do not match.", "新しいパスワードが一致しません。"))
-                    else:
-                        update_admin_passcode(selected_h_id, new_pass)
-                        st.success(t(f"Password reset successfully for tenant ID {selected_h_id}.", f"テナントID {selected_h_id} のパスワードをリセットしました。"))
-        else:
-            st.info(t("No tenants with admin accounts found.", "管理者アカウントを持つテナントが見つかりません。"))
+            if hackathon_options:
+                with st.form("reset_pass_form"):
+                    selected_h_id = st.selectbox(
+                        t("Select Tenant", "テナントを選択"),
+                        options=list(hackathon_options.keys()),
+                        format_func=lambda x: hackathon_options[x],
+                    )
+                    new_pass = st.text_input(t("New Password", "新しいパスワード"), type="password")
+                    confirm_pass = st.text_input(t("Confirm New Password", "新しいパスワード（確認）"), type="password")
+                    if st.form_submit_button(t("Reset Password", "パスワードをリセット"), type="primary"):
+                        if not new_pass or not confirm_pass:
+                            st.error(t("All fields required.", "すべて入力してください。"))
+                        elif new_pass != confirm_pass:
+                            st.error(t("Passwords do not match.", "新しいパスワードが一致しません。"))
+                        else:
+                            update_admin_passcode(selected_h_id, new_pass)
+                            st.success(
+                                t(
+                                    f"Password reset successfully for tenant ID {selected_h_id}.",
+                                    f"テナントID {selected_h_id} のパスワードをリセットしました。",
+                                )
+                            )
+            else:
+                st.info(t("No tenants with admin accounts found.", "管理者アカウントを持つテナントが見つかりません。"))
 
         st.divider()
         st.subheader(t("⚠️ Delete Tenant", "⚠️ テナントの削除"))
 
         # Use all IDs from rows so that any hackathon can be deleted
-        delete_options = {r['id']: f"[{r['id']}] {r['name']}" for r in rows}
+        delete_options = {r["id"]: f"[{r['id']}] {r['name']}" for r in rows}
         if delete_options:
             with st.form("delete_tenant_form"):
-                st.markdown(t("Select a tenant to delete. This will permanently delete **all associated data** (users, submissions, settings, evaluations, etc.).", "削除するテナントを選択してください。この操作により、**関連するすべてのデータ**（ユーザー、提出物、設定、評価など）が完全に削除され、元に戻せなくなります。"))
-                selected_del_h_id = st.selectbox(t("Select Tenant to Delete", "削除するテナントを選択"), options=list(delete_options.keys()), format_func=lambda x: delete_options[x])
+                st.markdown(
+                    t(
+                        "Select a tenant to delete. This will permanently delete **all associated data** (users, submissions, settings, evaluations, etc.).",
+                        "削除するテナントを選択してください。この操作により、**関連するすべてのデータ**（ユーザー、提出物、設定、評価など）が完全に削除され、元に戻せなくなります。",
+                    )
+                )
+                selected_del_h_id = st.selectbox(
+                    t("Select Tenant to Delete", "削除するテナントを選択"),
+                    options=list(delete_options.keys()),
+                    format_func=lambda x: delete_options[x],
+                )
 
-                confirm_check = st.checkbox(t("I understand that all data for this tenant will be permanently deleted and cannot be recovered.", "このテナントのすべてのデータが永久に削除され、復元できないことを理解しました。"))
+                confirm_check = st.checkbox(
+                    t(
+                        "I understand that all data for this tenant will be permanently deleted and cannot be recovered.",
+                        "このテナントのすべてのデータが永久に削除され、復元できないことを理解しました。",
+                    )
+                )
 
                 if st.form_submit_button(t("🔥 Delete Tenant", "🔥 テナントを削除"), type="primary"):
                     if not confirm_check:
-                        st.error(t("Please check the confirmation box to delete the tenant.", "削除するには確認のチェックボックスをオンにしてください。"))
+                        st.error(
+                            t(
+                                "Please check the confirmation box to delete the tenant.",
+                                "削除するには確認のチェックボックスをオンにしてください。",
+                            )
+                        )
                     else:
                         try:
                             delete_hackathon(selected_del_h_id)
-                            st.success(t(f"Successfully deleted tenant ID {selected_del_h_id}.", f"テナントID {selected_del_h_id} を正常に削除しました。"))
+                            st.success(
+                                t(
+                                    f"Successfully deleted tenant ID {selected_del_h_id}.",
+                                    f"テナントID {selected_del_h_id} を正常に削除しました。",
+                                )
+                            )
                             st.rerun()
                         except Exception as e:
                             st.error(t(f"Failed to delete tenant: {str(e)}", f"テナントの削除に失敗しました: {str(e)}"))

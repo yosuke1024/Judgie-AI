@@ -6,8 +6,9 @@ def encode_image_to_base64(file_bytes: bytes, mime_type: str) -> str:
     """
     Encodes image bytes to a Base64 data URL string.
     """
-    encoded = base64.b64encode(file_bytes).decode('utf-8')
+    encoded = base64.b64encode(file_bytes).decode("utf-8")
     return f"data:{mime_type};base64,{encoded}"
+
 
 def get_avatar_html(persona_name, default_avatar="🧑‍⚖️", size=60):
     """
@@ -24,7 +25,7 @@ def get_avatar_html(persona_name, default_avatar="🧑‍⚖️", size=60):
     avatars_dir = os.path.join(base_dir, "assets", "avatars")
 
     avatar_path = None
-    for ext in ['.png', '.jpg', '.jpeg']:
+    for ext in [".png", ".jpg", ".jpeg"]:
         temp_path = os.path.join(avatars_dir, f"{persona_name.lower()}{ext}")
         if os.path.exists(temp_path):
             avatar_path = temp_path
@@ -46,4 +47,3 @@ def get_avatar_html(persona_name, default_avatar="🧑‍⚖️", size=60):
     fallback_url = f"https://api.dicebear.com/7.x/micah/svg?seed={seed_name}&backgroundColor=transparent"
 
     return f'<img src="{fallback_url}" style="width: {size}px; height: {size}px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 6px rgba(0,0,0,0.3); vertical-align: middle; margin-right: 10px;">'
-

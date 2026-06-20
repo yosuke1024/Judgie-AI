@@ -8,6 +8,7 @@ import streamlit as st
 # Module-level cache for OIDC configuration
 _oidc_config = None
 
+
 def get_oidc_config():
     """Retrieve and cache OIDC provider configuration from discovery document."""
     global _oidc_config
@@ -26,6 +27,7 @@ def get_oidc_config():
     except Exception as e:
         st.error(f"Failed to fetch OIDC configuration from {discovery_url}: {e}")
         st.stop()
+
 
 def get_auth_url(state: str) -> str:
     """Generate the authorization URL to redirect the user to the OIDC provider."""
@@ -48,11 +50,12 @@ def get_auth_url(state: str) -> str:
         "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": "openid email profile",
-        "state": state
+        "state": state,
     }
 
     query_string = urllib.parse.urlencode(params)
     return f"{auth_endpoint}?{query_string}"
+
 
 def verify_code_and_get_email(code: str) -> str:
     """Exchange authorization code for tokens and fetch user email via UserInfo endpoint."""
@@ -74,7 +77,7 @@ def verify_code_and_get_email(code: str) -> str:
         "client_id": client_id,
         "client_secret": client_secret,
         "redirect_uri": redirect_uri,
-        "grant_type": "authorization_code"
+        "grant_type": "authorization_code",
     }
 
     try:
@@ -89,9 +92,7 @@ def verify_code_and_get_email(code: str) -> str:
         st.stop()
 
     # 2. Get user info using the access token
-    headers = {
-        "Authorization": f"Bearer {access_token}"
-    }
+    headers = {"Authorization": f"Bearer {access_token}"}
     try:
         userinfo_response = requests.get(userinfo_endpoint, headers=headers, timeout=5)
         userinfo_response.raise_for_status()
@@ -111,6 +112,7 @@ def verify_code_and_get_email(code: str) -> str:
     except Exception as e:
         st.error(f"Failed to fetch OIDC userinfo: {e}")
         st.stop()
+
 
 def is_authorized(email: str) -> bool:
     """Validate user email against domain and email whitelists."""
@@ -138,6 +140,7 @@ def is_authorized(email: str) -> bool:
 
     return False
 
+
 def enforce_oidc_gateway():
     """
     App-level gatekeeper checking OIDC verification state.
@@ -160,10 +163,7 @@ def enforce_oidc_gateway():
 
         # Pack CSRF token and current query parameters into state
         current_params = {k: v for k, v in st.query_params.items() if k not in ["code", "state"]}
-        state_data = {
-            "csrf": st.session_state.oidc_state,
-            "params": current_params
-        }
+        state_data = {"csrf": st.session_state.oidc_state, "params": current_params}
         state_payload = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
 
         auth_url = get_auth_url(state_payload)
@@ -204,7 +204,7 @@ def enforce_oidc_gateway():
             }
             </style>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
 
         with st.container():
@@ -217,7 +217,7 @@ def enforce_oidc_gateway():
                     </div>
                 </div>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
 
             st.link_button("Sign in with Google / OIDC", auth_url, type="primary", use_container_width=True)
@@ -254,11 +254,43 @@ def enforce_oidc_gateway():
             st.session_state.oidc_verified = True
             st.session_state.oidc_email = email
 
-            # Clear OAuth parameters from the browser address bar, but restore original query params
-            st.query_params.clear()
-            for k, v in restored_params.items():
-                st.query_params[k] = v
-            st.rerun()
+            # Try automatic login using OIDC email
+            from core.auth import login_by_email
+
+            tenant_param = restored_params.get("tenant")
+            hackathon_id = int(tenant_param) if (tenant_param and tenant_param.isdigit()) else None
+
+            if login_by_email(email, hackathon_id):
+                # Clear OAuth parameters and restore original query params
+                st.query_params.clear()
+                for k, v in restored_params.items():
+                    if k != "tenant":
+                        st.query_params[k] = v
+                st.rerun()
+            else:
+                # OIDC authorized but no user mapped to this email in DB
+                st.markdown(
+                    f"""
+                    <div style="display: flex; justify-content: center; padding: 40px 10px;">
+                        <div style="max-width: 450px; width: 100%; padding: 40px; background: rgba(239, 68, 68, 0.08); backdrop-filter: blur(12px); border-radius: 16px; border: 1px solid rgba(239, 68, 68, 0.2); text-align: center; box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.25);">
+                            <h2 style="color: #ef4444; font-size: 1.6em; margin-bottom: 15px; font-weight: 700;">🚫 Account Not Registered</h2>
+                            <p style="color: #f1f5f9; font-size: 0.95em; line-height: 1.5; margin-bottom: 20px;">
+                                Your email <strong>{email}</strong> is authorized to access the gateway, but is not registered in Judgie-AI as a participant or administrator.
+                            </p>
+                            <p style="color: #94a3b8; font-size: 0.85em; margin-bottom: 30px;">
+                                Please contact your project administrator to register your email.
+                            </p>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                if st.button("Sign in with another account", use_container_width=True):
+                    st.query_params.clear()
+                    if "oidc_state" in st.session_state:
+                        del st.session_state.oidc_state
+                    st.rerun()
+                st.stop()
         else:
             # Render access denied message with account detail
             st.markdown(
@@ -275,7 +307,7 @@ def enforce_oidc_gateway():
                     </div>
                 </div>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
             if st.button("Sign in with another account", use_container_width=True):
                 st.query_params.clear()
