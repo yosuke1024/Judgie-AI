@@ -129,14 +129,6 @@ def test_require_login_wrong_role(mock_streamlit):
 
 
 def test_login_by_email_success(mocker, mock_streamlit):
-    # Mock database record matching email
-    mock_user_data = {
-        "id": 1,
-        "team_id": "teamA",
-        "role": "team",
-        "hackathon_id": 1,
-        "email": "user@example.com",
-    }
     # Mocking User class and db_session query
     mock_user = mocker.MagicMock()
     mock_user.team_id = "teamA"
@@ -176,7 +168,7 @@ def test_login_by_email_not_found(mocker, mock_streamlit):
 def test_login_blocked_when_oidc_enabled(mocker, mock_streamlit):
     # Enable OIDC
     os.environ["OIDC_ENABLED"] = "true"
-    
+
     try:
         res = login("admin", "pass123", tenant_id=1)
         assert res is False

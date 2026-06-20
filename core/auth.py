@@ -122,7 +122,7 @@ def login(team_id, passcode, tenant_id=None):
 
 def login_by_email(email: str, hackathon_id: int = None) -> bool:
     """Authenticate user using OIDC email address and initialize session."""
-    from core.db import db_session, User
+    from core.db import User, db_session
 
     with db_session() as db:
         query = db.query(User).filter(User.email == email)

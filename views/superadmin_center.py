@@ -58,7 +58,7 @@ with col1:
     with st.form("superadmin_create_form"):
         h_name = st.text_input(t("Project Name", "プロジェクト名"), placeholder="e.g. Summer AI Project 2026")
         a_id = st.text_input(t("Tenant Admin ID", "テナント管理者 ID"), placeholder="e.g. admin_summer26")
-        
+
         if oidc_enabled:
             a_email = st.text_input(t("Tenant Admin Email", "テナント管理者メールアドレス"), placeholder="e.g. admin@company.com")
             a_pass = None
