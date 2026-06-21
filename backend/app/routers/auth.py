@@ -55,15 +55,17 @@ def logout(response: Response):
 @router.get("/me", response_model=UserInfo)
 def get_me(user: CurrentUser = Depends(get_current_user)):
     """Return current authenticated user info."""
-    from app.models.db import get_consultation_count, get_max_consultations, get_team_profile
+    from app.models.db import get_consultation_count, get_max_consultations, get_team_profile, get_max_qa_turns
 
     profile = {}
     max_consultations = -1
     consultation_count = 0
+    max_qa_turns = 1
     if user.hackathon_id and user.role in ("team", "observer"):
         profile = get_team_profile(user.hackathon_id, user.team_id)
         max_consultations = get_max_consultations(user.hackathon_id)
         consultation_count = get_consultation_count(user.hackathon_id, user.team_id)
+        max_qa_turns = get_max_qa_turns(user.hackathon_id)
 
     return UserInfo(
         team_id=user.team_id,
@@ -74,4 +76,5 @@ def get_me(user: CurrentUser = Depends(get_current_user)):
         one_liner=profile.get("one_liner"),
         max_consultations=max_consultations,
         consultation_count=consultation_count,
+        max_qa_turns=max_qa_turns,
     )

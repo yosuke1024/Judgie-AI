@@ -514,6 +514,11 @@ export default function TeamDashboard() {
     const judgesFeedback = strengthsRisks.judges_feedback || [];
     const chartData = getChartData(selectedEval.scores_json);
 
+    // Count the number of turns submitted by the team
+    const teamMessageCount = chatMessages.filter((msg) => msg.sender === 'team').length;
+    const maxQaTurns = user?.max_qa_turns ?? 1;
+    const isQaLimitReached = maxQaTurns !== -1 && teamMessageCount >= maxQaTurns;
+
     return (
       <div className="evaluation-detail">
         {/* AI Language Selection Tabs */}
@@ -742,10 +747,27 @@ export default function TeamDashboard() {
             <MessageSquare size={18} />
             {isJa ? '審査員パネルとの対話・反論' : 'Q&A / Objection Thread with Judges'}
           </h4>
-          <p className="section-hint">
-            {isJa
-              ? 'AI評価に対して質問や異議申し立てができます。審査員が回答します。'
-              : 'Ask clarifying questions or present objections to the judges panel based on this evaluation.'}
+          <p className="section-hint" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>
+              {isJa
+                ? 'AI評価に対して質問や異議申し立てができます。審査員が回答します。'
+                : 'Ask clarifying questions or present objections to the judges panel based on this evaluation.'}
+            </span>
+            {maxQaTurns !== -1 && (
+              <span style={{
+                fontSize: '0.85em',
+                color: '#9ca3af',
+                background: 'rgba(255, 255, 255, 0.05)',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                {isJa ? '残りQ&A回数' : 'Q&A Remaining'}:{' '}
+                <strong style={{ color: isQaLimitReached ? '#ef4444' : '#ffffff' }}>
+                  {Math.max(0, maxQaTurns - teamMessageCount)} / {maxQaTurns}
+                </strong>
+              </span>
+            )}
           </p>
 
           <div className="chat-thread">
@@ -892,10 +914,14 @@ export default function TeamDashboard() {
                 type="text"
                 value={newQuestion}
                 onChange={(e) => setNewQuestion(e.target.value)}
-                placeholder={isJa ? '審査員に質問や反論を送信...' : 'Type your question or objection here...'}
-                disabled={chatLoading}
+                placeholder={
+                  isQaLimitReached
+                    ? (isJa ? 'Q&A対話の回数制限に達しました。' : 'Maximum Q&A discussion turns reached.')
+                    : (isJa ? '審査員に質問や反論を送信...' : 'Type your question or objection here...')
+                }
+                disabled={chatLoading || isQaLimitReached}
               />
-              <button type="submit" className="btn btn-primary" disabled={chatLoading || !newQuestion.trim()}>
+              <button type="submit" className="btn btn-primary" disabled={chatLoading || isQaLimitReached || !newQuestion.trim()}>
                 <Send size={16} />
               </button>
             </form>
