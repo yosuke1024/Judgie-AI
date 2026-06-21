@@ -55,7 +55,7 @@ def logout(response: Response):
 @router.get("/me", response_model=UserInfo)
 def get_me(user: CurrentUser = Depends(get_current_user)):
     """Return current authenticated user info."""
-    from app.models.db import get_team_profile, get_max_consultations, get_consultation_count
+    from app.models.db import get_consultation_count, get_max_consultations, get_team_profile
 
     profile = {}
     max_consultations = -1
