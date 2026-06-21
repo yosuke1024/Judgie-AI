@@ -17,6 +17,7 @@ import {
   Sparkles,
   Copy,
   Check,
+  Download,
 } from 'lucide-react';
 import {
   Radar,
@@ -632,8 +633,8 @@ export default function TeamDashboard() {
           </div>
         )}
 
-        <div className="eval-detail-header">
-          <div className="eval-meta">
+        <div className="eval-detail-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div className="eval-meta" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span className={`status-badge ${selectedEval.is_final ? 'status-final' : 'status-progress'}`}>
               {evalNames[selectedEval.id] || (selectedEval.is_final ? t('leaderboard.final') : 'Consultation')}
             </span>
@@ -641,6 +642,15 @@ export default function TeamDashboard() {
               <Clock size={14} />
               {selectedEval.evaluated_at ? new Date(selectedEval.evaluated_at).toLocaleString() : ''}
             </span>
+            <a
+              href={`/api/export/markdown/${effectiveTeamId}`}
+              download
+              className="btn btn-secondary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+            >
+              <Download size={14} />
+              {t('team.export_report_markdown')}
+            </a>
           </div>
           <div className="eval-impact">
             <span className="impact-label">Overall Impact Score</span>

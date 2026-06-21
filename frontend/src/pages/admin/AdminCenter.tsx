@@ -1609,8 +1609,8 @@ export default function AdminCenter() {
                 <div className="export-actions-list mt-4">
                   <div className="export-action-item">
                     <div>
-                      <strong>All Markdown Reports</strong>
-                      <p className="dim-text text-xs">Download all evaluations feedback as a ZIP of Markdown files.</p>
+                      <strong>{t('admin.export_all_markdown')}</strong>
+                      <p className="dim-text text-xs">{t('admin.export_all_markdown_desc')}</p>
                     </div>
                     {isObserver ? (
                       <button className="btn btn-secondary btn-sm" disabled>
@@ -1618,26 +1618,46 @@ export default function AdminCenter() {
                       </button>
                     ) : (
                       <a
-                        href="/api/export/markdown/all"
+                        href="/api/export/markdown-zip/all"
                         download
                         className="btn btn-secondary btn-sm"
                       >
-                        <Download size={14} /> Download ZIP
+                        <Download size={14} /> {t('admin.download_zip')}
                       </a>
                     )}
                   </div>
 
                   <div className="export-action-item mt-4">
                     <div>
-                      <strong>Jury Configuration Template</strong>
-                      <p className="dim-text text-xs">Export the active evaluation criteria and judge profiles as JSON.</p>
+                      <strong>{t('admin.export_db')}</strong>
+                      <p className="dim-text text-xs">{t('admin.export_db_desc')}</p>
+                    </div>
+                    {isObserver ? (
+                      <button className="btn btn-secondary btn-sm" disabled>
+                        Admin Only
+                      </button>
+                    ) : (
+                      <a
+                        href="/api/export/notebooklm-zip"
+                        download
+                        className="btn btn-secondary btn-sm"
+                      >
+                        <Download size={14} /> {t('admin.download_zip')}
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="export-action-item mt-4">
+                    <div>
+                      <strong>{t('admin.export_template')}</strong>
+                      <p className="dim-text text-xs">{t('admin.export_template_desc')}</p>
                     </div>
                     <a
                       href="/api/export/template"
                       download
                       className="btn btn-secondary btn-sm"
                     >
-                      <Download size={14} /> Export JSON
+                      <Download size={14} /> {t('admin.export_json')}
                     </a>
                   </div>
                 </div>
