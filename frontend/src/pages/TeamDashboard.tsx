@@ -95,12 +95,11 @@ export default function TeamDashboard() {
       
       // Auto-select the latest evaluation if none selected, or keep the currently selected one
       if (sorted.length > 0) {
-        if (!selectedEval) {
-          setSelectedEval(sorted[0]);
-        } else {
-          const current = sorted.find((e) => e.id === selectedEval.id);
-          if (current) setSelectedEval(current);
-        }
+        setSelectedEval((prev) => {
+          if (!prev) return sorted[0];
+          const current = sorted.find((e) => e.id === prev.id);
+          return current || sorted[0];
+        });
       } else {
         setSelectedEval(null);
       }
@@ -109,7 +108,7 @@ export default function TeamDashboard() {
     } finally {
       setEvalLoading(false);
     }
-  }, [user, selectedEval]);
+  }, [user]);
 
   useEffect(() => {
     fetchHistory();
@@ -207,7 +206,11 @@ export default function TeamDashboard() {
       setTimeout(() => setUploadSuccess(false), 5000);
     } catch (err: any) {
       console.error('Upload failed:', err);
-      setUploadError(err.message || 'File upload and evaluation failed.');
+      if (err.status === 429) {
+        setUploadError(t('team.api_limit_error'));
+      } else {
+        setUploadError(err.message || 'File upload and evaluation failed.');
+      }
     } finally {
       setUploading(false);
     }

@@ -58,7 +58,8 @@
     "zip_hint_title": "💡 Tips for ZIP creation (to avoid size limits)",
     "zip_hint_desc": "If your project includes large directories like `node_modules`, `.git`, or `venv`, please exclude them before zipping to avoid hitting the 200MB upload limit and AI context limits.",
     "zip_hint_example": "Example command (Mac/Linux):",
-    "zip_hint_command": "zip -r submission.zip . -x \"node_modules/*\" -x \".git/*\" -x \"venv/*\" -x \".next/*\""
+    "zip_hint_command": "zip -r submission.zip . -x \"node_modules/*\" -x \".git/*\" -x \"venv/*\" -x \".next/*\"",
+    "api_limit_error": "Gemini API rate limit reached (token quota exceeded). Please wait a moment and try again, or configure a paid API key in system settings. Alternatively, reduce the size of your ZIP file by excluding unnecessary directories."
   },
   "admin": {
     "title": "⚡ Command Center",
