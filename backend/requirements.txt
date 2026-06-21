@@ -1,0 +1,21 @@
+# FastAPI Backend
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+PyJWT>=2.9.0
+python-multipart>=0.0.12
+
+# Database
+SQLAlchemy>=2.0.50
+psycopg2-binary>=2.9.9
+
+# AI
+google-genai>=0.1.1
+
+# Security
+bcrypt>=4.2.0
+
+# HTTP
+requests>=2.31.0
+
+# Data (used by export service)
+pandas>=2.2.0

@@ -40,4 +40,7 @@ htmlcov/
 # Local Spec Documents
 docs/current/
 
+# Build assets
+backend/static/
+
 
