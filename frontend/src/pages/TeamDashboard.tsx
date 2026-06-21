@@ -502,6 +502,22 @@ export default function TeamDashboard() {
           {/* Submission Form */}
           <div className="dash-card">
             <h3>{t('team.submit')}</h3>
+            
+            <details className="zip-hint-details">
+              <summary className="zip-hint-summary">
+                {t('team.zip_hint_title')}
+              </summary>
+              <div className="zip-hint-content">
+                <p>{t('team.zip_hint_desc')}</p>
+                <div className="zip-hint-example">
+                  <span>{t('team.zip_hint_example')}</span>
+                  <pre>
+                    <code>{t('team.zip_hint_command')}</code>
+                  </pre>
+                </div>
+              </div>
+            </details>
+
             <form onSubmit={handleUploadSubmit} className="upload-form">
               <div
                 className="drop-zone"
