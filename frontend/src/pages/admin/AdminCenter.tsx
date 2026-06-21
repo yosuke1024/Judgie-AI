@@ -451,6 +451,7 @@ export default function AdminCenter() {
 
     const q = adminQuestion.trim();
     setAdminQuestion('');
+    const previousChats = [...adminChats];
     try {
       // Optimistic locally
       setAdminChats((prev) => [
@@ -469,6 +470,7 @@ export default function AdminCenter() {
       await fetchAdminChat(selectedDiveEval.id);
     } catch (err: any) {
       setError(err.message || 'Failed to ask AI Judge.');
+      setAdminChats(previousChats);
     }
   };
 
@@ -1109,7 +1111,7 @@ export default function AdminCenter() {
                 <label>Select Team to Inspect</label>
                 <select value={diveTeamId} onChange={(e) => setDiveTeamId(e.target.value)}>
                   <option value="">— Select Team —</option>
-                  {teams.map((t) => (
+                  {teams.filter((t) => t.role === 'team').map((t) => (
                     <option key={t.team_id} value={t.team_id}>
                       {t.team_id} {t.product_name ? `(${t.product_name})` : ''}
                     </option>
