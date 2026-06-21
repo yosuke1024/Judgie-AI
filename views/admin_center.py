@@ -261,9 +261,14 @@ with tab2:
                     df_csv = pd.read_csv(uploaded_csv, header=None)
                     db = SessionLocal()
                     count = 0
+                    skipped_count = 0
                     try:
                         for _, row in df_csv.iterrows():
                             tid = str(row[0]).strip()
+                            if not tid or tid.lower() in ["team_id", "user_id", "team-id", "user-id"]:
+                                # Skip header or empty rows
+                                continue
+
                             pwd = None
                             role_val = "team"
                             email_val = None
@@ -293,21 +298,22 @@ with tab2:
                                 import secrets
                                 pwd = secrets.token_urlsafe(32)
 
-                            if tid:
-                                existing = db.query(User).filter_by(team_id=tid).first()
-                                if not existing:
-                                    db.add(
-                                        User(
-                                            hackathon_id=current_h_id,
-                                            team_id=tid,
-                                            passcode=hash_passcode(pwd),
-                                            role=role_val,
-                                            email=email_val,
-                                        )
+                            existing = db.query(User).filter_by(hackathon_id=current_h_id, team_id=tid).first()
+                            if not existing:
+                                db.add(
+                                    User(
+                                        hackathon_id=current_h_id,
+                                        team_id=tid,
+                                        passcode=hash_passcode(pwd),
+                                        role=role_val,
+                                        email=email_val,
                                     )
-                                    count += 1
+                                )
+                                count += 1
+                            else:
+                                skipped_count += 1
                         db.commit()
-                        st.success(f"Successfully imported {count} users!")
+                        st.success(f"Successfully imported {count} users! (Skipped {skipped_count} existing/invalid)")
                         st.rerun()
                     except Exception as e:
                         db.rollback()

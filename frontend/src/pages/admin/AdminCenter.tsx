@@ -257,9 +257,13 @@ export default function AdminCenter() {
     if (!bulkCsv || user?.hackathon_id === null) return;
     try {
       setError('');
-      await teamsApi.bulkCreate(user!.hackathon_id!, bulkCsv);
+      const res: any = await teamsApi.bulkCreate(user!.hackathon_id!, bulkCsv);
       setBulkCsv('');
-      showSuccess('CSV Bulk import complete!');
+      if (res && typeof res.created === 'number') {
+        showSuccess(`CSV Bulk import complete! Created: ${res.created}, Skipped: ${res.skipped}`);
+      } else {
+        showSuccess('CSV Bulk import complete!');
+      }
       loadTeams();
     } catch (err: any) {
       setError(err.message || 'Bulk creation failed.');

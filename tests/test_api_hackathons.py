@@ -71,3 +71,38 @@ def test_reset_admin_passcode_authz(client, db_session_fixture):
     res_admin_other = client.put("/api/hackathons/2/admin-passcode", json={"new_passcode": "newpass789"})
     assert res_admin_other.status_code == 403
     assert res_admin_other.json()["detail"] == "Not authorized to change passcode for this project"
+
+
+def test_bulk_create_teams_flexible_csv(client, db_session_fixture):
+    # Setup test tenants
+    h1 = DBHackathon(id=1, name="Tenant 1")
+    db_session_fixture.add(h1)
+    db_session_fixture.commit()
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        team_id="admin1", role="admin", hackathon_id=1
+    )
+
+    # 1. Test CSV with header (should skip header and import the rest)
+    csv_with_header = "team_id,passcode,role\nteam-01,secret123,team\nteam-02,abc456,observer"
+    res1 = client.post("/api/hackathons/1/teams/bulk", json={"csv_content": csv_with_header})
+    assert res1.status_code == 200
+    data1 = res1.json()
+    assert data1["created"] == 2
+    assert data1["skipped"] == 0
+
+    # 2. Test CSV without header (should import both)
+    csv_without_header = "team-03,pass3,team\nteam-04,pass4,observer"
+    res2 = client.post("/api/hackathons/1/teams/bulk", json={"csv_content": csv_without_header})
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["created"] == 2
+    assert data2["skipped"] == 0
+
+    # 3. Test duplicates (should skip existing)
+    csv_duplicates = "team-01,secret123,team\nteam-05,pass5,team"
+    res3 = client.post("/api/hackathons/1/teams/bulk", json={"csv_content": csv_duplicates})
+    assert res3.status_code == 200
+    data3 = res3.json()
+    assert data3["created"] == 1
+    assert data3["skipped"] == 1
