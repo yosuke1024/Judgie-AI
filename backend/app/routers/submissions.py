@@ -137,7 +137,7 @@ async def upload_submission(
     # Sanitize response
     from app.services.submission_service import sanitize_evaluation_response
     languages = get_ai_response_languages(hackathon_id)
-    result_json = sanitize_evaluation_response(result_json, languages)
+    result_json = sanitize_evaluation_response(result_json, hackathon_id, languages)
 
     # Save to DB
     g_file_names = [f.name for f in gemini_media_files] if gemini_media_files else []

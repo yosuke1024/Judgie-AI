@@ -35,11 +35,11 @@
     </tr>
     <tr>
       <td><b>Rules & Persona Panel</b></td>
-      <td></td>
+      <td><b>Command Center (Admin Consultation)</b></td>
     </tr>
     <tr>
       <td><img src="assets/dashboard_rules.png" width="380" alt="Rules & Persona"></td>
-      <td></td>
+      <td><img src="assets/dashboard_command.png" width="380" alt="Command Center"></td>
     </tr>
   </table>
 </details>
