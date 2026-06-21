@@ -43,3 +43,31 @@ def test_initialize_template_authz(client, db_session_fixture):
     res_admin_other = client.post("/api/hackathons/2/initialize", json={"template_id": "hackathon"})
     assert res_admin_other.status_code == 403
     assert res_admin_other.json()["detail"] == "Not authorized to initialize this project template"
+
+
+def test_reset_admin_passcode_authz(client, db_session_fixture):
+    # Setup test tenants
+    h1 = DBHackathon(id=1, name="Tenant 1")
+    h2 = DBHackathon(id=2, name="Tenant 2")
+    db_session_fixture.add(h1)
+    db_session_fixture.add(h2)
+    db_session_fixture.commit()
+
+    # 1. Superadmin should be allowed to change admin passcode for any tenant
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        team_id="superadmin", role="superadmin", hackathon_id=None
+    )
+    res_super = client.put("/api/hackathons/1/admin-passcode", json={"new_passcode": "newpass123"})
+    assert res_super.status_code == 200
+
+    # 2. Admin for tenant 1 should be allowed to change own admin passcode
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        team_id="admin1", role="admin", hackathon_id=1
+    )
+    res_admin_own = client.put("/api/hackathons/1/admin-passcode", json={"new_passcode": "newpass456"})
+    assert res_admin_own.status_code == 200
+
+    # 3. Admin for tenant 1 trying to change tenant 2 passcode should be rejected (403 Forbidden)
+    res_admin_other = client.put("/api/hackathons/2/admin-passcode", json={"new_passcode": "newpass789"})
+    assert res_admin_other.status_code == 403
+    assert res_admin_other.json()["detail"] == "Not authorized to change passcode for this project"

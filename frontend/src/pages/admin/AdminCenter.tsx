@@ -115,6 +115,9 @@ export default function AdminCenter() {
 
   // --- Tab 7: Settings ---
   const [geminiConfig, setGeminiConfig] = useState({ api_key: '', model: '', api_tier: 'free' });
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [verifyingKey, setVerifyingKey] = useState(false);
   const [projectSettings, setProjectSettings] = useState({
     re_evaluation_context_mode: 'cumulative',
     max_qa_turns: 1,
@@ -195,13 +198,15 @@ export default function AdminCenter() {
 
   const loadSettings = useCallback(async () => {
     try {
-      const gemini = await settingsApi.getGemini();
+      const gemini = await settingsApi.getGemini() as { has_api_key?: boolean; model?: string; api_tier?: string; available_models?: string[] };
       const project = await settingsApi.getProject();
       setGeminiConfig({
-        api_key: (gemini.api_key as string) || '',
-        model: (gemini.model as string) || 'gemini-2.5-pro',
-        api_tier: (gemini.api_tier as string) || 'free',
+        api_key: '',
+        model: gemini.model || '',
+        api_tier: gemini.api_tier || 'free',
       });
+      setHasApiKey(!!gemini.has_api_key);
+      setAvailableModels(gemini.available_models || []);
       setProjectSettings({
         re_evaluation_context_mode: (project.re_evaluation_context_mode as string) || 'cumulative',
         max_qa_turns: Number(project.max_qa_turns) || 1,
@@ -495,6 +500,21 @@ export default function AdminCenter() {
       showSuccess('Admin passcode changed successfully!');
     } catch (err: any) {
       setError(err.message);
+    }
+  };
+
+  const handleVerifyKey = async () => {
+    if (!geminiConfig.api_key.trim()) return;
+    try {
+      setError('');
+      setVerifyingKey(true);
+      await settingsApi.updateGemini({ api_key: geminiConfig.api_key.trim() });
+      showSuccess('API key verified & saved successfully.');
+      await loadSettings();
+    } catch (err: any) {
+      setError(err.message || 'Invalid API key or failed to verify.');
+    } finally {
+      setVerifyingKey(false);
     }
   };
 
@@ -1220,6 +1240,59 @@ export default function AdminCenter() {
         {activeTab === 'settings' && (
           <div className="tab-pane settings-pane">
             <div className="settings-grid">
+              {/* Import Panel */}
+              <div className="card">
+                <h4>{t('admin.import_template_title')}</h4>
+                <p className="dim-text text-sm">{t('admin.import_template_desc')}</p>
+
+                {/* 1. Preset Templates Import */}
+                <form onSubmit={handleApplyPresetTemplate} className="vertical-form mt-4">
+                  <div className="form-group">
+                    <label>{t('admin.preset_template_label')}</label>
+                    <select
+                      value={selectedTemplate}
+                      onChange={(e) => setSelectedTemplate(e.target.value)}
+                      disabled={isObserver}
+                    >
+                      <option value="">{t('admin.select_preset_placeholder')}</option>
+                      {Object.entries(templates).map(([key, tpl]) => (
+                        <option key={key} value={key}>
+                          {tpl.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {selectedTemplate && templates[selectedTemplate] && (
+                    <p className="template-desc dim-text text-xs mt-1">
+                      {templates[selectedTemplate].description}
+                    </p>
+                  )}
+                  <button type="submit" className="btn btn-secondary mt-2" disabled={isObserver || !selectedTemplate}>
+                    {t('admin.apply_preset_btn')}
+                  </button>
+                </form>
+
+                <hr className="my-6" style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--border-color)' }} />
+
+                {/* 2. Custom JSON URL Import */}
+                <form onSubmit={handleImportTemplate} className="vertical-form">
+                  <div className="form-group">
+                    <label>{t('admin.custom_url_label')}</label>
+                    <input
+                      type="url"
+                      value={importUrl}
+                      onChange={(e) => setImportUrl(e.target.value)}
+                      placeholder="https://example.com/judgie-template.json"
+                      disabled={isObserver}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className="btn btn-primary mt-2" disabled={isObserver}>
+                    {t('admin.import_url_btn')}
+                  </button>
+                </form>
+              </div>
+
               {/* Project settings */}
               <div className="card">
                 <h4>Hackathon Rules & Rulesets</h4>
@@ -1292,13 +1365,35 @@ export default function AdminCenter() {
                 <div className="vertical-form mt-2">
                   <div className="form-group">
                     <label>Gemini API Key (Optional Override)</label>
-                    <input
-                      type="password"
-                      value={geminiConfig.api_key}
-                      onChange={(e) => setGeminiConfig({ ...geminiConfig, api_key: e.target.value })}
-                      placeholder={isObserver ? "API Key hidden for observers" : "Leave blank to use server environment key"}
-                      disabled={isObserver}
-                    />
+                    <div className="api-key-input-row" style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="password"
+                        value={geminiConfig.api_key}
+                        onChange={(e) => setGeminiConfig({ ...geminiConfig, api_key: e.target.value })}
+                        placeholder={isObserver ? "API Key hidden for observers" : (hasApiKey ? "API Key is set (Enter new key to change)" : "Leave blank to use server environment key")}
+                        disabled={isObserver}
+                        style={{ flexGrow: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyKey}
+                        className="btn btn-secondary"
+                        disabled={isObserver || verifyingKey || !geminiConfig.api_key.trim()}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        {verifyingKey ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin inline" style={{ marginRight: '4px' }} />
+                            Verifying...
+                          </>
+                        ) : 'Verify & Save Key'}
+                      </button>
+                    </div>
+                    {hasApiKey && (
+                      <p className="text-xs text-success mt-1" style={{ color: 'var(--success)', marginTop: '4px' }}>
+                        ✓ Gemini API Key is configured.
+                      </p>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -1306,24 +1401,17 @@ export default function AdminCenter() {
                     <select
                       value={geminiConfig.model}
                       onChange={(e) => setGeminiConfig({ ...geminiConfig, model: e.target.value })}
-                      disabled={isObserver}
+                      disabled={isObserver || !hasApiKey || availableModels.length === 0}
                     >
-                      <option value="gemini-2.5-pro">Gemini 2.5 Pro (Best Analysis)</option>
-                      <option value="gemini-2.5-flash">Gemini 2.5 Flash (Faster & Lower Cost)</option>
-                      <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                      <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label>API Billing Tier (Quota controls)</label>
-                    <select
-                      value={geminiConfig.api_tier}
-                      onChange={(e) => setGeminiConfig({ ...geminiConfig, api_tier: e.target.value })}
-                      disabled={isObserver}
-                    >
-                      <option value="free">Free / Demo Tier</option>
-                      <option value="pay-as-you-go">Pay-As-You-Go / Production Tier</option>
+                      {availableModels.length === 0 ? (
+                        <option value="">— Verify API Key First —</option>
+                      ) : (
+                        availableModels.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                 </div>
@@ -1361,59 +1449,6 @@ export default function AdminCenter() {
                   </div>
                   <button type="submit" className="btn btn-primary" disabled={isObserver}>
                     Change Passcode
-                  </button>
-                </form>
-              </div>
-
-              {/* Import Panel */}
-              <div className="card">
-                <h4>{t('admin.import_template_title')}</h4>
-                <p className="dim-text text-sm">{t('admin.import_template_desc')}</p>
-
-                {/* 1. Preset Templates Import */}
-                <form onSubmit={handleApplyPresetTemplate} className="vertical-form mt-4">
-                  <div className="form-group">
-                    <label>{t('admin.preset_template_label')}</label>
-                    <select
-                      value={selectedTemplate}
-                      onChange={(e) => setSelectedTemplate(e.target.value)}
-                      disabled={isObserver}
-                    >
-                      <option value="">{t('admin.select_preset_placeholder')}</option>
-                      {Object.entries(templates).map(([key, tpl]) => (
-                        <option key={key} value={key}>
-                          {tpl.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {selectedTemplate && templates[selectedTemplate] && (
-                    <p className="template-desc dim-text text-xs mt-1">
-                      {templates[selectedTemplate].description}
-                    </p>
-                  )}
-                  <button type="submit" className="btn btn-secondary mt-2" disabled={isObserver || !selectedTemplate}>
-                    {t('admin.apply_preset_btn')}
-                  </button>
-                </form>
-
-                <hr className="my-6" style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--border-color)' }} />
-
-                {/* 2. Custom JSON URL Import */}
-                <form onSubmit={handleImportTemplate} className="vertical-form">
-                  <div className="form-group">
-                    <label>{t('admin.custom_url_label')}</label>
-                    <input
-                      type="url"
-                      value={importUrl}
-                      onChange={(e) => setImportUrl(e.target.value)}
-                      placeholder="https://example.com/judgie-template.json"
-                      disabled={isObserver}
-                      required
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary mt-2" disabled={isObserver}>
-                    {t('admin.import_url_btn')}
                   </button>
                 </form>
               </div>
