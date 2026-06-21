@@ -115,6 +115,20 @@ export default function TeamDashboard() {
   const [aiLanguages, setAiLanguages] = useState<string[]>(['English', 'Japanese']);
   const [criteria, setCriteria] = useState<any[]>([]);
   const [selectedAiLang, setSelectedAiLang] = useState<string>('en');
+  const [personas, setPersonas] = useState<any[]>([]);
+
+  const personaMap = useMemo(() => {
+    const map: Record<string, { avatar?: string; avatar_image?: string }> = {};
+    personas.forEach((p) => {
+      if (p.name) {
+        map[p.name.toLowerCase()] = {
+          avatar: p.avatar,
+          avatar_image: p.avatar_image,
+        };
+      }
+    });
+    return map;
+  }, [personas]);
 
   const emojiMap: Record<string, string> = {
     'English': '🇺🇸',
@@ -136,7 +150,7 @@ export default function TeamDashboard() {
     return safeName.replace(/\s+/g, '_').trim().toLowerCase();
   };
 
-  // Fetch criteria & language settings
+  // Fetch criteria, language settings, and personas
   useEffect(() => {
     const fetchConfig = async () => {
       if (!user) return;
@@ -166,6 +180,15 @@ export default function TeamDashboard() {
         }
       } catch (err) {
         console.error('Failed to fetch criteria config:', err);
+      }
+
+      try {
+        const personasData = await settingsApi.getPersonas();
+        if (Array.isArray(personasData)) {
+          setPersonas(personasData);
+        }
+      } catch (err) {
+        console.error('Failed to fetch personas config:', err);
       }
     };
 
@@ -693,15 +716,22 @@ export default function TeamDashboard() {
                 return (
                   <div key={idx} className="judge-card" style={{ padding: '20px', background: '#111827', border: '1px solid #374151', borderRadius: '8px' }}>
                     <div className="judge-card-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                      {feedback.judge_avatar_image ? (
-                        <img 
-                          src={feedback.judge_avatar_image} 
-                          alt={feedback.judge_name} 
-                          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} 
-                        />
-                      ) : (
-                        <span className="judge-emoji" style={{ fontSize: '2.5em' }}>{feedback.judge_emoji || '🤖'}</span>
-                      )}
+                      {(() => {
+                        const jName = feedback.judge_name || '';
+                        const pData = personaMap[jName.toLowerCase()] || {};
+                        const avatarImg = feedback.judge_avatar_image || pData.avatar_image;
+                        const avatarEmoji = feedback.judge_emoji || pData.avatar || '🤖';
+                        
+                        return avatarImg ? (
+                          <img 
+                            src={avatarImg} 
+                            alt={feedback.judge_name} 
+                            style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} 
+                          />
+                        ) : (
+                          <span className="judge-emoji" style={{ fontSize: '2.5em' }}>{avatarEmoji}</span>
+                        );
+                      })()}
                       <div>
                         <h5 style={{ margin: '0', fontSize: '1.1em', fontWeight: 'bold' }}>{feedback.judge_name}</h5>
                         <span className="judge-role" style={{ fontSize: '0.85em', color: '#9ca3af' }}>{feedback.judge_role}</span>
@@ -878,15 +908,22 @@ export default function TeamDashboard() {
                                     padding: '10px 12px'
                                   }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                                      {jResp.judge_avatar_image ? (
-                                        <img 
-                                          src={jResp.judge_avatar_image} 
-                                          alt={jResp.judge_name} 
-                                          style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} 
-                                        />
-                                      ) : (
-                                        <span style={{ fontSize: '1.2em' }}>{jResp.judge_emoji || '🤖'}</span>
-                                      )}
+                                      {(() => {
+                                        const jName = jResp.judge_name || '';
+                                        const pData = personaMap[jName.toLowerCase()] || {};
+                                        const avatarImg = jResp.judge_avatar_image || pData.avatar_image;
+                                        const avatarEmoji = jResp.judge_emoji || pData.avatar || '🤖';
+                                        
+                                        return avatarImg ? (
+                                          <img 
+                                            src={avatarImg} 
+                                            alt={jResp.judge_name} 
+                                            style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} 
+                                          />
+                                        ) : (
+                                          <span style={{ fontSize: '1.2em' }}>{avatarEmoji}</span>
+                                        );
+                                      })()}
                                       <div>
                                         <strong style={{ fontSize: '0.9em', color: '#ffffff' }}>{jResp.judge_name}</strong>
                                         {jResp.judge_role && (
