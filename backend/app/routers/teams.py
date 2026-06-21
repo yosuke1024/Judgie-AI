@@ -92,21 +92,80 @@ def bulk_create_teams(
     req: TeamBulkCreate,
     user: CurrentUser = Depends(require_role("admin")),
 ):
-    """Bulk import teams from CSV content (team_id,passcode,team_name,product_name,one_liner)."""
-    reader = csv.DictReader(io.StringIO(req.csv_content))
+    """Bulk import teams from CSV content."""
+    import os
+    oidc_enabled = os.environ.get("OIDC_ENABLED") == "true"
+
+    lines = req.csv_content.strip().splitlines()
+    if not lines:
+        return {"created": 0, "skipped": 0}
+
+    reader = csv.reader(lines)
     created = 0
     skipped = 0
 
     with db_session() as db:
-        for row in reader:
-            team_id = row.get("team_id", "").strip()
-            passcode = row.get("passcode", "").strip()
-            if not team_id or not passcode:
+        for i, row in enumerate(reader):
+            if not row or not str(row[0]).strip():
                 skipped += 1
                 continue
 
+            # Skip header row if present
+            if i == 0 and any(h in str(row[0]).lower() for h in ["team_id", "user_id", "team-id", "user-id"]):
+                continue
+
+            tid = str(row[0]).strip()
+            pwd = None
+            role_val = "team"
+            email_val = None
+            product_name = None
+            team_name = None
+            one_liner = None
+
+            if oidc_enabled:
+                if len(row) == 2:
+                    email_val = str(row[1]).strip()
+                elif len(row) == 3:
+                    potential_role = str(row[1]).strip().lower()
+                    if potential_role in ["team", "observer"]:
+                        role_val = potential_role
+                    email_val = str(row[2]).strip()
+                elif len(row) >= 4:
+                    pwd = str(row[1]).strip()
+                    potential_role = str(row[2]).strip().lower()
+                    if potential_role in ["team", "observer"]:
+                        role_val = potential_role
+                    email_val = str(row[3]).strip()
+            else:
+                if len(row) >= 2:
+                    pwd = str(row[1]).strip()
+                if len(row) == 3:
+                    potential_role = str(row[2]).strip().lower()
+                    if potential_role in ["team", "observer"]:
+                        role_val = potential_role
+                elif len(row) > 3:
+                    potential_role = str(row[2]).strip().lower()
+                    if potential_role in ["team", "observer"]:
+                        role_val = potential_role
+                        if len(row) >= 4:
+                            team_name = str(row[3]).strip()
+                        if len(row) >= 5:
+                            product_name = str(row[4]).strip()
+                        if len(row) >= 6:
+                            one_liner = str(row[5]).strip()
+                    else:
+                        team_name = str(row[2]).strip()
+                        if len(row) >= 4:
+                            product_name = str(row[3]).strip()
+                        if len(row) >= 5:
+                            one_liner = str(row[4]).strip()
+
+            if not pwd:
+                import secrets
+                pwd = secrets.token_urlsafe(32)
+
             existing = db.query(User).filter(
-                User.hackathon_id == hackathon_id, User.team_id == team_id
+                User.hackathon_id == hackathon_id, User.team_id == tid
             ).first()
             if existing:
                 skipped += 1
@@ -114,12 +173,13 @@ def bulk_create_teams(
 
             db.add(User(
                 hackathon_id=hackathon_id,
-                team_id=team_id,
-                passcode=hash_passcode(passcode),
-                role="team",
-                product_name=row.get("product_name", "").strip() or None,
-                team_name=row.get("team_name", "").strip() or None,
-                one_liner=row.get("one_liner", "").strip() or None,
+                team_id=tid,
+                passcode=hash_passcode(pwd),
+                role=role_val,
+                email=email_val,
+                product_name=product_name or None,
+                team_name=team_name or None,
+                one_liner=one_liner or None,
             ))
             created += 1
 

@@ -71,6 +71,7 @@ class User(Base):
     team_id = Column(String, nullable=False)
     passcode = Column(String, nullable=False)
     role = Column(String, nullable=False)  # 'superadmin', 'admin', 'team', 'observer'
+    email = Column(String, nullable=True)
     product_name = Column(String)
     team_name = Column(String)
     one_liner = Column(String)
@@ -182,6 +183,7 @@ def init_db():
         "ALTER TABLE hackathons ADD COLUMN re_evaluation_context_mode TEXT DEFAULT 'cumulative';",
         "ALTER TABLE hackathons ADD COLUMN max_qa_turns INTEGER DEFAULT 1;",
         "ALTER TABLE hackathons ADD COLUMN max_consultations INTEGER DEFAULT 3;",
+        "ALTER TABLE users ADD COLUMN email TEXT;",
     ]
     for stmt in migration_statements:
         try:
