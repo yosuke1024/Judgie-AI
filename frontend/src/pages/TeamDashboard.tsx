@@ -30,6 +30,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
 } from 'recharts';
 
 interface EvaluationItem {
@@ -49,6 +50,36 @@ interface ChatMessageItem {
   message_json: string | Record<string, any>;
   created_at?: string;
 }
+
+// Parse JSON data safely
+const parseJson = (str: string, fallback: any = {}) => {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return fallback;
+  }
+};
+
+// Parse Scores for Radar Chart
+const getChartData = (scoresJson: string) => {
+  const scores = parseJson(scoresJson);
+  return Object.entries(scores).map(([key, val]) => ({
+    subject: key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+    score: Number(val),
+    fullMark: 5,
+  }));
+};
+
+const CRITERIA_COLORS = [
+  '#34d399', // グリーン
+  '#f59e0b', // オレンジ
+  '#ec4899', // ピンク
+  '#3b82f6', // ブルー
+  '#a855f7', // パープル
+  '#06b6d4', // シアン
+  '#10b981', // エメラルド
+  '#f43f5e', // ローズ
+];
 
 export default function TeamDashboard() {
   const { t, i18n } = useTranslation();
@@ -246,14 +277,33 @@ export default function TeamDashboard() {
       }
 
       const totalScore = calculateTotalScore(ev);
+      const scores = parseJson(ev.scores_json);
+
+      const criteriaScores: Record<string, number> = {};
+      criteria.forEach((crit) => {
+        // Convert 5-point max score to 100-point max score (score * 20.0)
+        criteriaScores[crit.name] = Math.round(Number(scores[crit.name] || 0) * 20.0 * 10) / 10;
+      });
 
       return {
         name,
         score: Math.round(totalScore * 10) / 10,
         date: ev.evaluated_at ? new Date(ev.evaluated_at).toLocaleDateString() : '',
+        ...criteriaScores,
       };
     });
-  }, [evaluations, calculateTotalScore, i18n.language]);
+  }, [evaluations, calculateTotalScore, criteria, i18n.language]);
+
+  const [hiddenSeries, setHiddenSeries] = useState<string[]>([]);
+
+  const handleLegendClick = useCallback((o: any) => {
+    const { dataKey } = o;
+    setHiddenSeries((prev) =>
+      prev.includes(dataKey)
+        ? prev.filter((item) => item !== dataKey)
+        : [...prev, dataKey]
+    );
+  }, []);
 
   if (!user) return null;
 
@@ -353,25 +403,6 @@ export default function TeamDashboard() {
       console.error('Failed to submit objection:', err);
       setChatError(err.message || 'Failed to submit message to the AI judges.');
     }
-  };
-
-  // Parse JSON data safely
-  const parseJson = (str: string, fallback: any = {}) => {
-    try {
-      return JSON.parse(str);
-    } catch {
-      return fallback;
-    }
-  };
-
-  // Parse Scores for Radar Chart
-  const getChartData = (scoresJson: string) => {
-    const scores = parseJson(scoresJson);
-    return Object.entries(scores).map(([key, val]) => ({
-      subject: key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-      score: Number(val),
-      fullMark: 5,
-    }));
   };
 
   // Render criteria breakdown
@@ -590,23 +621,44 @@ export default function TeamDashboard() {
                 {t('team.score_trend')}
               </h5>
               <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <LineChart data={trendData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 9 }} />
                   <YAxis domain={[0, 100]} stroke="#9ca3af" tick={{ fontSize: 9 }} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', borderRadius: '4px' }}
                     labelStyle={{ color: '#ffffff', fontSize: '10px' }}
-                    itemStyle={{ color: '#818cf8', fontSize: '10px' }}
+                    itemStyle={{ fontSize: '10px' }}
+                  />
+                  <Legend
+                    onClick={handleLegendClick}
+                    wrapperStyle={{ fontSize: '8px', paddingTop: '10px', cursor: 'pointer' }}
                   />
                   <Line
                     type="monotone"
                     dataKey="score"
                     stroke="#818cf8"
                     activeDot={{ r: 6 }}
-                    strokeWidth={2}
+                    strokeWidth={3}
                     name={t('team.total_score_label')}
+                    hide={hiddenSeries.includes('score')}
                   />
+                  {criteria.map((crit, idx) => {
+                    const color = CRITERIA_COLORS[idx % CRITERIA_COLORS.length];
+                    return (
+                      <Line
+                        key={crit.name}
+                        type="monotone"
+                        dataKey={crit.name}
+                        stroke={color}
+                        strokeDasharray="4 4"
+                        strokeWidth={1.5}
+                        dot={{ r: 3 }}
+                        name={crit.name}
+                        hide={hiddenSeries.includes(crit.name)}
+                      />
+                    );
+                  })}
                 </LineChart>
               </ResponsiveContainer>
             </div>
