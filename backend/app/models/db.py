@@ -9,6 +9,7 @@ import re
 import uuid
 from contextlib import contextmanager
 
+from app.config import DATABASE_URL
 from sqlalchemy import (
     Boolean,
     Column,
@@ -24,8 +25,6 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
-
-from app.config import DATABASE_URL
 
 
 def normalize_lang_to_key(lang_name: str) -> str:

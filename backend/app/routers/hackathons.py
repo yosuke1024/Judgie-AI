@@ -2,9 +2,6 @@
 Hackathon (Project/Tenant) management router.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
-
 from app.auth.deps import CurrentUser, require_role
 from app.models.db import (
     Hackathon,
@@ -17,6 +14,8 @@ from app.models.db import (
 )
 from app.schemas.schemas import HackathonCreate, HackathonInitialize, HackathonResponse
 from app.services.templates import TEMPLATES
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 
 router = APIRouter(prefix="/api/hackathons", tags=["hackathons"])
 
