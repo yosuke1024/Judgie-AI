@@ -5,7 +5,7 @@ PyJWT>=2.9.0
 python-multipart>=0.0.12
 
 # Database
-SQLAlchemy>=2.0.50
+SQLAlchemy>=2.0.51
 psycopg2-binary>=2.9.9
 
 # AI
