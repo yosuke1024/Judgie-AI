@@ -78,11 +78,11 @@ sys.modules["streamlit"] = mock_st
 # Import core.db and mock the database engine
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
 
+import app.models.db  # noqa: E402
 import backend.app.models.db  # noqa: E402
 import core.db  # noqa: E402
-
-from sqlalchemy.pool import StaticPool
 
 # Setup test-specific in-memory SQLite database
 test_engine = create_engine(
@@ -101,7 +101,6 @@ backend.app.models.db.engine = test_engine
 backend.app.models.db.SessionLocal = test_SessionLocal
 
 # Also mock app.models.db directly to handle sys.path imports cleanly
-import app.models.db
 app.models.db.engine = test_engine
 app.models.db.SessionLocal = test_SessionLocal
 
