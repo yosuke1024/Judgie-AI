@@ -58,11 +58,11 @@ def test_verify_user(db_session_fixture):
     hid = create_hackathon("Hack1", "admin1", "pass123")
 
     # 1. Superadmin authentication
-    assert verify_user("superadmin", "superadmin123") == {"role": "superadmin", "hackathon_id": None}
+    assert verify_user("superadmin", "superadmin123") == {"role": "superadmin", "hackathon_id": None, "email": None}
     assert verify_user("superadmin", "wrongpass") is None
 
     # 2. Tenant admin authentication
-    assert verify_user("admin1", "pass123", hackathon_id=hid) == {"role": "admin", "hackathon_id": hid}
+    assert verify_user("admin1", "pass123", hackathon_id=hid) == {"role": "admin", "hackathon_id": hid, "email": None}
     assert verify_user("admin1", "wrongpass", hackathon_id=hid) is None
     assert verify_user("admin1", "pass123") is None
 
@@ -401,7 +401,7 @@ def test_single_tenant_mode(db_session_fixture, monkeypatch):
     assert verify_user("superadmin", "superadmin123") is None
 
     # 4. Verify admin login succeeds
-    assert verify_user("railway_admin", "railway_pass123", hackathon_id=1) == {"role": "admin", "hackathon_id": 1}
+    assert verify_user("railway_admin", "railway_pass123", hackathon_id=1) == {"role": "admin", "hackathon_id": 1, "email": None}
 
 
 def test_initialize_hackathon_template(db_session_fixture):

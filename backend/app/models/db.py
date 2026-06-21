@@ -252,7 +252,7 @@ def verify_user(team_id: str, passcode: str, hackathon_id: int = None) -> dict |
                 return None
             user = query.filter(User.hackathon_id == hackathon_id).first()
         if user and verify_passcode(passcode, user.passcode):
-            return {"role": user.role, "hackathon_id": user.hackathon_id}
+            return {"role": user.role, "hackathon_id": user.hackathon_id, "email": user.email}
         return None
 
 
