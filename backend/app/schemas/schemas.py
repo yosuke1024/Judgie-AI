@@ -28,6 +28,8 @@ class UserInfo(BaseModel):
     product_name: str | None = None
     team_name: str | None = None
     one_liner: str | None = None
+    max_consultations: int = -1
+    consultation_count: int = 0
 
 
 # ──────────────────────────────────────────────

@@ -41,7 +41,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 # ── Criteria ──
 
 @router.get("/criteria")
-def get_criteria_endpoint(user: CurrentUser = Depends(require_role("admin", "observer"))):
+def get_criteria_endpoint(user: CurrentUser = Depends(require_role("admin", "observer", "team"))):
     """Get evaluation criteria for the current hackathon."""
     return get_criteria(user.hackathon_id)
 
@@ -163,7 +163,7 @@ def update_project_settings(
 # ── AI Response Languages ──
 
 @router.get("/languages")
-def get_languages(user: CurrentUser = Depends(require_role("admin", "observer"))):
+def get_languages(user: CurrentUser = Depends(require_role("admin", "observer", "team"))):
     """Get configured AI response languages."""
     return {"languages": get_ai_response_languages(user.hackathon_id)}
 

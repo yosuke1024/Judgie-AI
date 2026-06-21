@@ -8,6 +8,8 @@ interface User {
   product_name?: string;
   team_name?: string;
   one_liner?: string;
+  max_consultations?: number;
+  consultation_count?: number;
 }
 
 interface AuthContextType {

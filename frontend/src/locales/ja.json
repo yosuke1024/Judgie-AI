@@ -59,7 +59,9 @@
     "zip_hint_desc": "プロジェクト内に `node_modules`、`.git`、`venv` などの巨大なディレクトリが含まれていると、アップロード制限（200MB）を超えたり、AIの解析エラーの原因になります。以下のコマンドを参考に、不要なファイルを除外してZIP化してください。",
     "zip_hint_example": "Mac/LinuxでのZIP作成例:",
     "zip_hint_command": "zip -r submission.zip . -x \"node_modules/*\" -x \".git/*\" -x \"venv/*\" -x \".next/*\"",
-    "api_limit_error": "Gemini APIの無料枠の制限（1分あたりのトークン上限）に達しました。しばらく待ってから再試行するか、システム設定から有料枠のAPIキーを設定してください。あるいは、不要なファイルを除外してZIPファイルの容量を軽量化してください。"
+    "api_limit_error": "Gemini APIの無料枠の制限（1分あたりのトークン上限）に達しました。しばらく待ってから再試行するか、システム設定から有料枠のAPIキーを設定してください。あるいは、不要なファイルを除外してZIPファイルの容量を軽量化してください。",
+    "consultations_remaining": "残り相談回数",
+    "contribution_score": "貢献スコア: {{contribution}} / {{max}}点"
   },
   "admin": {
     "title": "⚡ コマンドセンター",
