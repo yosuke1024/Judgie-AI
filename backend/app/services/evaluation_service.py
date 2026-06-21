@@ -101,8 +101,12 @@ def sanitize_objection_response(data: dict, hackathon_id: int = None) -> dict:
     """
     if hackathon_id is not None:
         languages = get_ai_response_languages(hackathon_id)
+        from app.models.db import get_personas
+        personas = get_personas(hackathon_id)
+        persona_map = {p["name"].lower(): p for p in personas}
     else:
         languages = ["English", "Japanese"]
+        persona_map = {}
 
     if not isinstance(data, dict):
         data = {}
@@ -130,8 +134,14 @@ def sanitize_objection_response(data: dict, hackathon_id: int = None) -> dict:
         if not isinstance(r, dict):
             continue
 
+        j_name = r.get("judge_name", "Judge")
+        p_data = persona_map.get(j_name.lower(), {})
+
         normalized_r = {
-            "judge_name": r.get("judge_name", "Judge"),
+            "judge_name": j_name,
+            "judge_role": r.get("judge_role") or p_data.get("role") or "Expert Panelist",
+            "judge_emoji": p_data.get("avatar") or r.get("judge_emoji") or r.get("avatar") or "🤖",
+            "judge_avatar_image": p_data.get("avatar_image") or r.get("judge_avatar_image") or r.get("avatar_image"),
         }
 
         # Map dynamic response keys for each configured language

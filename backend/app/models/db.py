@@ -390,17 +390,41 @@ def get_personas(hackathon_id):
 
     val = get_setting(hackathon_id, "judges_personas")
     if val:
-        return json.loads(val)
-    if hackathon_id is not None:
-        with db_session() as db:
-            h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-            if h:
-                if h.template_id:
-                    tpl = TEMPLATES.get(h.template_id)
-                    if tpl:
-                        return tpl.get("personas", [])
-                return []
-    return TEMPLATES.get("hackathon", {}).get("personas", [])
+        personas = json.loads(val)
+    else:
+        personas = []
+        if hackathon_id is not None:
+            with db_session() as db:
+                h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+                if h:
+                    if h.template_id:
+                        tpl = TEMPLATES.get(h.template_id)
+                        if tpl:
+                            personas = tpl.get("personas", [])
+        if not personas:
+            personas = TEMPLATES.get("hackathon", {}).get("personas", [])
+
+    # Automatically resolve custom avatar image from assets/avatars/ if not set
+    import base64
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    avatars_dir = os.path.join(base_dir, "assets", "avatars")
+
+    for p in personas:
+        if isinstance(p, dict) and not p.get("avatar_image") and p.get("name"):
+            name_lower = p["name"].lower()
+            for ext in [".png", ".jpg", ".jpeg"]:
+                avatar_path = os.path.join(avatars_dir, f"{name_lower}{ext}")
+                if os.path.exists(avatar_path):
+                    try:
+                        with open(avatar_path, "rb") as f:
+                            encoded = base64.b64encode(f.read()).decode("utf-8")
+                        mime = "image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png"
+                        p["avatar_image"] = f"data:{mime};base64,{encoded}"
+                        break
+                    except Exception:
+                        pass
+
+    return personas
 
 
 def set_personas(hackathon_id, personas_list, db=None):

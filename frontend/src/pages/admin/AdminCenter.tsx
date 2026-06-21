@@ -930,6 +930,53 @@ export default function AdminCenter() {
                         <Trash2 size={16} />
                       </button>
                     </div>
+
+                    {/* Custom Avatar Image Uploader */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '12px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '12px' }}>
+                      <div className="persona-avatar-preview" style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
+                        {persona.avatar_image ? (
+                          <img src={persona.avatar_image} alt={persona.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span style={{ fontSize: '1.8em' }}>{persona.avatar || '🤖'}</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                        <span style={{ fontSize: '0.85em', color: '#9ca3af', fontWeight: '500' }}>Custom Avatar Image (PNG/JPG, Max 500KB)</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                          <input
+                            type="file"
+                            accept="image/png, image/jpeg, image/jpg"
+                            disabled={isObserver}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (file.size > 500 * 1024) {
+                                  alert("Image size exceeds 500KB limit. / 画像サイズが500KBの上限を超えています。");
+                                  return;
+                                }
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  updatePersonaField(index, 'avatar_image', reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            style={{ fontSize: '0.8em', maxWidth: '250px' }}
+                          />
+                          {persona.avatar_image && (
+                            <button
+                              type="button"
+                              onClick={() => updatePersonaField(index, 'avatar_image', undefined)}
+                              className="btn btn-danger btn-xs"
+                              disabled={isObserver}
+                            >
+                              Remove Image
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="form-group mt-2">
                       <label>Prompt Instruction / Evaluation Philosophy</label>
                       <textarea
