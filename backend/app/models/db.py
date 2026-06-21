@@ -408,7 +408,7 @@ def get_personas(hackathon_id):
     import base64
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     avatars_dir = os.path.join(base_dir, "assets", "avatars")
-    
+
     for p in personas:
         if isinstance(p, dict) and not p.get("avatar_image") and p.get("name"):
             name_lower = p["name"].lower()

@@ -75,7 +75,7 @@ def sanitize_evaluation_response(data: dict, hackathon_id: int, languages: list[
     """
     if languages is None:
         languages = ["English", "Japanese"]
-    from app.models.db import normalize_lang_to_key, get_personas
+    from app.models.db import get_personas, normalize_lang_to_key
 
     personas = get_personas(hackathon_id)
     persona_map = {p["name"].lower(): p for p in personas}
