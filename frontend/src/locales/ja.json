@@ -67,7 +67,8 @@
     "evaluation_balance": "評価バランス (レーダーチャート)",
     "score_trend": "スコア推移 (100点満点)",
     "total_score_label": "総合スコア",
-    "final_eval": "最終提出"
+    "final_eval": "最終提出",
+    "export_report_markdown": "評価レポートをエクスポート (Markdown)"
   },
   "admin": {
     "title": "⚡ コマンドセンター",
@@ -87,7 +88,15 @@
     "custom_url_label": "またはカスタムテンプレートのJSON URL",
     "import_url_btn": "URLからインポート",
     "import_preset_confirm": "本当にこのテンプレートを適用しますか？現在の評価基準とジャッジペルソナが上書きされます。",
-    "import_preset_success": "テンプレートを適用しました！"
+    "import_preset_success": "テンプレートを適用しました！",
+    "export_all_markdown": "チーム別レポート（Markdown形式）",
+    "export_all_markdown_desc": "全チームの評価フィードバックを個別のマークダウンファイルにして、ZIPにまとめたものをダウンロードします。",
+    "export_db": "データベースエクスポート（全データ・コード含む）",
+    "export_db_desc": "全チームの登録情報、プロダクト情報、評価履歴、および提出されたソースコード（テキスト）をマークダウン形式でまとめたZIPをダウンロードします（NotebookLMへの取り込み等に適しています）。",
+    "export_template": "審査設定テンプレート",
+    "export_template_desc": "現在の評価基準および審査員ペルソナの設定を、人間が読みやすいように整形したJSONとしてエクスポートします。",
+    "download_zip": "ZIPをダウンロード",
+    "export_json": "JSONをエクスポート"
   },
   "common": {
     "save": "保存",

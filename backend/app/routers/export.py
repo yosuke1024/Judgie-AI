@@ -12,6 +12,7 @@ from app.auth.deps import CurrentUser, require_role
 from app.models.db import (
     Hackathon,
     SessionLocal,
+    User,
     get_criteria,
     get_max_consultations,
     get_max_qa_turns,
@@ -37,6 +38,18 @@ def get_team_markdown(
 ):
     """Generate a Markdown evaluation report for a team."""
     from app.services.export_service import generate_team_markdown_report
+
+    db = SessionLocal()
+    try:
+        team_user = (
+            db.query(User)
+            .filter(User.hackathon_id == user.hackathon_id, User.team_id == team_id)
+            .first()
+        )
+        if not team_user:
+            raise HTTPException(status_code=404, detail="Team not found in this project")
+    finally:
+        db.close()
 
     md = generate_team_markdown_report(user.hackathon_id, team_id)
     return Response(
@@ -77,6 +90,8 @@ def get_notebooklm_zip(user: CurrentUser = Depends(require_role("admin"))):
 @router.get("/template")
 def export_template(user: CurrentUser = Depends(require_role("admin"))):
     """Export current project settings as a template JSON."""
+    import json
+
     hid = user.hackathon_id
     db = SessionLocal()
     try:
@@ -99,7 +114,13 @@ def export_template(user: CurrentUser = Depends(require_role("admin"))):
         "criteria": get_criteria(hid),
         "personas": get_personas(hid),
     }
-    return export_data
+
+    pretty_json = json.dumps(export_data, indent=2, ensure_ascii=False)
+    return Response(
+        content=pretty_json,
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=judgie-template.json"},
+    )
 
 
 @router.post("/template/import")

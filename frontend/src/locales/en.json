@@ -67,7 +67,8 @@
     "evaluation_balance": "Evaluation Balance (Radar)",
     "score_trend": "Score Trend (Max 100)",
     "total_score_label": "Total Score",
-    "final_eval": "Final Submission"
+    "final_eval": "Final Submission",
+    "export_report_markdown": "Export Evaluation Report (Markdown)"
   },
   "admin": {
     "title": "⚡ Command Center",
@@ -87,7 +88,15 @@
     "custom_url_label": "Or custom Template JSON URL",
     "import_url_btn": "Import from URL",
     "import_preset_confirm": "Are you sure you want to apply this template? It will overwrite your current evaluation criteria and judges configuration.",
-    "import_preset_success": "Template applied successfully!"
+    "import_preset_success": "Template applied successfully!",
+    "export_all_markdown": "All Markdown Reports",
+    "export_all_markdown_desc": "Download all evaluations feedback as a ZIP of Markdown files.",
+    "export_db": "Database Export (Full Data & Code)",
+    "export_db_desc": "Export all teams, product profiles, scores, and submitted source code as a ZIP of Markdown files.",
+    "export_template": "Jury Configuration Template",
+    "export_template_desc": "Export the active evaluation criteria and judge profiles as formatted JSON.",
+    "download_zip": "Download ZIP",
+    "export_json": "Export JSON"
   },
   "common": {
     "save": "Save",
