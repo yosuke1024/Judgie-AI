@@ -122,6 +122,7 @@ class ScoreboardEntry(BaseModel):
     total_score: float = 0.0
     status: str = "Not Submitted"
     consults: int = 0
+    scores_json: str | None = None
 
 
 # ──────────────────────────────────────────────

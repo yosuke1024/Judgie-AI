@@ -123,6 +123,7 @@ def get_scoreboard(user: CurrentUser = Depends(get_current_user)):
                 entry.total_score = round(total_score, 1)
                 entry.consults = ed["consults"]
                 entry.status = "Final" if ed["is_final"] else f"In Progress ({ed['consults']}/3)"
+                entry.scores_json = ed["scores_json"]
 
             result.append(entry)
 

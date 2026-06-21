@@ -1620,3 +1620,241 @@ a:hover {
   color: var(--success);
 }
 
+/* ==========================================================================
+   Page Specific: Hype Board (Leaderboard) Additions
+   ========================================================================== */
+
+.category-leaders-section,
+.jury-section,
+.rules-section {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(12px);
+  margin-top: 32px;
+}
+
+.category-leaders-section h2,
+.jury-section h2,
+.rules-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  font-size: 20px;
+}
+
+.category-leaders-section h2 svg {
+  color: var(--warning);
+}
+
+.jury-section h2 svg {
+  color: var(--primary);
+}
+
+.rules-section h2 svg {
+  color: var(--success);
+}
+
+.section-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: -12px;
+  margin-bottom: 24px;
+}
+
+/* Category Leaderboard Tabs */
+.category-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+
+.category-tab-btn {
+  padding: 8px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--card-border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.category-tab-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.category-tab-btn.active {
+  background-color: var(--primary-glow);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* AI Jury Grid */
+.jury-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.jury-card {
+  border: 1px solid var(--card-border);
+  background-color: rgba(255, 255, 255, 0.01);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.jury-card:hover {
+  border-color: rgba(99, 102, 241, 0.25);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.05);
+}
+
+.jury-card-header {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.jury-card-header:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.jury-avatar-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--card-border);
+}
+
+.jury-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.jury-avatar-emoji {
+  font-size: 24px;
+}
+
+.jury-meta {
+  flex-grow: 1;
+}
+
+.jury-meta h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.jury-role {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.jury-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.jury-toggle-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.jury-card-content {
+  border-top: 1px solid var(--card-border);
+  background-color: rgba(0, 0, 0, 0.15);
+  padding: 16px;
+}
+
+.persona-prompt-preview {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  max-height: 200px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+/* Criteria Grid */
+.criteria-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .criteria-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.criteria-card {
+  border: 1px solid var(--card-border);
+  background-color: rgba(255, 255, 255, 0.01);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.criteria-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.criteria-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.criteria-card-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.criteria-weight {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--success);
+  background-color: rgba(34, 197, 94, 0.08);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.criteria-desc {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
