@@ -113,13 +113,26 @@ async def upload_submission(
             db.close()
 
     # Analyze via Gemini
-    result_json = analyze_submission(
-        hackathon_id,
-        text_content,
-        gemini_media_files,
-        previous_evaluations_json=prev_evaluations_json,
-        is_final=is_final,
-    )
+    try:
+        result_json = analyze_submission(
+            hackathon_id,
+            text_content,
+            gemini_media_files,
+            previous_evaluations_json=prev_evaluations_json,
+            is_final=is_final,
+        )
+    except Exception as e:
+        err_msg = str(e)
+        if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+            raise HTTPException(
+                status_code=429,
+                detail="Gemini API rate limit reached (token quota exceeded). Please wait a moment or configure a paid API key."
+            )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Gemini evaluation failed: {err_msg}"
+            )
 
     # Sanitize response
     from app.services.submission_service import sanitize_evaluation_response
