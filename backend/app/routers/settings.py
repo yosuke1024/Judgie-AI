@@ -59,7 +59,7 @@ def update_criteria(
 # ── Personas ──
 
 @router.get("/personas")
-def get_personas_endpoint(user: CurrentUser = Depends(require_role("admin", "observer"))):
+def get_personas_endpoint(user: CurrentUser = Depends(require_role("admin", "observer", "team"))):
     """Get AI judge personas for the current hackathon."""
     return get_personas(user.hackathon_id)
 

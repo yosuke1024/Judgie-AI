@@ -4345,3 +4345,70 @@ INFO:     Finished server process [97407]
 INFO:     Started server process [97412]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
+INFO:     127.0.0.1:61821 - "GET /api/hackathons HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61823 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61825 - "GET /api/hackathons HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61827 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61830 - "GET /api/settings/languages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61831 - "GET /api/evaluations/team/sample HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61838 - "GET /api/settings/languages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61839 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61841 - "GET /api/evaluations/team/sample HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61845 - "GET /api/settings/languages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61847 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61851 - "GET /api/evaluations/team/sample HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61853 - "GET /api/chat/team/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61860 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61863 - "GET /api/chat/team/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61866 - "GET /api/chat/team/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61875 - "GET /api/settings/personas HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:61874 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61872 - "GET /api/evaluations/scoreboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61878 - "GET /api/settings/personas HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:61881 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61884 - "GET /api/evaluations/scoreboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61889 - "GET /api/settings/languages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61890 - "GET /api/evaluations/team/sample HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61894 - "GET /api/settings/languages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61896 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61899 - "GET /api/evaluations/team/sample HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61904 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61905 - "GET /api/chat/team/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61908 - "GET /api/chat/team/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61922 - "GET /api/settings/personas HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:61921 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61919 - "GET /api/evaluations/scoreboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61926 - "GET /api/settings/personas HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:61929 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61931 - "GET /api/evaluations/scoreboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61941 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61943 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61949 - "GET /api/settings/personas HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:61948 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61946 - "GET /api/evaluations/scoreboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61951 - "GET /api/settings/personas HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:61955 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61957 - "GET /api/evaluations/scoreboard HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/routers/settings.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [97412]
+INFO:     Started server process [97542]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:61991 - "GET /api/settings/languages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61997 - "GET /api/evaluations/team/sample HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62004 - "GET /api/settings/languages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62005 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62008 - "GET /api/evaluations/team/sample HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62010 - "GET /api/chat/team/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62014 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62017 - "GET /api/chat/team/2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62021 - "GET /api/chat/team/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62037 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62038 - "GET /api/settings/personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62035 - "GET /api/evaluations/scoreboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62042 - "GET /api/settings/criteria HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62044 - "GET /api/settings/personas HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62047 - "GET /api/evaluations/scoreboard HTTP/1.1" 200 OK

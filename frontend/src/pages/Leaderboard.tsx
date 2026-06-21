@@ -43,12 +43,21 @@ export default function Leaderboard() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      evaluationsApi.getScoreboard(),
-      settingsApi.getCriteria(),
-      settingsApi.getPersonas(),
+      evaluationsApi.getScoreboard().catch((err) => {
+        console.error('Failed to load scoreboard', err);
+        return [] as ScoreEntry[];
+      }),
+      settingsApi.getCriteria().catch((err) => {
+        console.error('Failed to load criteria', err);
+        return [] as CriteriaEntry[];
+      }),
+      settingsApi.getPersonas().catch((err) => {
+        console.error('Failed to load personas', err);
+        return [] as PersonaEntry[];
+      }),
     ])
       .then(([scoreboardData, criteriaData, personasData]) => {
-        setEntries(scoreboardData as ScoreEntry[]);
+        setEntries(scoreboardData);
         
         const typedCriteria = (criteriaData || []) as CriteriaEntry[];
         setCriteria(typedCriteria);
@@ -57,9 +66,6 @@ export default function Leaderboard() {
         }
         
         setPersonas((personasData || []) as PersonaEntry[]);
-      })
-      .catch((err) => {
-        console.error('Failed to load leaderboard data', err);
       })
       .finally(() => setLoading(false));
   }, []);
