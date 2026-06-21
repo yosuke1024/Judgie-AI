@@ -317,6 +317,109 @@ export default function TeamDashboard() {
     }));
   };
 
+  // Render criteria breakdown
+  const renderCriteriaBreakdown = () => {
+    if (!selectedEval) return null;
+
+    const scores = parseJson(selectedEval.scores_json);
+    const chartData = getChartData(selectedEval.scores_json);
+
+    // Find previous evaluation to calculate deltas
+    const currentIdx = evaluations.findIndex(e => e.id === selectedEval.id);
+    const prevEval = currentIdx !== -1 && currentIdx < evaluations.length - 1 ? evaluations[currentIdx + 1] : null;
+    const prevScores = prevEval ? parseJson(prevEval.scores_json) : null;
+
+    // Calculate total weight and contributions
+    const totalWeight = criteria.reduce((sum, c) => sum + (c.weight || 0), 0) || 1;
+    const isJa = i18n.language === 'ja';
+
+    return (
+      <div className="dash-card criteria-breakdown-card" style={{ marginTop: '24px' }}>
+        <h3>{isJa ? '評価項目内訳' : 'Criteria Breakdown'}</h3>
+        
+        {/* Criteria Grid Cards */}
+        <div className="criteria-cards-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '12px',
+          marginBottom: '20px',
+          marginTop: '16px'
+        }}>
+          {criteria.map((crit) => {
+            const score = Number(scores[crit.name] || 0);
+            const contribution = score * 20.0 * ((crit.weight || 0) / totalWeight);
+            const maxContrib = 100.0 * ((crit.weight || 0) / totalWeight);
+            
+            let deltaText = '';
+            let deltaColor = '';
+            if (prevScores) {
+              const prevScore = Number(prevScores[crit.name] || 0);
+              const diff = score - prevScore;
+              if (diff > 0) {
+                deltaText = `+${diff.toFixed(1)}`;
+                deltaColor = '#10b981';
+              } else if (diff < 0) {
+                deltaText = `${diff.toFixed(1)}`;
+                deltaColor = '#ef4444';
+              } else {
+                deltaText = '±0';
+                deltaColor = '#9ca3af';
+              }
+            }
+
+            return (
+              <div key={crit.name} className="criteria-score-card" style={{
+                padding: '12px',
+                borderRadius: '8px',
+                background: '#111827',
+                border: '1px solid #374151',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}>
+                <div>
+                  <span style={{ fontSize: '0.8em', color: '#9ca3af', fontWeight: '500' }}>{crit.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '2px' }}>
+                    <span style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#ffffff' }}>{score.toFixed(1)}</span>
+                    <span style={{ fontSize: '0.8em', color: '#6b7280' }}>/ 5.0</span>
+                    {deltaText && (
+                      <span style={{ fontSize: '0.8em', color: deltaColor, fontWeight: '600', marginLeft: 'auto' }}>
+                        {deltaText}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ marginTop: '8px', fontSize: '0.75em', color: '#9ca3af', borderTop: '1px solid #374151', paddingTop: '6px' }}>
+                  {t('team.contribution_score', { contribution: contribution.toFixed(1), max: maxContrib.toFixed(1) })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Radar Chart */}
+        {chartData.length > 0 && (
+          <div className="radar-chart-container" style={{ display: 'flex', justifyContent: 'center', background: '#111827', borderRadius: '8px', padding: '12px', border: '1px solid #374151' }}>
+            <ResponsiveContainer width="100%" height={240}>
+              <RadarChart cx="50%" cy="50%" outerRadius="65%" data={chartData}>
+                <PolarGrid stroke="#374151" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 9 }} />
+                <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fill: '#6b7280', fontSize: 8 }} />
+                <Radar
+                  name={user.team_id}
+                  dataKey="score"
+                  stroke="#818cf8"
+                  fill="#818cf8"
+                  fillOpacity={0.3}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Render evaluation detail
   const renderEvaluationDetail = () => {
     if (!selectedEval) {
@@ -329,17 +432,7 @@ export default function TeamDashboard() {
       );
     }
 
-    const scores = parseJson(selectedEval.scores_json);
     const strengthsRisks = parseJson(selectedEval.strengths_risks_json);
-    const chartData = getChartData(selectedEval.scores_json);
-
-    // Find previous evaluation to calculate deltas
-    const currentIdx = evaluations.findIndex(e => e.id === selectedEval.id);
-    const prevEval = currentIdx !== -1 && currentIdx < evaluations.length - 1 ? evaluations[currentIdx + 1] : null;
-    const prevScores = prevEval ? parseJson(prevEval.scores_json) : null;
-
-    // Calculate total weight and contributions
-    const totalWeight = criteria.reduce((sum, c) => sum + (c.weight || 0), 0) || 1;
 
     // Dynamic localization summary
     const isJa = i18n.language === 'ja';
@@ -413,90 +506,6 @@ export default function TeamDashboard() {
         )}
 
         <div className="eval-grid" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Scores Section */}
-          <div className="eval-section scores-section" style={{ width: '100%' }}>
-            <h4>{isJa ? '評価項目内訳' : 'Criteria Breakdown'}</h4>
-            
-            {/* Criteria Grid Cards */}
-            <div className="criteria-cards-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '16px',
-              marginBottom: '24px'
-            }}>
-              {criteria.map((crit) => {
-                const score = Number(scores[crit.name] || 0);
-                const contribution = score * 20.0 * ((crit.weight || 0) / totalWeight);
-                const maxContrib = 100.0 * ((crit.weight || 0) / totalWeight);
-                
-                let deltaText = '';
-                let deltaColor = '';
-                if (prevScores) {
-                  const prevScore = Number(prevScores[crit.name] || 0);
-                  const diff = score - prevScore;
-                  if (diff > 0) {
-                    deltaText = `+${diff.toFixed(1)}`;
-                    deltaColor = '#10b981';
-                  } else if (diff < 0) {
-                    deltaText = `${diff.toFixed(1)}`;
-                    deltaColor = '#ef4444';
-                  } else {
-                    deltaText = '±0';
-                    deltaColor = '#9ca3af';
-                  }
-                }
-
-                return (
-                  <div key={crit.name} className="criteria-score-card" style={{
-                    padding: '16px',
-                    borderRadius: '8px',
-                    background: '#111827',
-                    border: '1px solid #374151',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}>
-                    <div>
-                      <span style={{ fontSize: '0.85em', color: '#9ca3af', fontWeight: '500' }}>{crit.name}</span>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '4px' }}>
-                        <span style={{ fontSize: '1.8em', fontWeight: 'bold', color: '#ffffff' }}>{score.toFixed(1)}</span>
-                        <span style={{ fontSize: '0.9em', color: '#6b7280' }}>/ 5.0</span>
-                        {deltaText && (
-                          <span style={{ fontSize: '0.85em', color: deltaColor, fontWeight: '600', marginLeft: 'auto' }}>
-                            {deltaText}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ marginTop: '12px', fontSize: '0.8em', color: '#9ca3af', borderTop: '1px solid #374151', paddingTop: '8px' }}>
-                      {t('team.contribution_score', { contribution: contribution.toFixed(1), max: maxContrib.toFixed(1) })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Radar Chart */}
-            {chartData.length > 0 && (
-              <div className="radar-chart-container" style={{ display: 'flex', justifyContent: 'center', background: '#111827', borderRadius: '8px', padding: '16px', border: '1px solid #374151' }}>
-                <ResponsiveContainer width="100%" height={280}>
-                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
-                    <PolarGrid stroke="#374151" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 10 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fill: '#6b7280' }} />
-                    <Radar
-                      name={user.team_id}
-                      dataKey="score"
-                      stroke="#818cf8"
-                      fill="#818cf8"
-                      fillOpacity={0.3}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-
           {/* Judges Feedback */}
           <div className="eval-section feedback-section" style={{ width: '100%' }}>
             <h4>{isJa ? 'AI審査員からのフィードバック' : 'AI Judges Feedback'}</h4>
@@ -829,6 +838,7 @@ export default function TeamDashboard() {
               </button>
             </form>
           </div>
+          {renderCriteriaBreakdown()}
         </div>
 
         {/* Right Side: Evaluation Results & History */}
