@@ -514,6 +514,11 @@ export default function TeamDashboard() {
     const judgesFeedback = strengthsRisks.judges_feedback || [];
     const chartData = getChartData(selectedEval.scores_json);
 
+    // Count the number of turns submitted by the team
+    const teamMessageCount = chatMessages.filter((msg) => msg.sender === 'team').length;
+    const maxQaTurns = user?.max_qa_turns ?? 1;
+    const isQaLimitReached = maxQaTurns !== -1 && teamMessageCount >= maxQaTurns;
+
     return (
       <div className="evaluation-detail">
         {/* AI Language Selection Tabs */}
@@ -742,10 +747,27 @@ export default function TeamDashboard() {
             <MessageSquare size={18} />
             {isJa ? '審査員パネルとの対話・反論' : 'Q&A / Objection Thread with Judges'}
           </h4>
-          <p className="section-hint">
-            {isJa
-              ? 'AI評価に対して質問や異議申し立てができます。審査員が回答します。'
-              : 'Ask clarifying questions or present objections to the judges panel based on this evaluation.'}
+          <p className="section-hint" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>
+              {isJa
+                ? 'AI評価に対して質問や異議申し立てができます。審査員が回答します。'
+                : 'Ask clarifying questions or present objections to the judges panel based on this evaluation.'}
+            </span>
+            {maxQaTurns !== -1 && (
+              <span style={{
+                fontSize: '0.85em',
+                color: '#9ca3af',
+                background: 'rgba(255, 255, 255, 0.05)',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}>
+                {isJa ? '残りQ&A回数' : 'Q&A Remaining'}:{' '}
+                <strong style={{ color: isQaLimitReached ? '#ef4444' : '#ffffff' }}>
+                  {Math.max(0, maxQaTurns - teamMessageCount)} / {maxQaTurns}
+                </strong>
+              </span>
+            )}
           </p>
 
           <div className="chat-thread">
@@ -757,30 +779,119 @@ export default function TeamDashboard() {
               <div className="chat-messages">
                 {chatMessages.map((msg, index) => {
                   const isTeam = msg.sender === 'team';
-                  // Parse message_json if it is a JSON string
-                  let content = '';
+                  let parsed: any = null;
                   if (typeof msg.message_json === 'string') {
                     try {
-                      const parsed = JSON.parse(msg.message_json);
-                      content = parsed.objection || parsed.message || msg.message_json;
+                      parsed = JSON.parse(msg.message_json);
                     } catch {
-                      content = msg.message_json;
+                      parsed = msg.message_json;
                     }
-                  } else if (msg.message_json) {
-                    content = msg.message_json.objection || msg.message_json.message || JSON.stringify(msg.message_json);
+                  } else {
+                    parsed = msg.message_json;
                   }
 
-                  return (
-                    <div key={index} className={`chat-message-bubble ${isTeam ? 'msg-team' : 'msg-judges'}`}>
-                      <div className="msg-header">
-                        <span className="msg-sender">{isTeam ? 'Team' : 'AI Judges Panel'}</span>
-                        {msg.created_at && (
-                          <span className="msg-time">{new Date(msg.created_at).toLocaleTimeString()}</span>
-                        )}
+                  if (isTeam) {
+                    let content = '';
+                    if (parsed && typeof parsed === 'object') {
+                      content = parsed[`user_objection_${selectedAiLang}`] ||
+                                parsed[`user_objection_${selectedAiLang === 'ja' ? 'japanese' : 'english'}`] ||
+                                parsed.user_objection ||
+                                parsed.objection ||
+                                parsed.message ||
+                                JSON.stringify(parsed);
+                    } else {
+                      content = String(parsed || '');
+                    }
+
+                    return (
+                      <div key={index} className="chat-message-bubble msg-team">
+                        <div className="msg-header">
+                          <span className="msg-sender">Team</span>
+                          {msg.created_at && (
+                            <span className="msg-time">{new Date(msg.created_at).toLocaleTimeString()}</span>
+                          )}
+                        </div>
+                        <p className="msg-content">{content}</p>
                       </div>
-                      <p className="msg-content">{content}</p>
-                    </div>
-                  );
+                    );
+                  } else {
+                    let summaryText = '';
+                    let judgesResponses: any[] = [];
+                    if (parsed && typeof parsed === 'object') {
+                      summaryText = parsed[`qa_summary_${selectedAiLang}`] ||
+                                    parsed[`qa_summary_${selectedAiLang === 'ja' ? 'japanese' : 'english'}`] ||
+                                    parsed.qa_summary_ja ||
+                                    parsed.qa_summary_en ||
+                                    parsed.qa_summary ||
+                                    '';
+                      judgesResponses = parsed.judges_responses || [];
+                    } else {
+                      summaryText = String(parsed || '');
+                    }
+
+                    return (
+                      <div key={index} className="chat-message-bubble msg-judges" style={{ maxWidth: '85%' }}>
+                        <div className="msg-header">
+                          <span className="msg-sender">{isJa ? 'AI審査員パネル' : 'AI Judges Panel'}</span>
+                          {msg.created_at && (
+                            <span className="msg-time">{new Date(msg.created_at).toLocaleTimeString()}</span>
+                          )}
+                        </div>
+                        <div className="msg-content">
+                          {summaryText && (
+                            <div className="qa-summary-section" style={{ marginBottom: judgesResponses.length > 0 ? '16px' : '0' }}>
+                              <p style={{ fontWeight: '600', color: '#818cf8', margin: '0 0 6px 0', fontSize: '0.85em', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                {isJa ? 'パネル総括サマリー' : 'Panel Consensus Summary'}
+                              </p>
+                              <p style={{ margin: '0', fontSize: '0.95em', lineHeight: '1.5', color: '#ffffff' }}>{summaryText}</p>
+                            </div>
+                          )}
+                          
+                          {judgesResponses.length > 0 && (
+                            <div className="judges-chat-responses" style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '12px',
+                              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                              paddingTop: '12px',
+                              marginTop: '12px'
+                            }}>
+                              {judgesResponses.map((jResp: any, jIdx: number) => {
+                                const responseText = jResp[`response_${selectedAiLang}`] ||
+                                                     jResp[`response_${selectedAiLang === 'ja' ? 'japanese' : 'english'}`] ||
+                                                     jResp.response_ja ||
+                                                     jResp.response_en ||
+                                                     '';
+                                return (
+                                  <div key={jIdx} className="judge-response-item" style={{
+                                    background: 'rgba(255, 255, 255, 0.03)',
+                                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                                    borderRadius: '6px',
+                                    padding: '10px 12px'
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                      <span style={{ fontSize: '1.2em' }}>{jResp.judge_emoji || '🤖'}</span>
+                                      <div>
+                                        <strong style={{ fontSize: '0.9em', color: '#ffffff' }}>{jResp.judge_name}</strong>
+                                        {jResp.judge_role && (
+                                          <span style={{ fontSize: '0.75em', color: '#9ca3af', marginLeft: '6px' }}>
+                                            ({jResp.judge_role})
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <p style={{ margin: '0', fontSize: '0.9em', color: '#d1d5db', lineHeight: '1.4' }}>
+                                      {responseText}
+                                    </p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
                 })}
                 {chatLoading && (
                   <div className="chat-message-bubble msg-judges chat-typing">
@@ -803,10 +914,14 @@ export default function TeamDashboard() {
                 type="text"
                 value={newQuestion}
                 onChange={(e) => setNewQuestion(e.target.value)}
-                placeholder={isJa ? '審査員に質問や反論を送信...' : 'Type your question or objection here...'}
-                disabled={chatLoading}
+                placeholder={
+                  isQaLimitReached
+                    ? (isJa ? 'Q&A対話の回数制限に達しました。' : 'Maximum Q&A discussion turns reached.')
+                    : (isJa ? '審査員に質問や反論を送信...' : 'Type your question or objection here...')
+                }
+                disabled={chatLoading || isQaLimitReached}
               />
-              <button type="submit" className="btn btn-primary" disabled={chatLoading || !newQuestion.trim()}>
+              <button type="submit" className="btn btn-primary" disabled={chatLoading || isQaLimitReached || !newQuestion.trim()}>
                 <Send size={16} />
               </button>
             </form>

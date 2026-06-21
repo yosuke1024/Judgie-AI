@@ -10,6 +10,7 @@ interface User {
   one_liner?: string;
   max_consultations?: number;
   consultation_count?: number;
+  max_qa_turns?: number;
 }
 
 interface AuthContextType {

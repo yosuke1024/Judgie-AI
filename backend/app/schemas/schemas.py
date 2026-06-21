@@ -30,6 +30,7 @@ class UserInfo(BaseModel):
     one_liner: str | None = None
     max_consultations: int = -1
     consultation_count: int = 0
+    max_qa_turns: int = 1
 
 
 # ──────────────────────────────────────────────
