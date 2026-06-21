@@ -104,6 +104,14 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="admin/teams/:teamId"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'observer']}>
+              <TeamDashboard />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="super-admin"

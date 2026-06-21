@@ -1,12 +1,27 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Trophy, Settings, Shield, LogOut, Zap, Globe } from 'lucide-react';
+import { teamsApi } from '@/api/client';
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [teams, setTeams] = useState<any[]>([]);
+
+  const showAdminCenter = user?.role === 'admin' || user?.role === 'observer';
+
+  useEffect(() => {
+    if (showAdminCenter && user?.hackathon_id) {
+      teamsApi.list(user.hackathon_id)
+        .then((data) => {
+          setTeams(data.filter((t) => t.role === 'team'));
+        })
+        .catch((err) => console.error('Failed to load teams for sidebar:', err));
+    }
+  }, [showAdminCenter, user?.hackathon_id]);
 
   const handleLogout = async () => {
     await logout();
@@ -19,7 +34,6 @@ export default function Layout() {
 
   if (!user) return null;
 
-  const showAdminCenter = user.role === 'admin' || user.role === 'observer';
 
   return (
     <div className="app-layout">
@@ -49,6 +63,68 @@ export default function Layout() {
               <Settings size={18} />
               <span>{t('nav.admin_center')}</span>
             </NavLink>
+          )}
+
+          {showAdminCenter && (
+            <>
+              <div className="sidebar-section-header" style={{
+                padding: '12px 16px 4px 16px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                color: '#6b7280',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                {t('nav.team_dashboards')}
+              </div>
+              <div className="sidebar-teams-list" style={{
+                maxHeight: '200px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+                padding: '0 8px'
+              }}>
+                {teams.map((t) => (
+                  <NavLink
+                    key={t.team_id}
+                    to={`/admin/teams/${t.team_id}`}
+                    className="nav-link nav-link-sub"
+                    style={({ isActive }) => ({
+                      padding: '6px 12px',
+                      fontSize: '0.85rem',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: isActive ? '#ffffff' : '#9ca3af',
+                      background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
+                      textDecoration: 'none'
+                    })}
+                  >
+                    <div style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: '#10b981',
+                      flexShrink: 0
+                    }} />
+                    <span style={{
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {t.product_name || t.team_name || t.team_id}
+                    </span>
+                  </NavLink>
+                ))}
+                {teams.length === 0 && (
+                  <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#6b7280' }}>
+                    No teams.
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {user.role === 'superadmin' && (
