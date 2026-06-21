@@ -434,6 +434,10 @@ def test_initialize_hackathon_template(db_session_fixture):
     hackathon = db_session_fixture.query(Hackathon).filter(Hackathon.id == hid).first()
     assert hackathon.template_id is None
 
+    # Ensure it returns empty lists because template_id is None and no settings exist
+    assert get_criteria(hid) == []
+    assert get_personas(hid) == []
+
     # Initialize with startup_pitch template
     from core.db import initialize_hackathon_template
 

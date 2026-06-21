@@ -353,6 +353,15 @@ def get_criteria(hackathon_id):
     val = get_setting(hackathon_id, "evaluation_criteria")
     if val:
         return json.loads(val)
+    if hackathon_id is not None:
+        with db_session() as db:
+            h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+            if h:
+                if h.template_id:
+                    tpl = TEMPLATES.get(h.template_id)
+                    if tpl:
+                        return tpl.get("criteria", [])
+                return []
     return TEMPLATES["hackathon"]["criteria"]
 
 
@@ -364,6 +373,15 @@ def get_personas(hackathon_id):
     val = get_setting(hackathon_id, "judges_personas")
     if val:
         return json.loads(val)
+    if hackathon_id is not None:
+        with db_session() as db:
+            h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
+            if h:
+                if h.template_id:
+                    tpl = TEMPLATES.get(h.template_id)
+                    if tpl:
+                        return tpl.get("personas", [])
+                return []
     return TEMPLATES["hackathon"]["personas"]
 
 

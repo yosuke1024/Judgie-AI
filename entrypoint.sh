@@ -35,14 +35,14 @@ if [ -n "$DATABASE_URL" ] && echo "$DATABASE_URL" | grep -q "^sqlite://"; then
             echo "Database file already exists. Skipping restore."
         fi
 
-        echo "Starting Litestream replication and Streamlit app..."
-        # Run the Streamlit app under the control of litestream replicate
-        exec litestream replicate -config /app/litestream.yml -exec "streamlit run app.py --server.port=${PORT} --server.address=0.0.0.0 --server.fileWatcherType=none"
+        echo "Starting Litestream replication and FastAPI app..."
+        # Run the FastAPI app under the control of litestream replicate
+        exec litestream replicate -config /app/litestream.yml -exec "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"
     else
         echo "LITESTREAM_REPLICA_URL is not set. Running without replication..."
-        exec streamlit run app.py --server.port=${PORT} --server.address=0.0.0.0 --server.fileWatcherType=none
+        exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
     fi
 else
-    echo "Non-SQLite database detected (or DATABASE_URL is not set). Starting Streamlit directly..."
-    exec streamlit run app.py --server.port=${PORT} --server.address=0.0.0.0 --server.fileWatcherType=none
+    echo "Non-SQLite database detected (or DATABASE_URL is not set). Starting FastAPI directly..."
+    exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
 fi

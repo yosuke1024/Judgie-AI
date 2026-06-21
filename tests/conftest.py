@@ -3,8 +3,9 @@ import sys
 
 import pytest
 
-# Add the project root directory to sys.path so the 'core' module can be imported
+# Add the project root directory and backend directory to sys.path so the 'core' and 'backend/app' modules can be imported
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
 
 # Define Mock classes for Streamlit APIs
@@ -28,6 +29,17 @@ class MockSessionState(dict):
 class MockContext:
     def __init__(self):
         self.ip_address = None
+
+
+class MockObject:
+    def __call__(self, *args, **kwargs):
+        return self
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+    def __getattr__(self, name):
+        return self
 
 
 class MockStreamlit:
@@ -55,6 +67,9 @@ class MockStreamlit:
     def rerun(self):
         raise SystemExit("Streamlit Rerun")
 
+    def __getattr__(self, name):
+        return MockObject()
+
 
 # Inject the mock streamlit module into sys.modules before any imports occur
 mock_st = MockStreamlit()
@@ -64,6 +79,7 @@ sys.modules["streamlit"] = mock_st
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
+import backend.app.models.db  # noqa: E402
 import core.db  # noqa: E402
 
 # Setup test-specific in-memory SQLite database
@@ -73,6 +89,10 @@ test_SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_en
 # Replace core.db engine and session maker with mock instances
 core.db.engine = test_engine
 core.db.SessionLocal = test_SessionLocal
+
+# Replace backend.app.models.db engine and session maker with mock instances
+backend.app.models.db.engine = test_engine
+backend.app.models.db.SessionLocal = test_SessionLocal
 
 
 @pytest.fixture(autouse=True)

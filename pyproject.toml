@@ -12,6 +12,9 @@ exclude = [
 select = ["E", "F", "W", "I"]
 ignore = ["E501"] # Ignore line length violations (very common in UI/translation code)
 
+[tool.ruff.lint.isort]
+known-first-party = ["app", "core", "views"]
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra -q"
