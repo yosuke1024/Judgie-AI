@@ -14,6 +14,8 @@ import {
   Loader2,
   Clock,
   Sparkles,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   Radar,
@@ -59,6 +61,7 @@ export default function TeamDashboard() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Evaluation & History States
   const [evaluations, setEvaluations] = useState<EvaluationItem[]>([]);
@@ -176,6 +179,15 @@ export default function TeamDashboard() {
     if (e.dataTransfer.files) {
       setSelectedFiles(Array.from(e.dataTransfer.files));
     }
+  };
+
+  // Handle Copy ZIP Command
+  const handleCopyCommand = () => {
+    const cmd = t('team.zip_hint_command');
+    navigator.clipboard.writeText(cmd).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   // Handle Submit Upload
@@ -511,9 +523,19 @@ export default function TeamDashboard() {
                 <p>{t('team.zip_hint_desc')}</p>
                 <div className="zip-hint-example">
                   <span>{t('team.zip_hint_example')}</span>
-                  <pre>
-                    <code>{t('team.zip_hint_command')}</code>
-                  </pre>
+                  <div className="code-block-container">
+                    <pre>
+                      <code>{t('team.zip_hint_command')}</code>
+                    </pre>
+                    <button
+                      type="button"
+                      className="copy-code-btn"
+                      onClick={handleCopyCommand}
+                      title="Copy to clipboard"
+                    >
+                      {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </details>

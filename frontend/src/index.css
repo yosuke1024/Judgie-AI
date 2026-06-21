@@ -1572,9 +1572,15 @@ a:hover {
   margin-bottom: 4px;
 }
 
-.zip-hint-example pre {
+.code-block-container {
+  position: relative;
+  margin-top: 4px;
+}
+
+.code-block-container pre {
+  margin: 0;
   background-color: rgba(0, 0, 0, 0.3);
-  padding: 8px 12px;
+  padding: 10px 42px 10px 12px; /* Space for copy button */
   border-radius: var(--radius-sm);
   border: 1px solid var(--card-border);
   overflow-x: auto;
@@ -1584,5 +1590,33 @@ a:hover {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--accent);
+}
+
+.copy-code-btn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.copy-code-btn:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  border-color: var(--primary);
+}
+
+.copy-code-btn svg.text-success {
+  color: var(--success);
 }
 
