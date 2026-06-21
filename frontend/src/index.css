@@ -1520,3 +1520,103 @@ a:hover {
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
+
+/* ZIP creation helper / Accordion */
+.zip-hint-details {
+  margin-top: 12px;
+  margin-bottom: 18px;
+  background-color: rgba(245, 158, 11, 0.03); /* subtle amber tint */
+  border: 1px dashed rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.zip-hint-details[open] {
+  background-color: rgba(245, 158, 11, 0.05);
+  border-style: solid;
+}
+
+.zip-hint-summary {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--warning);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.zip-hint-summary:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.zip-hint-content {
+  padding: 0 14px 14px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.zip-hint-content p {
+  margin-bottom: 8px;
+}
+
+.zip-hint-example {
+  margin-top: 8px;
+}
+
+.zip-hint-example span {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.code-block-container {
+  position: relative;
+  margin-top: 4px;
+}
+
+.code-block-container pre {
+  margin: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 10px 42px 10px 12px; /* Space for copy button */
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--card-border);
+  overflow-x: auto;
+}
+
+.zip-hint-example code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.copy-code-btn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.copy-code-btn:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  border-color: var(--primary);
+}
+
+.copy-code-btn svg.text-success {
+  color: var(--success);
+}
+
