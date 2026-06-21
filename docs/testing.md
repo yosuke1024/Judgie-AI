@@ -1,7 +1,7 @@
 # Testing Guide
 
 This project uses `pytest` for running automated tests to ensure code quality and robustness. 
-We focus on testing the core business logic located in the `core/` directory.
+We focus on testing the backend API and business logic located in the `backend/app/` directory.
 
 ---
 
@@ -42,17 +42,17 @@ pytest tests/test_security.py
 We use `pytest-cov` to measure how much of the codebase is covered by tests.
 
 ### Show coverage summary in terminal
-Run the following command to calculate coverage for the `core/` package:
+Run the following command to calculate coverage for the `backend/app/` package:
 
 ```bash
-pytest --cov=core tests/
+pytest --cov=backend/app tests/
 ```
 
 ### Generate HTML coverage report
 To generate a visual HTML report detailing which lines are tested, run:
 
 ```bash
-pytest --cov=core --cov-report=html tests/
+pytest --cov=backend/app --cov-report=html tests/
 ```
 
 This will create an `htmlcov/` directory in the project root. Open `htmlcov/index.html` in your browser to view the detailed coverage report file by file.
@@ -64,8 +64,6 @@ This will create an `htmlcov/` directory in the project root. Open `htmlcov/inde
 To make tests fast, reliable, and runnable without external service configurations, we employ the following strategies:
 
 - **In-Memory SQLite Database**:
-  Database operations (`core/db.py`) are tested using an in-memory SQLite database (`sqlite:///:memory:`). This is configured in `tests/conftest.py` to prevent modifying any local files during testing.
-- **Streamlit Mocking**:
-  Streamlit-specific APIs, such as `st.session_state` and `st.query_params`, are replaced with mock objects. This allows testing Streamlit-dependent logic outside the Streamlit server lifecycle.
+  Database operations (`backend/app/models/db.py`) are tested using an in-memory SQLite database (`sqlite:///:memory:`). This is configured in `tests/conftest.py` to prevent modifying any local files during testing.
 - **Gemini API Mocking**:
-  All interactions with the Google Generative AI API (`core/gemini.py`) are mocked using `pytest-mock`. Tests do not make network requests and will work without a Gemini API key.
+  All interactions with the Google Generative AI API (`backend/app/services/gemini.py`) are mocked using `pytest-mock`. Tests do not make network requests and will work without a Gemini API key.
