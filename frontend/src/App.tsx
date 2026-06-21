@@ -29,17 +29,19 @@ function ProtectedRoute({
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // Redirect unauthorized users to their default safe pages
-    if (user.role === 'team') {
-      return <Navigate to="/dashboard" replace />;
-    } else if (user.role === 'admin' || user.role === 'observer') {
-      return <Navigate to="/admin" replace />;
-    } else if (user.role === 'superadmin') {
-      return <Navigate to="/super-admin" replace />;
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
+      // Redirect unauthorized users to their default safe pages
+      if (user.role === 'team') {
+        return <Navigate to="/dashboard" replace />;
+      } else if (user.role === 'observer') {
+        return <Navigate to="/leaderboard" replace />;
+      } else if (user.role === 'admin') {
+        return <Navigate to="/admin" replace />;
+      } else if (user.role === 'superadmin') {
+        return <Navigate to="/super-admin" replace />;
+      }
+      return <Navigate to="/leaderboard" replace />;
     }
-    return <Navigate to="/leaderboard" replace />;
-  }
 
   return <>{children}</>;
 }
@@ -69,6 +71,8 @@ function AppRoutes() {
                 <Navigate to="/dashboard" replace />
               ) : user.role === 'superadmin' ? (
                 <Navigate to="/super-admin" replace />
+              ) : user.role === 'observer' ? (
+                <Navigate to="/leaderboard" replace />
               ) : (
                 <Navigate to="/admin" replace />
               )
@@ -99,7 +103,7 @@ function AppRoutes() {
         <Route
           path="admin"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'observer']}>
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminCenter />
             </ProtectedRoute>
           }

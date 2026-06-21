@@ -11,17 +11,18 @@ export default function Layout() {
   const navigate = useNavigate();
   const [teams, setTeams] = useState<any[]>([]);
 
-  const showAdminCenter = user?.role === 'admin' || user?.role === 'observer';
+  const showAdminCenter = user?.role === 'admin';
+  const showTeamDashboards = user?.role === 'admin' || user?.role === 'observer';
 
   useEffect(() => {
-    if (showAdminCenter && user?.hackathon_id) {
+    if (showTeamDashboards && user?.hackathon_id) {
       teamsApi.list(user.hackathon_id)
         .then((data) => {
           setTeams(data.filter((t) => t.role === 'team'));
         })
         .catch((err) => console.error('Failed to load teams for sidebar:', err));
     }
-  }, [showAdminCenter, user?.hackathon_id]);
+  }, [showTeamDashboards, user?.hackathon_id]);
 
   const handleLogout = async () => {
     await logout();
@@ -65,7 +66,7 @@ export default function Layout() {
             </NavLink>
           )}
 
-          {showAdminCenter && (
+          {showTeamDashboards && (
             <>
               <div className="sidebar-section-header" style={{
                 padding: '12px 16px 4px 16px',
