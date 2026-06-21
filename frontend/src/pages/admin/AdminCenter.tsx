@@ -71,6 +71,26 @@ interface AdminChatResponse {
   created_at: string | null;
 }
 
+const emojiMap: Record<string, string> = {
+  'English': '🇺🇸',
+  'Japanese': '🇯🇵',
+  'Spanish': '🇪🇸',
+  'French': '🇫🇷',
+  'German': '🇩🇪',
+  'Chinese (Simplified)': '🇨🇳',
+  'Chinese (Traditional)': '🇹🇼',
+  'Korean': '🇰🇷',
+  'Vietnamese': '🇻🇳',
+  'Thai': '🇹🇭',
+  'Indonesian': '🇮🇩',
+};
+
+const normalizeLangToKey = (langName: string): string => {
+  const cleaned = langName.replace(/-/g, ' ');
+  const safeName = cleaned.replace(/[^\w\s\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/g, '');
+  return safeName.replace(/\s+/g, '_').trim().toLowerCase();
+};
+
 export default function AdminCenter() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -108,6 +128,7 @@ export default function AdminCenter() {
   const [adminQuestion, setAdminQuestion] = useState('');
   const [diveLoading, setDiveLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const [selectedAiLang, setSelectedAiLang] = useState<string>('en');
 
   // --- Tab 6: Languages ---
   const [languages, setLanguages] = useState<string[]>([]);
@@ -190,11 +211,23 @@ export default function AdminCenter() {
   const loadLanguages = useCallback(async () => {
     try {
       const data = await settingsApi.getLanguages();
-      setLanguages(data.languages);
+      if (data && data.languages) {
+        setLanguages(data.languages);
+        // Set default AI language based on current UI locale if it matches
+        const currentUiLocale = i18n.language === 'ja' ? 'japanese' : 'english';
+        const match = data.languages.find(
+          (l: string) => normalizeLangToKey(l) === normalizeLangToKey(currentUiLocale)
+        );
+        if (match) {
+          setSelectedAiLang(normalizeLangToKey(match));
+        } else if (data.languages.length > 0) {
+          setSelectedAiLang(normalizeLangToKey(data.languages[0]));
+        }
+      }
     } catch (err: any) {
       console.error(err);
     }
-  }, []);
+  }, [i18n.language]);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -225,6 +258,7 @@ export default function AdminCenter() {
     else if (activeTab === 'criteria') loadCriteria();
     else if (activeTab === 'personas') loadPersonas();
     else if (activeTab === 'scoreboard') loadScoreboard();
+    else if (activeTab === 'deep_dive') loadLanguages();
     else if (activeTab === 'languages') loadLanguages();
     else if (activeTab === 'settings') {
       loadSettings();
@@ -417,6 +451,7 @@ export default function AdminCenter() {
 
     const q = adminQuestion.trim();
     setAdminQuestion('');
+    const previousChats = [...adminChats];
     try {
       // Optimistic locally
       setAdminChats((prev) => [
@@ -435,6 +470,7 @@ export default function AdminCenter() {
       await fetchAdminChat(selectedDiveEval.id);
     } catch (err: any) {
       setError(err.message || 'Failed to ask AI Judge.');
+      setAdminChats(previousChats);
     }
   };
 
@@ -1075,7 +1111,7 @@ export default function AdminCenter() {
                 <label>Select Team to Inspect</label>
                 <select value={diveTeamId} onChange={(e) => setDiveTeamId(e.target.value)}>
                   <option value="">— Select Team —</option>
-                  {teams.map((t) => (
+                  {teams.filter((t) => t.role === 'team').map((t) => (
                     <option key={t.team_id} value={t.team_id}>
                       {t.team_id} {t.product_name ? `(${t.product_name})` : ''}
                     </option>
@@ -1116,114 +1152,166 @@ export default function AdminCenter() {
                 <p className="dim-text">This team has not submitted anything yet.</p>
               </div>
             ) : selectedDiveEval ? (
-              <div className="dive-inspection-layout mt-4">
-                {/* Left Side: Score & Feedbacks */}
-                <div className="dive-score-feedback">
-                  <div className="card">
-                    <div className="card-header-flex">
-                      <h4>Evaluation Score Details</h4>
-                      <button
-                        onClick={() => handleDeleteEvaluation(selectedDiveEval.id)}
-                        className="btn btn-danger btn-sm"
-                        disabled={isObserver}
-                      >
-                        <Trash2 size={14} /> Delete Record
-                      </button>
-                    </div>
-
-                    <div className="dive-scores-meta mt-4">
-                      <div className="meta-metric">
-                        <span className="label">Overall Score</span>
-                        <span className="value">{selectedDiveEval.impact_score.toFixed(1)}</span>
-                      </div>
-                      <div className="meta-metric">
-                        <span className="label">Type</span>
-                        <span className="value">
-                          {selectedDiveEval.is_final ? 'Final' : 'Consultation'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <h5 className="mt-6">Scores Breakdown</h5>
-                    <div className="scores-list mt-2">
-                      {Object.entries(JSON.parse(selectedDiveEval.scores_json || '{}')).map(([k, v]) => (
-                        <div key={k} className="score-row">
-                          <span className="criteria-name">
-                            {k.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                          </span>
-                          <span className="score-value">{Number(v).toFixed(1)}/10</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <h5 className="mt-6">AI Summary</h5>
-                    <p className="summary-text mt-2">
-                      {
-                        JSON.parse(selectedDiveEval.strengths_risks_json || '{}')[
-                          `summary_${i18n.language === 'ja' ? 'japanese' : 'english'}`
-                        ] || 'No summary available.'
-                      }
-                    </p>
+              <div className="dive-inspection-container mt-4">
+                {/* AI Language Selection Tabs */}
+                {languages.length > 1 && (
+                  <div className="ai-language-tabs" style={{
+                    display: 'flex',
+                    gap: '8px',
+                    marginBottom: '16px',
+                    borderBottom: '1px solid #374151',
+                    paddingBottom: '8px'
+                  }}>
+                    {languages.map((lang) => {
+                      const key = normalizeLangToKey(lang);
+                      const active = selectedAiLang === key;
+                      return (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => setSelectedAiLang(key)}
+                          className={`ai-lang-tab-btn ${active ? 'active' : ''}`}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            background: active ? '#4f46e5' : 'transparent',
+                            color: active ? '#ffffff' : '#9ca3af',
+                            border: active ? 'none' : '1px solid #4b5563',
+                            fontSize: '0.85em',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {emojiMap[lang] || '🌐'} {lang}
+                        </button>
+                      );
+                    })}
                   </div>
-                </div>
+                )}
 
-                {/* Right Side: Private Admin chat with AI panel */}
-                <div className="dive-private-chat">
-                  <div className="card h-full flex flex-column">
-                    <div className="chat-header">
-                      <h4>Jury Private Consultation</h4>
-                      <p className="dim-text text-sm">
-                        Discuss details of this evaluation with the AI judges. Teams cannot see this chat.
+                <div className="dive-inspection-layout mt-4">
+                  {/* Left Side: Score & Feedbacks */}
+                  <div className="dive-score-feedback">
+                    <div className="card">
+                      <div className="card-header-flex">
+                        <h4>Evaluation Score Details</h4>
+                        <button
+                          onClick={() => handleDeleteEvaluation(selectedDiveEval.id)}
+                          className="btn btn-danger btn-sm"
+                          disabled={isObserver}
+                        >
+                          <Trash2 size={14} /> Delete Record
+                        </button>
+                      </div>
+
+                      <div className="dive-scores-meta mt-4">
+                        <div className="meta-metric">
+                          <span className="label">Overall Score</span>
+                          <span className="value">{selectedDiveEval.impact_score.toFixed(1)}</span>
+                        </div>
+                        <div className="meta-metric">
+                          <span className="label">Type</span>
+                          <span className="value">
+                            {selectedDiveEval.is_final ? 'Final' : 'Consultation'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <h5 className="mt-6">Scores Breakdown</h5>
+                      <div className="scores-list mt-2">
+                        {Object.entries(JSON.parse(selectedDiveEval.scores_json || '{}')).map(([k, v]) => (
+                          <div key={k} className="score-row">
+                            <span className="criteria-name">
+                              {k.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                            </span>
+                            <span className="score-value">{Number(v).toFixed(1)}/10</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <h5 className="mt-6">AI Summary</h5>
+                      <p className="summary-text mt-2">
+                        {
+                          (() => {
+                            const strengthsRisks = JSON.parse(selectedDiveEval.strengths_risks_json || '{}');
+                            return strengthsRisks[`summary_${selectedAiLang}`] ||
+                                   strengthsRisks[`summary_japanese`] ||
+                                   strengthsRisks[`summary_english`] ||
+                                   strengthsRisks[`summary_default`] ||
+                                   'No summary available.';
+                          })()
+                        }
                       </p>
                     </div>
+                  </div>
 
-                    <div className="chat-thread-container mt-4 flex-grow">
-                      <div className="chat-messages">
-                        {adminChats.length === 0 ? (
-                          <p className="dim-text text-center py-6">
-                            No private discussion history. Ask questions below.
-                          </p>
-                        ) : (
-                          adminChats.map((c) => {
-                            const isJa = i18n.language === 'ja';
-                            const q = isJa ? c.question_ja || c.question_en : c.question_en;
-                            const a = isJa ? c.answer_ja || c.answer_en : c.answer_en;
-
-                            return (
-                              <div key={c.id} className="chat-qa-pair">
-                                <div className="chat-message-bubble msg-team">
-                                  <div className="msg-header">Admin (Private)</div>
-                                  <p className="msg-content">{q}</p>
-                                </div>
-                                <div className="chat-message-bubble msg-judges">
-                                  <div className="msg-header">AI Jury Panel</div>
-                                  <p className="msg-content">{a || 'Jury is generating reply...'}</p>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                        {chatLoading && (
-                          <div className="chat-message-bubble msg-judges chat-typing">
-                            <Loader2 size={16} className="animate-spin" />
-                            <span>Jury panel is discussing in secret...</span>
-                          </div>
-                        )}
+                  {/* Right Side: Private Admin chat with AI panel */}
+                  <div className="dive-private-chat">
+                    <div className="card h-full flex flex-column">
+                      <div className="chat-header">
+                        <h4>Jury Private Consultation</h4>
+                        <p className="dim-text text-sm">
+                          Discuss details of this evaluation with the AI judges. Teams cannot see this chat.
+                        </p>
                       </div>
-                    </div>
 
-                    <form onSubmit={handleSendAdminQuestion} className="chat-input-form mt-4">
-                      <input
-                        type="text"
-                        value={adminQuestion}
-                        onChange={(e) => setAdminQuestion(e.target.value)}
-                        placeholder={isObserver ? "Private consult chat is read-only for observers" : "Ask the judges about their scores or reasoning..."}
-                        disabled={chatLoading || isObserver}
-                      />
-                      <button type="submit" className="btn btn-primary" disabled={chatLoading || !adminQuestion.trim() || isObserver}>
-                        <Send size={16} />
-                      </button>
-                    </form>
+                      <div className="chat-thread-container mt-4 flex-grow">
+                        <div className="chat-messages">
+                          {adminChats.length === 0 ? (
+                            <p className="dim-text text-center py-6">
+                              No private discussion history. Ask questions below.
+                            </p>
+                          ) : (
+                            adminChats.map((c) => {
+                              const qa = c.qa_json || {};
+                              const q = qa[`question_${selectedAiLang}`] ||
+                                        qa[`question_japanese`] ||
+                                        qa[`question_english`] ||
+                                        c.question_ja ||
+                                        c.question_en ||
+                                        '';
+                              const a = qa[`answer_${selectedAiLang}`] ||
+                                        qa[`answer_japanese`] ||
+                                        qa[`answer_english`] ||
+                                        c.answer_ja ||
+                                        c.answer_en ||
+                                        '';
+
+                              return (
+                                <div key={c.id} className="chat-qa-pair">
+                                  <div className="chat-message-bubble msg-team">
+                                    <div className="msg-header">Admin (Private)</div>
+                                    <p className="msg-content">{q}</p>
+                                  </div>
+                                  <div className="chat-message-bubble msg-judges">
+                                    <div className="msg-header">AI Jury Panel</div>
+                                    <p className="msg-content">{a || 'Jury is generating reply...'}</p>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                          {chatLoading && (
+                            <div className="chat-message-bubble msg-judges chat-typing">
+                              <Loader2 size={16} className="animate-spin" />
+                              <span>Jury panel is discussing in secret...</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <form onSubmit={handleSendAdminQuestion} className="chat-input-form mt-4">
+                        <input
+                          type="text"
+                          value={adminQuestion}
+                          onChange={(e) => setAdminQuestion(e.target.value)}
+                          placeholder={isObserver ? "Private consult chat is read-only for observers" : "Ask the judges about their scores or reasoning..."}
+                          disabled={chatLoading || isObserver}
+                        />
+                        <button type="submit" className="btn btn-primary" disabled={chatLoading || !adminQuestion.trim() || isObserver}>
+                          <Send size={16} />
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 </div>
               </div>
