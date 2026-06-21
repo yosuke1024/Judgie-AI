@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { teamsApi, evaluationsApi, submissionsApi, chatApi, settingsApi } from '@/api/client';
 import {
@@ -84,11 +85,15 @@ const CRITERIA_COLORS = [
 export default function TeamDashboard() {
   const { t, i18n } = useTranslation();
   const { user, refreshUser } = useAuth();
+  const { teamId } = useParams<{ teamId?: string }>();
+
+  const effectiveTeamId = teamId || user?.team_id;
+  const isReadOnly = !!teamId;
 
   // Profile Form States
-  const [productName, setProductName] = useState(user?.product_name || '');
-  const [teamName, setTeamName] = useState(user?.team_name || '');
-  const [oneLiner, setOneLiner] = useState(user?.one_liner || '');
+  const [productName, setProductName] = useState('');
+  const [teamName, setTeamName] = useState('');
+  const [oneLiner, setOneLiner] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
 
@@ -116,6 +121,10 @@ export default function TeamDashboard() {
   const [criteria, setCriteria] = useState<any[]>([]);
   const [selectedAiLang, setSelectedAiLang] = useState<string>('en');
   const [personas, setPersonas] = useState<any[]>([]);
+  const [projectSettings, setProjectSettings] = useState<{
+    max_consultations?: number;
+    max_qa_turns?: number;
+  }>({});
 
   const personaMap = useMemo(() => {
     const map: Record<string, { avatar?: string; avatar_image?: string }> = {};
@@ -190,6 +199,16 @@ export default function TeamDashboard() {
       } catch (err) {
         console.error('Failed to fetch personas config:', err);
       }
+
+      try {
+        const project = await settingsApi.getProject();
+        setProjectSettings({
+          max_consultations: Number(project.max_consultations),
+          max_qa_turns: Number(project.max_qa_turns),
+        });
+      } catch (err) {
+        console.error('Failed to fetch project settings:', err);
+      }
     };
 
     fetchConfig();
@@ -197,19 +216,39 @@ export default function TeamDashboard() {
 
   // Local state update when user profile loads
   useEffect(() => {
-    if (user) {
+    if (!isReadOnly && user) {
       setProductName(user.product_name || '');
       setTeamName(user.team_name || '');
       setOneLiner(user.one_liner || '');
     }
-  }, [user]);
+  }, [user, isReadOnly]);
+
+  // Load team profile if in read-only mode for a specific teamId
+  useEffect(() => {
+    if (isReadOnly && teamId && user?.hackathon_id) {
+      const fetchTeamInfo = async () => {
+        try {
+          const list = await teamsApi.list(user.hackathon_id!);
+          const found = list.find((t) => t.team_id === teamId);
+          if (found) {
+            setProductName(found.product_name || '');
+            setTeamName(found.team_name || '');
+            setOneLiner(found.one_liner || '');
+          }
+        } catch (err) {
+          console.error('Failed to fetch team info:', err);
+        }
+      };
+      fetchTeamInfo();
+    }
+  }, [isReadOnly, teamId, user?.hackathon_id]);
 
   // Fetch evaluation history
   const fetchHistory = useCallback(async () => {
-    if (!user) return;
+    if (!effectiveTeamId) return;
     try {
       setEvalLoading(true);
-      const data = (await evaluationsApi.getTeamEvaluations(user.team_id)) as EvaluationItem[];
+      const data = (await evaluationsApi.getTeamEvaluations(effectiveTeamId)) as EvaluationItem[];
       // Sort evaluations: latest first
       const sorted = [...data].sort((a, b) => b.id - a.id);
       setEvaluations(sorted);
@@ -229,7 +268,7 @@ export default function TeamDashboard() {
     } finally {
       setEvalLoading(false);
     }
-  }, [user]);
+  }, [effectiveTeamId]);
 
   useEffect(() => {
     fetchHistory();
@@ -328,7 +367,22 @@ export default function TeamDashboard() {
     );
   }, []);
 
-  if (!user) return null;
+  const maxConsultations = isReadOnly
+    ? (projectSettings.max_consultations ?? 3)
+    : (user?.max_consultations ?? 3);
+
+  const maxQaTurns = isReadOnly
+    ? (projectSettings.max_qa_turns ?? 1)
+    : (user?.max_qa_turns ?? 1);
+
+  const effectiveConsultationCount = useMemo(() => {
+    if (isReadOnly) {
+      return evaluations.filter(e => !e.is_final).length;
+    }
+    return user?.consultation_count || 0;
+  }, [isReadOnly, evaluations, user?.consultation_count]);
+
+  if (!user || !effectiveTeamId) return null;
 
   // Handle Profile Update
   const handleProfileSave = async (e: React.FormEvent) => {
@@ -539,7 +593,6 @@ export default function TeamDashboard() {
 
     // Count the number of turns submitted by the team
     const teamMessageCount = chatMessages.filter((msg) => msg.sender === 'team').length;
-    const maxQaTurns = user?.max_qa_turns ?? 1;
     const isQaLimitReached = maxQaTurns !== -1 && teamMessageCount >= maxQaTurns;
 
     return (
@@ -623,7 +676,7 @@ export default function TeamDashboard() {
                   <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 9 }} />
                   <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fill: '#6b7280', fontSize: 8 }} />
                   <Radar
-                    name={user.team_id}
+                    name={effectiveTeamId}
                     dataKey="score"
                     stroke="#818cf8"
                     fill="#818cf8"
@@ -962,22 +1015,28 @@ export default function TeamDashboard() {
               </div>
             )}
 
-            <form onSubmit={handleSendQuestion} className="chat-input-form">
-              <input
-                type="text"
-                value={newQuestion}
-                onChange={(e) => setNewQuestion(e.target.value)}
-                placeholder={
-                  isQaLimitReached
-                    ? (isJa ? 'Q&A対話の回数制限に達しました。' : 'Maximum Q&A discussion turns reached.')
-                    : (isJa ? '審査員に質問や反論を送信...' : 'Type your question or objection here...')
-                }
-                disabled={chatLoading || isQaLimitReached}
-              />
-              <button type="submit" className="btn btn-primary" disabled={chatLoading || isQaLimitReached || !newQuestion.trim()}>
-                <Send size={16} />
-              </button>
-            </form>
+            {isReadOnly ? (
+              <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)', color: '#9ca3af', fontSize: '0.9em', textAlign: 'center' }}>
+                {i18n.language === 'ja' ? '閲覧専用モードのため、チームQ&Aにメッセージを送信できません。' : 'Read-only mode. You cannot send messages to this team Q&A.'}
+              </div>
+            ) : (
+              <form onSubmit={handleSendQuestion} className="chat-input-form">
+                <input
+                  type="text"
+                  value={newQuestion}
+                  onChange={(e) => setNewQuestion(e.target.value)}
+                  placeholder={
+                    isQaLimitReached
+                      ? (isJa ? 'Q&A対話の回数制限に達しました。' : 'Maximum Q&A discussion turns reached.')
+                      : (isJa ? '審査員に質問や反論を送信...' : 'Type your question or objection here...')
+                  }
+                  disabled={chatLoading || isQaLimitReached}
+                />
+                <button type="submit" className="btn btn-primary" disabled={chatLoading || isQaLimitReached || !newQuestion.trim()}>
+                  <Send size={16} />
+                </button>
+              </form>
+            )}
           </div>
         </div>
       </div>
@@ -1000,6 +1059,7 @@ export default function TeamDashboard() {
         {/* Left Side: Upload & Profile */}
         <div className="sidebar-cards">
           {/* Team Profile Edit */}
+          {/* Team Profile Edit */}
           <div className="dash-card">
             <h3>{t('team.profile')}</h3>
             <form onSubmit={handleProfileSave} className="profile-form">
@@ -1010,6 +1070,7 @@ export default function TeamDashboard() {
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
                   placeholder="e.g. Judgie-AI"
+                  disabled={isReadOnly}
                 />
               </div>
               <div className="form-group">
@@ -1019,6 +1080,7 @@ export default function TeamDashboard() {
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                   placeholder="e.g. DeepMind Builders"
+                  disabled={isReadOnly}
                 />
               </div>
               <div className="form-group">
@@ -1028,12 +1090,15 @@ export default function TeamDashboard() {
                   onChange={(e) => setOneLiner(e.target.value)}
                   placeholder="e.g. AI-powered hackathon evaluation platform"
                   rows={2}
+                  disabled={isReadOnly}
                 />
               </div>
-              <button type="submit" className="btn btn-primary" disabled={profileSaving}>
-                {profileSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {t('common.save')}
-              </button>
+              {!isReadOnly && (
+                <button type="submit" className="btn btn-primary" disabled={profileSaving}>
+                  {profileSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {t('common.save')}
+                </button>
+              )}
               {profileSuccess && (
                 <div className="success-inline">
                   <CheckCircle size={16} />
@@ -1041,139 +1106,162 @@ export default function TeamDashboard() {
                 </div>
               )}
             </form>
+            {isReadOnly && maxConsultations !== undefined && (
+              <div className="consultations-remaining-info" style={{
+                marginTop: '16px',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                fontSize: '0.9em',
+                color: '#9ca3af',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span>{t('team.consultations_remaining')}</span>
+                <strong style={{ color: '#ffffff' }}>
+                  {maxConsultations === -1
+                    ? (i18n.language === 'ja' ? '無制限' : 'Unlimited')
+                    : `${Math.max(0, maxConsultations - effectiveConsultationCount)} / ${maxConsultations}`}
+                </strong>
+              </div>
+            )}
           </div>
 
           {/* Submission Form */}
-          <div className="dash-card">
-            <h3>{t('team.submit')}</h3>
-            
-            <details className="zip-hint-details">
-              <summary className="zip-hint-summary">
-                {t('team.zip_hint_title')}
-              </summary>
-              <div className="zip-hint-content">
-                <p>{t('team.zip_hint_desc')}</p>
-                <div className="zip-hint-example">
-                  <span>{t('team.zip_hint_example')}</span>
-                  <div className="code-block-container">
-                    <pre>
-                      <code>{t('team.zip_hint_command')}</code>
-                    </pre>
-                    <button
-                      type="button"
-                      className="copy-code-btn"
-                      onClick={handleCopyCommand}
-                      title="Copy to clipboard"
-                    >
-                      {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
-                    </button>
+          {!isReadOnly && (
+            <div className="dash-card">
+              <h3>{t('team.submit')}</h3>
+              
+              <details className="zip-hint-details">
+                <summary className="zip-hint-summary">
+                  {t('team.zip_hint_title')}
+                </summary>
+                <div className="zip-hint-content">
+                  <p>{t('team.zip_hint_desc')}</p>
+                  <div className="zip-hint-example">
+                    <span>{t('team.zip_hint_example')}</span>
+                    <div className="code-block-container">
+                      <pre>
+                        <code>{t('team.zip_hint_command')}</code>
+                      </pre>
+                      <button
+                        type="button"
+                        className="copy-code-btn"
+                        onClick={handleCopyCommand}
+                        title="Copy to clipboard"
+                      >
+                        {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </details>
+              </details>
 
-            <form onSubmit={handleUploadSubmit} className="upload-form">
-              <div
-                className="drop-zone"
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-              >
-                <Upload size={32} />
-                <p>{t('team.upload_hint')}</p>
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileChange}
-                  style={{ display: 'none' }}
-                  id="file-upload-input"
-                />
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => document.getElementById('file-upload-input')?.click()}
+              <form onSubmit={handleUploadSubmit} className="upload-form">
+                <div
+                  className="drop-zone"
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
                 >
-                  Browse Files
-                </button>
-              </div>
-
-              {selectedFiles.length > 0 && (
-                <div className="selected-files">
-                  <h5>Selected Files ({selectedFiles.length}):</h5>
-                  <ul>
-                    {selectedFiles.map((f, i) => (
-                      <li key={i}>{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</li>
-                    ))}
-                  </ul>
+                  <Upload size={32} />
+                  <p>{t('team.upload_hint')}</p>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    style={{ display: 'none' }}
+                    id="file-upload-input"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => document.getElementById('file-upload-input')?.click()}
+                  >
+                    Browse Files
+                  </button>
                 </div>
-              )}
 
-              <div className="form-checkbox">
-                <input
-                  type="checkbox"
-                  id="is-final-checkbox"
-                  checked={isFinalUpload}
-                  onChange={(e) => setIsFinalUpload(e.target.checked)}
-                />
-                <label htmlFor="is-final-checkbox">
-                  <strong>{t('team.final_submission')}</strong>
-                </label>
-              </div>
-
-              {uploadError && (
-                <div className="error-box">
-                  <AlertTriangle size={16} />
-                  <span>{uploadError}</span>
-                </div>
-              )}
-
-              {uploadSuccess && (
-                <div className="success-box">
-                  <CheckCircle size={16} />
-                  <span>Upload successful! Evaluating project...</span>
-                </div>
-              )}
-
-              {user.max_consultations !== undefined && (
-                <div className="consultations-remaining-info" style={{
-                  marginBottom: '12px',
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  fontSize: '0.9em',
-                  color: '#9ca3af',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <span>{t('team.consultations_remaining')}</span>
-                  <strong style={{ color: '#ffffff' }}>
-                    {user.max_consultations === -1
-                      ? (i18n.language === 'ja' ? '無制限' : 'Unlimited')
-                      : `${Math.max(0, user.max_consultations - (user.consultation_count || 0))} / ${user.max_consultations}`}
-                  </strong>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="btn btn-primary w-full"
-                disabled={uploading || selectedFiles.length === 0}
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    Evaluating Project...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={16} />
-                    {t('team.consultation')}
-                  </>
+                {selectedFiles.length > 0 && (
+                  <div className="selected-files">
+                    <h5>Selected Files ({selectedFiles.length}):</h5>
+                    <ul>
+                      {selectedFiles.map((f, i) => (
+                        <li key={i}>{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
-              </button>
-            </form>
-          </div>
+
+                <div className="form-checkbox">
+                  <input
+                    type="checkbox"
+                    id="is-final-checkbox"
+                    checked={isFinalUpload}
+                    onChange={(e) => setIsFinalUpload(e.target.checked)}
+                  />
+                  <label htmlFor="is-final-checkbox">
+                    <strong>{t('team.final_submission')}</strong>
+                  </label>
+                </div>
+
+                {uploadError && (
+                  <div className="error-box">
+                    <AlertTriangle size={16} />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+
+                {uploadSuccess && (
+                  <div className="success-box">
+                    <CheckCircle size={16} />
+                    <span>Upload successful! Evaluating project...</span>
+                  </div>
+                )}
+
+                {maxConsultations !== undefined && (
+                  <div className="consultations-remaining-info" style={{
+                    marginBottom: '12px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '0.9em',
+                    color: '#9ca3af',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span>{t('team.consultations_remaining')}</span>
+                    <strong style={{ color: '#ffffff' }}>
+                      {maxConsultations === -1
+                        ? (i18n.language === 'ja' ? '無制限' : 'Unlimited')
+                        : `${Math.max(0, maxConsultations - effectiveConsultationCount)} / ${maxConsultations}`}
+                    </strong>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="btn btn-primary w-full"
+                  disabled={uploading || selectedFiles.length === 0}
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Evaluating Project...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={16} />
+                      {t('team.consultation')}
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          )}
           {renderCriteriaBreakdown()}
         </div>
 
