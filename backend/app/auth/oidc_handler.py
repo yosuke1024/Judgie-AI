@@ -4,16 +4,17 @@ Handles redirect URI generation, token exchange, and ID token verification.
 """
 
 import urllib.parse
+
 import jwt
 import requests
 
 from app.config import (
+    OIDC_ALLOWED_DOMAINS,
+    OIDC_ALLOWED_EMAILS,
     OIDC_CLIENT_ID,
     OIDC_CLIENT_SECRET,
     OIDC_ISSUER,
     OIDC_REDIRECT_URI,
-    OIDC_ALLOWED_DOMAINS,
-    OIDC_ALLOWED_EMAILS,
 )
 
 _oidc_config = None

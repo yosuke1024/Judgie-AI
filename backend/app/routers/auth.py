@@ -4,18 +4,25 @@ Authentication router: login, logout, current user.
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Cookie
-import jwt
 
+import jwt
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+
+from app.auth import oidc_handler
 from app.auth.deps import CurrentUser, get_current_user
 from app.auth.jwt_handler import create_access_token
-from app.config import OIDC_ENABLED, JWT_SECRET_KEY, JWT_ALGORITHM
-from app.auth import oidc_handler
+from app.config import JWT_ALGORITHM, JWT_SECRET_KEY, OIDC_ENABLED
 from app.models.db import verify_user
 from app.schemas.schemas import (
-    LoginRequest, LoginResponse, UserInfo,
-    OIDCLoginInitResponse, OIDCCallbackRequest, OIDCCallbackResponse,
-    TenantInfo, OIDCTenantSelectRequest, TenantSelectRequest
+    LoginRequest,
+    LoginResponse,
+    OIDCCallbackRequest,
+    OIDCCallbackResponse,
+    OIDCLoginInitResponse,
+    OIDCTenantSelectRequest,
+    TenantInfo,
+    TenantSelectRequest,
+    UserInfo,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -76,7 +83,7 @@ def oidc_callback(
         )
 
     # Query matching users in database
-    from app.models.db import db_session, User, Hackathon
+    from app.models.db import Hackathon, User, db_session
 
     with db_session() as db:
         user_records = db.query(User).filter(User.email == email).all()
@@ -158,7 +165,7 @@ def oidc_select_tenant(req: OIDCTenantSelectRequest, response: Response):
             detail="Invalid or expired temporary token.",
         )
 
-    from app.models.db import db_session, User
+    from app.models.db import User, db_session
 
     with db_session() as db:
         user = db.query(User).filter(
@@ -202,7 +209,8 @@ def get_my_tenants(user: CurrentUser = Depends(get_current_user)):
     email = user.email
     if not email:
         # Fallback to DB query if email is not in JWT payload
-        from app.models.db import db_session, User as DBUser
+        from app.models.db import User as DBUser
+        from app.models.db import db_session
         with db_session() as db:
             db_user = db.query(DBUser).filter(
                 DBUser.hackathon_id == user.hackathon_id,
@@ -212,7 +220,7 @@ def get_my_tenants(user: CurrentUser = Depends(get_current_user)):
 
     if not email:
         # Fallback: return just the current tenant if no email registered
-        from app.models.db import db_session, Hackathon
+        from app.models.db import Hackathon, db_session
         with db_session() as db:
             h = db.query(Hackathon).filter(Hackathon.id == user.hackathon_id).first()
             h_name = h.name if h else f"Hackathon #{user.hackathon_id}"
@@ -225,7 +233,8 @@ def get_my_tenants(user: CurrentUser = Depends(get_current_user)):
                 )
             ]
 
-    from app.models.db import db_session, User as DBUser, Hackathon
+    from app.models.db import Hackathon, db_session
+    from app.models.db import User as DBUser
 
     with db_session() as db:
         user_records = db.query(DBUser).filter(DBUser.email == email).all()
@@ -254,7 +263,8 @@ def switch_tenant(
     """Switch user's current session to a different tenant they belong to."""
     email = current_user.email
     if not email:
-        from app.models.db import db_session, User as DBUser
+        from app.models.db import User as DBUser
+        from app.models.db import db_session
         with db_session() as db:
             db_user = db.query(DBUser).filter(
                 DBUser.hackathon_id == current_user.hackathon_id,
@@ -268,7 +278,8 @@ def switch_tenant(
             detail="Cannot switch tenant: Current session has no registered email.",
         )
 
-    from app.models.db import db_session, User as DBUser
+    from app.models.db import User as DBUser
+    from app.models.db import db_session
 
     with db_session() as db:
         user = db.query(DBUser).filter(
