@@ -221,8 +221,10 @@ export default function AdminCenter() {
     else if (activeTab === 'personas') loadPersonas();
     else if (activeTab === 'scoreboard') loadScoreboard();
     else if (activeTab === 'languages') loadLanguages();
-    else if (activeTab === 'settings') loadSettings();
-    else if (activeTab === 'export') loadTemplates();
+    else if (activeTab === 'settings') {
+      loadSettings();
+      loadTemplates();
+    }
   }, [activeTab, loadTeams, loadCriteria, loadPersonas, loadScoreboard, loadLanguages, loadSettings, loadTemplates]);
 
   // --- Handlers: Teams Tab ---
@@ -343,10 +345,12 @@ export default function AdminCenter() {
     setPersonas([
       ...personas,
       {
+        id: String(Date.now()),
         name: 'Judge Name',
         role: 'Judge Role',
-        emoji: '🤖',
-        prompt_instruction: 'Focus on technical execution.',
+        avatar: '🤖',
+        prompt: 'Focus on technical execution.',
+        active: true,
       },
     ]);
   };
@@ -872,11 +876,11 @@ export default function AdminCenter() {
                   <div key={index} className="persona-item-card">
                     <div className="persona-header-inputs">
                       <div className="form-group flex-sm">
-                        <label>Emoji</label>
+                        <label>Avatar / Emoji</label>
                         <input
                           type="text"
-                          value={persona.emoji || '🤖'}
-                          onChange={(e) => updatePersonaField(index, 'emoji', e.target.value)}
+                          value={persona.avatar || '🤖'}
+                          onChange={(e) => updatePersonaField(index, 'avatar', e.target.value)}
                           disabled={isObserver}
                         />
                       </div>
@@ -905,8 +909,8 @@ export default function AdminCenter() {
                     <div className="form-group mt-2">
                       <label>Prompt Instruction / Evaluation Philosophy</label>
                       <textarea
-                        value={persona.prompt_instruction}
-                        onChange={(e) => updatePersonaField(index, 'prompt_instruction', e.target.value)}
+                        value={persona.prompt || ''}
+                        onChange={(e) => updatePersonaField(index, 'prompt', e.target.value)}
                         rows={4}
                         placeholder="Tell the AI how to act, what to focus on, and how to write criticism..."
                         disabled={isObserver}
@@ -1360,57 +1364,6 @@ export default function AdminCenter() {
                   </button>
                 </form>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================================================================= */}
-        {/* TAB: EXPORT / DATA MANAGEMENT */}
-        {/* ================================================================= */}
-        {activeTab === 'export' && (
-          <div className="tab-pane export-pane">
-            <div className="settings-grid">
-              {/* Export Panel */}
-              <div className="card">
-                <h4>Export Project Data</h4>
-                <p className="dim-text text-sm">Download evaluating results and reports.</p>
-
-                <div className="export-actions-list mt-4">
-                  <div className="export-action-item">
-                    <div>
-                      <strong>All Markdown Reports</strong>
-                      <p className="dim-text text-xs">Download all evaluations feedback as a ZIP of Markdown files.</p>
-                    </div>
-                    {isObserver ? (
-                      <button className="btn btn-secondary btn-sm" disabled>
-                        Admin Only
-                      </button>
-                    ) : (
-                      <a
-                        href="/api/export/markdown/all"
-                        download
-                        className="btn btn-secondary btn-sm"
-                      >
-                        <Download size={14} /> Download ZIP
-                      </a>
-                    )}
-                  </div>
-
-                  <div className="export-action-item mt-4">
-                    <div>
-                      <strong>Jury Configuration Template</strong>
-                      <p className="dim-text text-xs">Export the active evaluation criteria and judge profiles as JSON.</p>
-                    </div>
-                    <a
-                      href="/api/export/template"
-                      download
-                      className="btn btn-secondary btn-sm"
-                    >
-                      <Download size={14} /> Export JSON
-                    </a>
-                  </div>
-                </div>
-              </div>
 
               {/* Import Panel */}
               <div className="card">
@@ -1463,6 +1416,57 @@ export default function AdminCenter() {
                     {t('admin.import_url_btn')}
                   </button>
                 </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* TAB: EXPORT / DATA MANAGEMENT */}
+        {/* ================================================================= */}
+        {activeTab === 'export' && (
+          <div className="tab-pane export-pane">
+            <div className="settings-grid">
+              {/* Export Panel */}
+              <div className="card">
+                <h4>Export Project Data</h4>
+                <p className="dim-text text-sm">Download evaluating results and reports.</p>
+
+                <div className="export-actions-list mt-4">
+                  <div className="export-action-item">
+                    <div>
+                      <strong>All Markdown Reports</strong>
+                      <p className="dim-text text-xs">Download all evaluations feedback as a ZIP of Markdown files.</p>
+                    </div>
+                    {isObserver ? (
+                      <button className="btn btn-secondary btn-sm" disabled>
+                        Admin Only
+                      </button>
+                    ) : (
+                      <a
+                        href="/api/export/markdown/all"
+                        download
+                        className="btn btn-secondary btn-sm"
+                      >
+                        <Download size={14} /> Download ZIP
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="export-action-item mt-4">
+                    <div>
+                      <strong>Jury Configuration Template</strong>
+                      <p className="dim-text text-xs">Export the active evaluation criteria and judge profiles as JSON.</p>
+                    </div>
+                    <a
+                      href="/api/export/template"
+                      download
+                      className="btn btn-secondary btn-sm"
+                    >
+                      <Download size={14} /> Export JSON
+                    </a>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
