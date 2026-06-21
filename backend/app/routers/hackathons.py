@@ -2,7 +2,7 @@
 Hackathon (Project/Tenant) management router.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 
 from app.auth.deps import CurrentUser, require_role

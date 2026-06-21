@@ -1,8 +1,9 @@
 import pytest
-from fastapi.testclient import TestClient
+from app.auth.deps import CurrentUser, get_current_user
 from app.main import app
-from app.auth.deps import get_current_user, CurrentUser
 from app.models.db import Hackathon as DBHackathon
+from fastapi.testclient import TestClient
+
 
 @pytest.fixture
 def client():

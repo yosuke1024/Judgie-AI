@@ -79,8 +79,8 @@ sys.modules["streamlit"] = mock_st
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
+import backend.app.models.db  # noqa: E402
 import core.db  # noqa: E402
-import backend.app.models.db
 
 # Setup test-specific in-memory SQLite database
 test_engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
