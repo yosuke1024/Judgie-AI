@@ -58,7 +58,7 @@ def process_submission(
     from app.models.db import get_ai_response_languages
 
     languages = get_ai_response_languages(hackathon_id)
-    result_json = sanitize_evaluation_response(result_json, languages)
+    result_json = sanitize_evaluation_response(result_json, hackathon_id, languages)
 
     # Save the normalized evaluation to database
     g_file_names = [f.name for f in gemini_media_files] if gemini_media_files else []
@@ -69,13 +69,16 @@ def process_submission(
     return result_json
 
 
-def sanitize_evaluation_response(data: dict, languages: list[str] = None) -> dict:
+def sanitize_evaluation_response(data: dict, hackathon_id: int, languages: list[str] = None) -> dict:
     """
     Sanitizes LLM response to ensure essential keys and safe fallback structures are present.
     """
     if languages is None:
         languages = ["English", "Japanese"]
-    from app.models.db import normalize_lang_to_key
+    from app.models.db import normalize_lang_to_key, get_personas
+
+    personas = get_personas(hackathon_id)
+    persona_map = {p["name"].lower(): p for p in personas}
 
     if not isinstance(data, dict):
         data = {}
@@ -127,11 +130,16 @@ def sanitize_evaluation_response(data: dict, languages: list[str] = None) -> dic
     for j in sanitized["judges_feedback"]:
         if not isinstance(j, dict):
             continue
+        j_name = j.get("judge_name", "Judge")
+        p_data = persona_map.get(j_name.lower(), {})
+
         normalized_j = {
-            "judge_name": j.get("judge_name", "Judge"),
-            "judge_role": j.get("judge_role", "Expert Panelist"),
-            "judge_persona": j.get("judge_persona", ""),
+            "judge_name": j_name,
+            "judge_role": j.get("judge_role") or p_data.get("role") or "Expert Panelist",
+            "judge_persona": j.get("judge_persona") or (p_data.get("prompt", "")[:120] + "...") or "",
             "judge_scores": j.get("judge_scores", []),
+            "judge_emoji": p_data.get("avatar") or j.get("judge_emoji") or j.get("avatar") or "🤖",
+            "judge_avatar_image": p_data.get("avatar_image") or j.get("judge_avatar_image") or j.get("avatar_image"),
         }
         if not isinstance(normalized_j["judge_scores"], list):
             normalized_j["judge_scores"] = []

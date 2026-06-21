@@ -693,7 +693,15 @@ export default function TeamDashboard() {
                 return (
                   <div key={idx} className="judge-card" style={{ padding: '20px', background: '#111827', border: '1px solid #374151', borderRadius: '8px' }}>
                     <div className="judge-card-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                      <span className="judge-emoji" style={{ fontSize: '2.5em' }}>{feedback.judge_emoji || '🤖'}</span>
+                      {feedback.judge_avatar_image ? (
+                        <img 
+                          src={feedback.judge_avatar_image} 
+                          alt={feedback.judge_name} 
+                          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} 
+                        />
+                      ) : (
+                        <span className="judge-emoji" style={{ fontSize: '2.5em' }}>{feedback.judge_emoji || '🤖'}</span>
+                      )}
                       <div>
                         <h5 style={{ margin: '0', fontSize: '1.1em', fontWeight: 'bold' }}>{feedback.judge_name}</h5>
                         <span className="judge-role" style={{ fontSize: '0.85em', color: '#9ca3af' }}>{feedback.judge_role}</span>
@@ -870,7 +878,15 @@ export default function TeamDashboard() {
                                     padding: '10px 12px'
                                   }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                                      <span style={{ fontSize: '1.2em' }}>{jResp.judge_emoji || '🤖'}</span>
+                                      {jResp.judge_avatar_image ? (
+                                        <img 
+                                          src={jResp.judge_avatar_image} 
+                                          alt={jResp.judge_name} 
+                                          style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} 
+                                        />
+                                      ) : (
+                                        <span style={{ fontSize: '1.2em' }}>{jResp.judge_emoji || '🤖'}</span>
+                                      )}
                                       <div>
                                         <strong style={{ fontSize: '0.9em', color: '#ffffff' }}>{jResp.judge_name}</strong>
                                         {jResp.judge_role && (
