@@ -3,7 +3,6 @@ Teams management router.
 """
 
 import csv
-import io
 
 from fastapi import APIRouter, Depends, HTTPException
 
