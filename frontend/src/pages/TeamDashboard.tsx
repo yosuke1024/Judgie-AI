@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
-import { teamsApi, evaluationsApi, submissionsApi, chatApi } from '@/api/client';
+import { teamsApi, evaluationsApi, submissionsApi, chatApi, settingsApi } from '@/api/client';
 import {
   Upload,
   FileText,
@@ -73,6 +73,67 @@ export default function TeamDashboard() {
   const [newQuestion, setNewQuestion] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState('');
+
+  // Configured Hackathon States (Criteria, Languages)
+  const [aiLanguages, setAiLanguages] = useState<string[]>(['English', 'Japanese']);
+  const [criteria, setCriteria] = useState<any[]>([]);
+  const [selectedAiLang, setSelectedAiLang] = useState<string>('en');
+
+  const emojiMap: Record<string, string> = {
+    'English': '🇺🇸',
+    'Japanese': '🇯🇵',
+    'Spanish': '🇪🇸',
+    'French': '🇫🇷',
+    'German': '🇩🇪',
+    'Chinese (Simplified)': '🇨🇳',
+    'Chinese (Traditional)': '🇹🇼',
+    'Korean': '🇰🇷',
+    'Vietnamese': '🇻🇳',
+    'Thai': '🇹🇭',
+    'Indonesian': '🇮🇩',
+  };
+
+  const normalizeLangToKey = (langName: string): string => {
+    const cleaned = langName.replace(/-/g, ' ');
+    const safeName = cleaned.replace(/[^\w\s\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/g, '');
+    return safeName.replace(/\s+/g, '_').trim().toLowerCase();
+  };
+
+  // Fetch criteria & language settings
+  useEffect(() => {
+    const fetchConfig = async () => {
+      if (!user) return;
+      try {
+        const langData = await settingsApi.getLanguages();
+        if (langData && langData.languages) {
+          setAiLanguages(langData.languages);
+          // Set default AI language based on current UI locale if it matches
+          const currentUiLocale = i18n.language === 'ja' ? 'japanese' : 'english';
+          const match = langData.languages.find(
+            (l: string) => normalizeLangToKey(l) === normalizeLangToKey(currentUiLocale)
+          );
+          if (match) {
+            setSelectedAiLang(normalizeLangToKey(match));
+          } else if (langData.languages.length > 0) {
+            setSelectedAiLang(normalizeLangToKey(langData.languages[0]));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch languages config:', err);
+      }
+
+      try {
+        const critData = await settingsApi.getCriteria();
+        if (Array.isArray(critData)) {
+          setCriteria(critData);
+        }
+      } catch (err) {
+        console.error('Failed to fetch criteria config:', err);
+      }
+    };
+
+    fetchConfig();
+  }, [user, i18n.language]);
 
   // Local state update when user profile loads
   useEffect(() => {
@@ -203,6 +264,7 @@ export default function TeamDashboard() {
       setUploadSuccess(true);
       setSelectedFiles([]);
       await fetchHistory();
+      await refreshUser();
       setTimeout(() => setUploadSuccess(false), 5000);
     } catch (err: any) {
       console.error('Upload failed:', err);
@@ -251,7 +313,7 @@ export default function TeamDashboard() {
     return Object.entries(scores).map(([key, val]) => ({
       subject: key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
       score: Number(val),
-      fullMark: 10,
+      fullMark: 5,
     }));
   };
 
@@ -271,11 +333,19 @@ export default function TeamDashboard() {
     const strengthsRisks = parseJson(selectedEval.strengths_risks_json);
     const chartData = getChartData(selectedEval.scores_json);
 
+    // Find previous evaluation to calculate deltas
+    const currentIdx = evaluations.findIndex(e => e.id === selectedEval.id);
+    const prevEval = currentIdx !== -1 && currentIdx < evaluations.length - 1 ? evaluations[currentIdx + 1] : null;
+    const prevScores = prevEval ? parseJson(prevEval.scores_json) : null;
+
+    // Calculate total weight and contributions
+    const totalWeight = criteria.reduce((sum, c) => sum + (c.weight || 0), 0) || 1;
+
     // Dynamic localization summary
     const isJa = i18n.language === 'ja';
-    const summary = strengthsRisks[`summary_${isJa ? 'japanese' : 'english'}`] ||
-                    strengthsRisks[`summary_ja`] ||
-                    strengthsRisks[`summary_en`] ||
+    const summary = strengthsRisks[`summary_${selectedAiLang}`] ||
+                    strengthsRisks[`summary_japanese`] ||
+                    strengthsRisks[`summary_english`] ||
                     strengthsRisks[`summary_default`] ||
                     '';
 
@@ -283,6 +353,41 @@ export default function TeamDashboard() {
 
     return (
       <div className="evaluation-detail">
+        {/* AI Language Selection Tabs */}
+        {aiLanguages.length > 1 && (
+          <div className="ai-language-tabs" style={{
+            display: 'flex',
+            gap: '8px',
+            marginBottom: '16px',
+            borderBottom: '1px solid #374151',
+            paddingBottom: '8px'
+          }}>
+            {aiLanguages.map((lang) => {
+              const key = normalizeLangToKey(lang);
+              const active = selectedAiLang === key;
+              return (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => setSelectedAiLang(key)}
+                  className={`ai-lang-tab-btn ${active ? 'active' : ''}`}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    background: active ? '#4f46e5' : 'transparent',
+                    color: active ? '#ffffff' : '#9ca3af',
+                    border: active ? 'none' : '1px solid #4b5563',
+                    fontSize: '0.85em',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {emojiMap[lang] || '🌐'} {lang}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="eval-detail-header">
           <div className="eval-meta">
             <span className={`status-badge ${selectedEval.is_final ? 'status-final' : 'status-progress'}`}>
@@ -307,32 +412,78 @@ export default function TeamDashboard() {
           </div>
         )}
 
-        <div className="eval-grid">
-          {/* Scores Breakdown */}
-          <div className="eval-section scores-section">
+        <div className="eval-grid" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Scores Section */}
+          <div className="eval-section scores-section" style={{ width: '100%' }}>
             <h4>{isJa ? '評価項目内訳' : 'Criteria Breakdown'}</h4>
-            <div className="scores-list">
-              {Object.entries(scores).map(([criteria, score]) => (
-                <div key={criteria} className="score-row">
-                  <span className="criteria-name">
-                    {criteria.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                  </span>
-                  <div className="score-bar-container">
-                    <div className="score-bar-fill" style={{ width: `${(Number(score) / 10) * 100}%` }} />
-                    <span className="score-num">{Number(score).toFixed(1)}/10</span>
+            
+            {/* Criteria Grid Cards */}
+            <div className="criteria-cards-grid" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '16px',
+              marginBottom: '24px'
+            }}>
+              {criteria.map((crit) => {
+                const score = Number(scores[crit.name] || 0);
+                const contribution = score * 20.0 * ((crit.weight || 0) / totalWeight);
+                const maxContrib = 100.0 * ((crit.weight || 0) / totalWeight);
+                
+                let deltaText = '';
+                let deltaColor = '';
+                if (prevScores) {
+                  const prevScore = Number(prevScores[crit.name] || 0);
+                  const diff = score - prevScore;
+                  if (diff > 0) {
+                    deltaText = `+${diff.toFixed(1)}`;
+                    deltaColor = '#10b981';
+                  } else if (diff < 0) {
+                    deltaText = `${diff.toFixed(1)}`;
+                    deltaColor = '#ef4444';
+                  } else {
+                    deltaText = '±0';
+                    deltaColor = '#9ca3af';
+                  }
+                }
+
+                return (
+                  <div key={crit.name} className="criteria-score-card" style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    background: '#111827',
+                    border: '1px solid #374151',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}>
+                    <div>
+                      <span style={{ fontSize: '0.85em', color: '#9ca3af', fontWeight: '500' }}>{crit.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '4px' }}>
+                        <span style={{ fontSize: '1.8em', fontWeight: 'bold', color: '#ffffff' }}>{score.toFixed(1)}</span>
+                        <span style={{ fontSize: '0.9em', color: '#6b7280' }}>/ 5.0</span>
+                        {deltaText && (
+                          <span style={{ fontSize: '0.85em', color: deltaColor, fontWeight: '600', marginLeft: 'auto' }}>
+                            {deltaText}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '12px', fontSize: '0.8em', color: '#9ca3af', borderTop: '1px solid #374151', paddingTop: '8px' }}>
+                      {t('team.contribution_score', { contribution: contribution.toFixed(1), max: maxContrib.toFixed(1) })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Radar Chart */}
             {chartData.length > 0 && (
-              <div className="radar-chart-container">
-                <ResponsiveContainer width="100%" height={260}>
+              <div className="radar-chart-container" style={{ display: 'flex', justifyContent: 'center', background: '#111827', borderRadius: '8px', padding: '16px', border: '1px solid #374151' }}>
+                <ResponsiveContainer width="100%" height={280}>
                   <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
                     <PolarGrid stroke="#374151" />
                     <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 10 }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 10]} tick={{ fill: '#6b7280' }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fill: '#6b7280' }} />
                     <Radar
                       name={user.team_id}
                       dataKey="score"
@@ -347,30 +498,63 @@ export default function TeamDashboard() {
           </div>
 
           {/* Judges Feedback */}
-          <div className="eval-section feedback-section">
+          <div className="eval-section feedback-section" style={{ width: '100%' }}>
             <h4>{isJa ? 'AI審査員からのフィードバック' : 'AI Judges Feedback'}</h4>
-            <div className="judges-list">
-              {judgesFeedback.map((feedback: any, idx: number) => (
-                <div key={idx} className="judge-card">
-                  <div className="judge-card-header">
-                    <span className="judge-emoji">{feedback.judge_emoji || '🤖'}</span>
-                    <div>
-                      <h5>{feedback.judge_name}</h5>
-                      <span className="judge-role">{feedback.judge_role}</span>
+            <div className="judges-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {judgesFeedback.map((feedback: any, idx: number) => {
+                const feedbackText = feedback[`feedback_${selectedAiLang}`] ||
+                                     feedback[`feedback_japanese`] ||
+                                     feedback[`feedback_english`] ||
+                                     Object.entries(feedback).find(([k]) => k.startsWith('feedback_'))?.[1] ||
+                                     'No feedback available.';
+
+                return (
+                  <div key={idx} className="judge-card" style={{ padding: '20px', background: '#111827', border: '1px solid #374151', borderRadius: '8px' }}>
+                    <div className="judge-card-header" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                      <span className="judge-emoji" style={{ fontSize: '2.5em' }}>{feedback.judge_emoji || '🤖'}</span>
+                      <div>
+                        <h5 style={{ margin: '0', fontSize: '1.1em', fontWeight: 'bold' }}>{feedback.judge_name}</h5>
+                        <span className="judge-role" style={{ fontSize: '0.85em', color: '#9ca3af' }}>{feedback.judge_role}</span>
+                      </div>
+                    </div>
+
+                    {/* Individual Judge Scores */}
+                    {feedback.judge_scores && feedback.judge_scores.length > 0 && (
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        marginBottom: '16px',
+                        padding: '12px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(255, 255, 255, 0.05)'
+                      }}>
+                        {feedback.judge_scores.map((scoreItem: any, idxS: number) => {
+                          const sVal = Number(scoreItem.score);
+                          const color = sVal >= 4 ? '#10b981' : sVal >= 3 ? '#f59e0b' : '#ef4444';
+                          return (
+                            <div key={idxS} style={{ flex: '1', minWidth: '110px' }}>
+                              <div style={{ fontSize: '0.7em', color: '#9ca3af', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {scoreItem.criteria_name}
+                              </div>
+                              <div style={{ fontSize: '0.9em', fontWeight: 'bold', color }}>
+                                {sVal.toFixed(1)} / 5.0
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <div className="judge-feedback-content">
+                      <p style={{ fontSize: '0.95em', color: '#d1d5db', lineHeight: '1.6', margin: '0' }}>
+                        {feedbackText}
+                      </p>
                     </div>
                   </div>
-                  <div className="judge-feedback-content">
-                    <div className="feedback-block strengths">
-                      <h6>🟢 {isJa ? '強み' : 'Strengths'}</h6>
-                      <p>{feedback.strengths}</p>
-                    </div>
-                    <div className="feedback-block risks">
-                      <h6>🔴 {isJa ? '懸念・リスク' : 'Risks & Mitigations'}</h6>
-                      <p>{feedback.risks_or_mitigations || feedback.risks}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -601,6 +785,28 @@ export default function TeamDashboard() {
                 <div className="success-box">
                   <CheckCircle size={16} />
                   <span>Upload successful! Evaluating project...</span>
+                </div>
+              )}
+
+              {user.max_consultations !== undefined && (
+                <div className="consultations-remaining-info" style={{
+                  marginBottom: '12px',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  fontSize: '0.9em',
+                  color: '#9ca3af',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span>{t('team.consultations_remaining')}</span>
+                  <strong style={{ color: '#ffffff' }}>
+                    {user.max_consultations === -1
+                      ? (i18n.language === 'ja' ? '無制限' : 'Unlimited')
+                      : `${Math.max(0, user.max_consultations - (user.consultation_count || 0))} / ${user.max_consultations}`}
+                  </strong>
                 </div>
               )}
 
