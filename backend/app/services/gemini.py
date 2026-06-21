@@ -408,3 +408,45 @@ Output a strictly valid JSON object with the following structure:
         ),
     )
     return json.loads(response.text)
+
+
+def translate_text(hackathon_id, text, target_languages):
+    """
+    Translates the given text into all target languages using Gemini.
+    Returns a dict with translated texts, e.g. {"user_objection_english": "...", "user_objection_japanese": "..."}
+    """
+    client = get_gemini_client(hackathon_id)
+    model_name = get_setting(hackathon_id, "gemini_model") or "gemini-2.5-flash"
+
+    fields = []
+    for lang in target_languages:
+        lang_key = normalize_lang_to_key(lang)
+        fields.append(f'    "user_objection_{lang_key}": "The translated text in {lang}"')
+
+    fields_str = ",\n".join(fields)
+
+    prompt = f"""You are a professional translator.
+Translate the following input text into these languages: {", ".join(target_languages)}.
+
+<input_text>
+{text}
+</input_text>
+
+<output_instructions format="json">
+Output a strictly valid JSON object with the following structure:
+{{
+{fields_str}
+}}
+</output_instructions>
+"""
+
+    response = client.models.generate_content(
+        model=model_name,
+        contents=[prompt],
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.2,
+        ),
+    )
+    return json.loads(response.text)
+
