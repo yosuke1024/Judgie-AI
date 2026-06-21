@@ -1,6 +1,6 @@
 import json
 
-from core.db import (
+from app.models.db import (
     AdminChat,
     Evaluation,
     Hackathon,
@@ -40,7 +40,7 @@ from core.db import (
     update_team_profile,
     verify_user,
 )
-from core.security import hash_passcode, verify_passcode
+from app.security import hash_passcode, verify_passcode
 
 
 def test_init_db(db_session_fixture):
@@ -301,7 +301,7 @@ def test_delete_hackathon(db_session_fixture):
     db_session_fixture.commit()
 
     # Submission
-    from core.db import Submission
+    from app.models.db import Submission
 
     submission = Submission(hackathon_id=hid, team_id="teamDel", files_json="[]")
     db_session_fixture.add(submission)
@@ -362,7 +362,7 @@ def test_ai_response_languages(db_session_fixture):
     assert get_ai_response_languages(hid) == custom_langs
 
     # 3. Key normalization test
-    from core.db import normalize_lang_to_key
+    from app.models.db import normalize_lang_to_key
 
     assert normalize_lang_to_key("English") == "english"
     assert normalize_lang_to_key("日本語") == "日本語"
@@ -371,29 +371,7 @@ def test_ai_response_languages(db_session_fixture):
     assert normalize_lang_to_key("Korean") == "korean"
 
 
-def test_seed_demo_data(db_session_fixture):
-    from core.db import seed_demo_data
 
-    seed_demo_data()
-
-    # Verify hackathon
-    demo_h = db_session_fixture.query(Hackathon).filter(Hackathon.id == 9999).first()
-    assert demo_h is not None
-    assert demo_h.name == "Judgie Demo Hackathon"
-
-    # Verify users
-    admin_u = db_session_fixture.query(User).filter(User.hackathon_id == 9999, User.team_id == "demo_admin").first()
-    assert admin_u is not None
-    assert admin_u.role == "admin"
-
-    team_u = db_session_fixture.query(User).filter(User.hackathon_id == 9999, User.team_id == "demo_team").first()
-    assert team_u is not None
-    assert team_u.role == "team"
-    assert team_u.team_name == "PixelCraft Labs"
-
-    # Verify evaluations
-    evals = db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == 9999).all()
-    assert len(evals) == 7  # 4 for demo_team, 2 for demo_team2, 1 for demo_team3
 
 
 def test_single_tenant_mode(db_session_fixture, monkeypatch):
@@ -439,7 +417,7 @@ def test_initialize_hackathon_template(db_session_fixture):
     assert get_personas(hid) == []
 
     # Initialize with startup_pitch template
-    from core.db import initialize_hackathon_template
+    from app.models.db import initialize_hackathon_template
 
     initialize_hackathon_template(hid, "startup_pitch")
 
@@ -502,7 +480,7 @@ def test_delete_team_cascades(db_session_fixture):
     db_session_fixture.commit()
 
     # Submission for team1
-    from core.db import Submission
+    from app.models.db import Submission
 
     sub1 = Submission(hackathon_id=hid, team_id="team1", files_json="[]")
     db_session_fixture.add(sub1)

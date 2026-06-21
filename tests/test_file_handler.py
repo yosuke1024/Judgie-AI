@@ -1,7 +1,7 @@
 import io
 import zipfile
 
-from core.file_handler import extract_text_from_zip
+from app.services.file_handler import extract_text_from_zip
 
 
 def create_mock_zip(files_dict):

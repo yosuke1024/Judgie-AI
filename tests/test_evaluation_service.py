@@ -1,5 +1,5 @@
-from core.db import Evaluation, create_hackathon, save_evaluation
-from core.services.evaluation_service import get_team_evaluations, sanitize_objection_response, submit_team_objection
+from app.models.db import Evaluation, create_hackathon, save_evaluation
+from app.services.evaluation_service import get_team_evaluations, sanitize_objection_response, submit_team_objection
 
 
 def test_get_team_evaluations(db_session_fixture):
@@ -60,7 +60,7 @@ def test_sanitize_objection_response():
 
 def test_sanitize_objection_response_multilingual(db_session_fixture):
     # Set up a hackathon with multilingual AI response settings
-    from core.db import create_hackathon, set_ai_response_languages
+    from app.models.db import create_hackathon, set_ai_response_languages
 
     hid = create_hackathon("HackMulti", "admin_multi", "pass123", template_id="hackathon")
     set_ai_response_languages(hid, ["English", "Japanese", "Korean"])
@@ -124,7 +124,7 @@ def test_submit_team_objection(mocker, db_session_fixture):
         "qa_summary_ja": "受け入れられました",
         "judges_responses": [{"judge_name": "Lisa", "response_en": "I agree"}],
     }
-    mocker.patch("core.services.evaluation_service.object_to_judges", return_value=mock_llm_response)
+    mocker.patch("app.services.evaluation_service.object_to_judges", return_value=mock_llm_response)
 
     # Execute
     res = submit_team_objection(
@@ -135,7 +135,7 @@ def test_submit_team_objection(mocker, db_session_fixture):
 
     # Verify DB update in TeamChat table
     db_session_fixture.expire_all()
-    from core.services.evaluation_service import get_team_chats
+    from app.services.evaluation_service import get_team_chats
 
     chats = get_team_chats(eval_id)
     assert len(chats) == 2

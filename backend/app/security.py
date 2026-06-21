@@ -25,15 +25,42 @@ def verify_passcode(plain: str, hashed: str) -> bool:
 
 def is_safe_url(url: str) -> bool:
     """
-    SSRF protection: validates that a URL does not resolve to a private/internal IP.
+    SSRF protection: validates that a URL resolves to a permitted domain and not a private/internal IP.
     """
     try:
         parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+
         hostname = parsed.hostname
         if not hostname:
             return False
-        resolved_ip = socket.gethostbyname(hostname)
-        ip_obj = ipaddress.ip_address(resolved_ip)
-        return not ip_obj.is_private and not ip_obj.is_loopback and not ip_obj.is_reserved
+
+        # Allow only specified domains
+        allowed_domains = {
+            "github.com",
+            "raw.githubusercontent.com",
+            "gist.githubusercontent.com",
+            "githubusercontent.com",
+        }
+
+        if hostname not in allowed_domains:
+            return False
+
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local:
+                return False
+        except ValueError:
+            try:
+                addr_info = socket.getaddrinfo(hostname, None)
+                for addr in addr_info:
+                    ip_str = addr[4][0]
+                    ip = ipaddress.ip_address(ip_str)
+                    if ip.is_private or ip.is_loopback or ip.is_link_local:
+                        return False
+            except socket.gaierror:
+                return False
+        return True
     except Exception:
         return False

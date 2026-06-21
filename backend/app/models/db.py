@@ -392,7 +392,6 @@ def get_personas(hackathon_id):
     if val:
         personas = json.loads(val)
     else:
-        personas = []
         if hackathon_id is not None:
             with db_session() as db:
                 h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
@@ -401,7 +400,11 @@ def get_personas(hackathon_id):
                         tpl = TEMPLATES.get(h.template_id)
                         if tpl:
                             personas = tpl.get("personas", [])
-        if not personas:
+                    else:
+                        personas = []
+                else:
+                    personas = TEMPLATES.get("hackathon", {}).get("personas", [])
+        else:
             personas = TEMPLATES.get("hackathon", {}).get("personas", [])
 
     # Automatically resolve custom avatar image from assets/avatars/ if not set

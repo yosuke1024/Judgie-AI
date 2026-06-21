@@ -3,86 +3,17 @@ import sys
 
 import pytest
 
-# Add the project root directory and backend directory to sys.path so the 'core' and 'backend/app' modules can be imported
+# Add the project root directory and backend directory to sys.path so the 'app' modules can be imported
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend")))
 
+# Import and mock the database engine
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
-# Define Mock classes for Streamlit APIs
-class MockSessionState(dict):
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError as e:
-            raise AttributeError(name) from e
-
-    def __setattr__(self, name, value):
-        self[name] = value
-
-    def __delattr__(self, name):
-        try:
-            del self[name]
-        except KeyError as e:
-            raise AttributeError(name) from e
-
-
-class MockContext:
-    def __init__(self):
-        self.ip_address = None
-
-
-class MockObject:
-    def __call__(self, *args, **kwargs):
-        return self
-    def __enter__(self):
-        return self
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-    def __getattr__(self, name):
-        return self
-
-
-class MockStreamlit:
-    def __init__(self):
-        self.session_state = MockSessionState()
-        self.query_params = {}
-        self.secrets = {}
-        self.context = MockContext()
-
-    def error(self, msg):
-        pass
-
-    def success(self, msg):
-        pass
-
-    def warning(self, msg):
-        pass
-
-    def info(self, msg):
-        pass
-
-    def stop(self):
-        raise SystemExit("Streamlit Stop")
-
-    def rerun(self):
-        raise SystemExit("Streamlit Rerun")
-
-    def __getattr__(self, name):
-        return MockObject()
-
-
-# Inject the mock streamlit module into sys.modules before any imports occur
-mock_st = MockStreamlit()
-sys.modules["streamlit"] = mock_st
-
-# Import core.db and mock the database engine
-from sqlalchemy import create_engine  # noqa: E402
-from sqlalchemy.orm import sessionmaker  # noqa: E402
-from sqlalchemy.pool import StaticPool  # noqa: E402
-
-import app.models.db  # noqa: E402
-import backend.app.models.db  # noqa: E402
-import core.db  # noqa: E402
+import app.models.db
+import backend.app.models.db
 
 # Setup test-specific in-memory SQLite database
 test_engine = create_engine(
@@ -91,10 +22,6 @@ test_engine = create_engine(
     poolclass=StaticPool
 )
 test_SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-
-# Replace core.db engine and session maker with mock instances
-core.db.engine = test_engine
-core.db.SessionLocal = test_SessionLocal
 
 # Replace backend.app.models.db engine and session maker with mock instances
 backend.app.models.db.engine = test_engine
@@ -108,9 +35,9 @@ app.models.db.SessionLocal = test_SessionLocal
 @pytest.fixture(autouse=True)
 def setup_db():
     """Create and drop database schemas for each test case."""
-    core.db.Base.metadata.create_all(bind=test_engine)
+    app.models.db.Base.metadata.create_all(bind=test_engine)
     yield
-    core.db.Base.metadata.drop_all(bind=test_engine)
+    app.models.db.Base.metadata.drop_all(bind=test_engine)
 
 
 @pytest.fixture
@@ -121,12 +48,3 @@ def db_session_fixture():
         yield session
     finally:
         session.close()
-
-
-@pytest.fixture
-def mock_streamlit():
-    """Clear Streamlit mock state for each test run."""
-    mock_st.session_state.clear()
-    mock_st.query_params.clear()
-    mock_st.secrets.clear()
-    return mock_st

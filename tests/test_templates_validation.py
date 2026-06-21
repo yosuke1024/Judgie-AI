@@ -1,7 +1,7 @@
 import json
 import os
 
-from core.templates import TEMPLATES, TEMPLATES_DIR
+from app.services.templates import TEMPLATES, TEMPLATES_DIR
 
 
 def test_templates_load_dynamic():
@@ -71,7 +71,7 @@ def test_sample_template_schema():
 
 def test_is_safe_url(mocker):
     """Ported from test_templates.py. Verifies safe url validation logic."""
-    from core.security import is_safe_url
+    from app.security import is_safe_url
 
     # Mock DNS resolution to keep test offline and robust.
     mocker.patch("socket.getaddrinfo", return_value=[(None, None, None, None, ("93.184.216.34", 80))])  # public IP
