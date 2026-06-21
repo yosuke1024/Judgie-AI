@@ -21,6 +21,39 @@ class LoginResponse(BaseModel):
     hackathon_id: int | None
 
 
+class OIDCLoginInitResponse(BaseModel):
+    auth_url: str
+    state: str
+
+
+class OIDCCallbackRequest(BaseModel):
+    code: str
+    state: str
+
+
+class TenantInfo(BaseModel):
+    hackathon_id: int
+    hackathon_name: str
+    team_id: str
+    team_name: str | None = None
+    role: str
+
+
+class OIDCCallbackResponse(BaseModel):
+    status: str  # "success" or "select_tenant"
+    team_id: str | None = None
+    role: str | None = None
+    hackathon_id: int | None = None
+    tenants: list[TenantInfo] | None = None
+    temp_token: str | None = None
+
+
+class OIDCTenantSelectRequest(BaseModel):
+    temp_token: str
+    hackathon_id: int
+    team_id: str
+
+
 class UserInfo(BaseModel):
     team_id: str
     role: str

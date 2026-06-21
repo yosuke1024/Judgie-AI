@@ -67,6 +67,30 @@ export const authApi = {
       team_name?: string;
       one_liner?: string;
     }>('/api/auth/me'),
+  oidcLogin: () => request<{ auth_url: string; state: string }>('/api/auth/oidc/login'),
+  oidcCallback: (data: { code: string; state: string }) =>
+    request<{
+      status: 'success' | 'select_tenant';
+      team_id?: string;
+      role?: string;
+      hackathon_id?: number;
+      tenants?: Array<{
+        hackathon_id: number;
+        hackathon_name: string;
+        team_id: string;
+        team_name: string | null;
+        role: string;
+      }>;
+      temp_token?: string;
+    }>('/api/auth/oidc/callback', {
+      method: 'POST',
+      body: data,
+    }),
+  oidcSelectTenant: (data: { temp_token: string; hackathon_id: number; team_id: string }) =>
+    request<{ team_id: string; role: string; hackathon_id: number | null }>('/api/auth/oidc/select-tenant', {
+      method: 'POST',
+      body: data,
+    }),
 };
 
 // Hackathons

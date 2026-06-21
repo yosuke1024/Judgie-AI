@@ -19,6 +19,7 @@ interface AuthContextType {
   login: (teamId: string, passcode: string, hackathonId?: number) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  oidcSelectTenant: (tempToken: string, hackathonId: number, teamId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,8 +55,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const oidcSelectTenant = async (tempToken: string, hackathonId: number, teamId: string) => {
+    await authApi.oidcSelectTenant({
+      temp_token: tempToken,
+      hackathon_id: hackathonId,
+      team_id: teamId,
+    });
+    await refreshUser();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, oidcSelectTenant }}>
       {children}
     </AuthContext.Provider>
   );

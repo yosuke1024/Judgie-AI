@@ -43,6 +43,15 @@ JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-secret-key-change-in-prod
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "720"))  # 12 hours
 
+# --- OIDC Auth ---
+OIDC_ENABLED = os.environ.get("OIDC_ENABLED", "false").lower() == "true"
+OIDC_ISSUER = os.environ.get("OIDC_ISSUER", "https://accounts.google.com")
+OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "")
+OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "")
+OIDC_REDIRECT_URI = os.environ.get("OIDC_REDIRECT_URI", "http://localhost:5173/login/callback")
+OIDC_ALLOWED_DOMAINS = [d.strip() for d in os.environ.get("OIDC_ALLOWED_DOMAINS", "").split(",") if d.strip()]
+OIDC_ALLOWED_EMAILS = [e.strip() for e in os.environ.get("OIDC_ALLOWED_EMAILS", "").split(",") if e.strip()]
+
 # --- CORS ---
 CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 

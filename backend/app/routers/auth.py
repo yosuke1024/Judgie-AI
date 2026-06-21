@@ -2,14 +2,196 @@
 Authentication router: login, logout, current user.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+import uuid
+from datetime import datetime, timedelta, timezone
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Cookie
+import jwt
 
 from app.auth.deps import CurrentUser, get_current_user
 from app.auth.jwt_handler import create_access_token
+from app.config import OIDC_ENABLED, JWT_SECRET_KEY, JWT_ALGORITHM
+from app.auth import oidc_handler
 from app.models.db import verify_user
-from app.schemas.schemas import LoginRequest, LoginResponse, UserInfo
+from app.schemas.schemas import (
+    LoginRequest, LoginResponse, UserInfo,
+    OIDCLoginInitResponse, OIDCCallbackRequest, OIDCCallbackResponse,
+    TenantInfo, OIDCTenantSelectRequest
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+@router.get("/oidc/login", response_model=OIDCLoginInitResponse)
+def oidc_login(response: Response):
+    """Initialize OIDC login flow. Generate state and redirect URL."""
+    if not OIDC_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OIDC authentication is not enabled.",
+        )
+    state = str(uuid.uuid4())
+    auth_url = oidc_handler.get_authorization_url(state)
+
+    # Store state in cookie to prevent CSRF
+    response.set_cookie(
+        key="oidc_state",
+        value=state,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+        max_age=300,  # 5 minutes
+    )
+    return OIDCLoginInitResponse(auth_url=auth_url, state=state)
+
+
+@router.post("/oidc/callback", response_model=OIDCCallbackResponse)
+def oidc_callback(
+    req: OIDCCallbackRequest,
+    response: Response,
+    oidc_state: str | None = Cookie(default=None)
+):
+    """
+    Callback endpoint for OIDC.
+    Verifies code and state, queries DB by email, and sets JWT cookie or requests tenant selection.
+    """
+    if not OIDC_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OIDC authentication is not enabled.",
+        )
+
+    # Verify state against cookie
+    if not oidc_state or oidc_state != req.state:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid state parameter. CSRF verification failed.",
+        )
+
+    try:
+        email = oidc_handler.verify_code_and_get_email(req.code)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
+
+    # Query matching users in database
+    from app.models.db import db_session, User, Hackathon
+
+    with db_session() as db:
+        user_records = db.query(User).filter(User.email == email).all()
+
+        if not user_records:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your email is not registered in this system. Please contact the administrator.",
+            )
+
+        if len(user_records) == 1:
+            # Single tenant: login directly
+            user = user_records[0]
+            token_data = {
+                "team_id": user.team_id,
+                "role": user.role,
+                "hackathon_id": user.hackathon_id,
+            }
+            token = create_access_token(token_data)
+
+            response.set_cookie(
+                key="access_token",
+                value=token,
+                httponly=True,
+                samesite="lax",
+                secure=False,
+                max_age=60 * 60 * 12,
+            )
+            response.delete_cookie("oidc_state")
+            return OIDCCallbackResponse(
+                status="success",
+                team_id=user.team_id,
+                role=user.role,
+                hackathon_id=user.hackathon_id,
+            )
+
+        # Multiple tenants: return list and issue a temporary select token
+        tenants = []
+        for u in user_records:
+            h = db.query(Hackathon).filter(Hackathon.id == u.hackathon_id).first()
+            h_name = h.name if h else f"Hackathon #{u.hackathon_id}"
+            tenants.append(
+                TenantInfo(
+                    hackathon_id=u.hackathon_id,
+                    hackathon_name=h_name,
+                    team_id=u.team_id,
+                    team_name=u.team_name,
+                    role=u.role,
+                )
+            )
+
+        # Create a temporary token containing email (expires in 5 minutes)
+        temp_token_payload = {
+            "email": email,
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5)
+        }
+        temp_token = jwt.encode(temp_token_payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+        response.delete_cookie("oidc_state")
+        return OIDCCallbackResponse(
+            status="select_tenant",
+            tenants=tenants,
+            temp_token=temp_token,
+        )
+
+
+@router.post("/oidc/select-tenant", response_model=LoginResponse)
+def oidc_select_tenant(req: OIDCTenantSelectRequest, response: Response):
+    """Verify temporary token and issue active session for selected tenant."""
+    try:
+        payload = jwt.decode(req.temp_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        email = payload.get("email")
+        if not email:
+            raise ValueError("No email in token")
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired temporary token.",
+        )
+
+    from app.models.db import db_session, User
+
+    with db_session() as db:
+        user = db.query(User).filter(
+            User.email == email,
+            User.hackathon_id == req.hackathon_id,
+            User.team_id == req.team_id
+        ).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized for the selected tenant/team.",
+            )
+
+        token_data = {
+            "team_id": user.team_id,
+            "role": user.role,
+            "hackathon_id": user.hackathon_id,
+        }
+        token = create_access_token(token_data)
+
+        response.set_cookie(
+            key="access_token",
+            value=token,
+            httponly=True,
+            samesite="lax",
+            secure=False,
+            max_age=60 * 60 * 12,
+        )
+        return LoginResponse(
+            team_id=user.team_id,
+            role=user.role,
+            hackathon_id=user.hackathon_id,
+        )
 
 
 @router.post("/login", response_model=LoginResponse)
