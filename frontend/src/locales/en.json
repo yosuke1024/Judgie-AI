@@ -61,7 +61,12 @@
     "zip_hint_command": "zip -r submission.zip . -x \"node_modules/*\" -x \".git/*\" -x \"venv/*\" -x \".next/*\"",
     "api_limit_error": "Gemini API rate limit reached (token quota exceeded). Please wait a moment and try again, or configure a paid API key in system settings. Alternatively, reduce the size of your ZIP file by excluding unnecessary directories.",
     "consultations_remaining": "Consultations Left",
-    "contribution_score": "Contribution: {{contribution}} / {{max}} pts"
+    "contribution_score": "Contribution: {{contribution}} / {{max}} pts",
+    "consultation_num": "Consultation #{{number}}",
+    "evaluation_balance": "Evaluation Balance (Radar)",
+    "score_trend": "Score Trend (Max 100)",
+    "total_score_label": "Total Score",
+    "final_eval": "Final Submission"
   },
   "admin": {
     "title": "⚡ Command Center",
