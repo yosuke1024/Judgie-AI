@@ -117,5 +117,9 @@
     "name": "Name",
     "role": "Role",
     "description": "Description"
+  },
+  "credits": {
+    "produced_by": "Produced by PixApps",
+    "github": "GitHub"
   }
 }

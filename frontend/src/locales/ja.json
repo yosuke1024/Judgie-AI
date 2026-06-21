@@ -117,5 +117,9 @@
     "name": "名前",
     "role": "ロール",
     "description": "説明"
+  },
+  "credits": {
+    "produced_by": "Produced by PixApps",
+    "github": "GitHub"
   }
 }
