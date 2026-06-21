@@ -131,6 +131,7 @@ export const evaluationsApi = {
         total_score: number;
         status: string;
         consults: number;
+        scores_json: string | null;
       }>
     >('/api/evaluations/scoreboard'),
   delete: (evaluationId: number) =>
