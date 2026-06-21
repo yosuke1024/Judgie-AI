@@ -19,10 +19,10 @@ This manual explains how to use the platform step-by-step for each role (**Super
 ## 1. Initial Launch & Login
 
 ### How to Launch
-Once Judgie-AI is deployed or run locally, it will open the login page in your browser (default: `http://localhost:8501`).
+Once Judgie-AI is launched, it will open the login page in your browser (default: `http://localhost:5173` or `http://localhost:5173/login`).
 
 ### Language Settings
-You can switch the UI and AI-generated feedback language (**English / 日本語**) at any time using the **"Language / 言語"** radio buttons at the top of the left sidebar.
+You can switch the UI and AI-generated feedback language at any time using the language switch button (globe icon) on the login page or within the app.
 
 ### ✨ Demo Experience Mode
 You can try Judgie-AI immediately without credentials or Gemini API keys.
@@ -39,7 +39,7 @@ Under the "✨ Demo Experience" section on the login page, you can log in with:
 The Super Admin is responsible for global system management, creating new projects (tenants), and issuing project administrator accounts.
 
 ### 2-1. Initial Login & Security Setup
-1. Add the `?admin=true` parameter to the URL to access the Super Admin login screen (e.g., `http://localhost:8501/?admin=true`).
+1. Click the **"🌍 Super Admin Login"** link at the bottom of the login page to navigate to the Super Admin login screen.
 2. Log in using the default credentials:
    - **Super Admin ID:** `superadmin`
    - **Passcode:** `superadmin123`
@@ -67,7 +67,7 @@ The Super Admin is responsible for global system management, creating new projec
 Project Admins log in using the accounts provided by the Super Admin. They configure project settings, select evaluation templates, manage AI judges, register teams/participants, and monitor submissions.
 
 ### 3-1. Logging in as Project Admin
-1. Navigate to the login page (`http://localhost:8501`).
+1. Navigate to the login page (`http://localhost:5173/login`).
 2. Select your project from the **"Select Project"** dropdown.
 3. Enter your **"Team ID / Admin ID"** (e.g., `admin`) and **"Passcode"**, then click **"Log In"**.
 
@@ -151,15 +151,15 @@ Choose one of the pre-built templates or import a custom one:
 Participants log in to manage their profiles, upload project files, request intermediate AI coaching (Consultations), and perform final submissions.
 
 ### 4-1. Logging in as a Team
-1. Go to the login page (`http://localhost:8501`).
+1. Go to the login page (`http://localhost:5173` or `http://localhost:5173/login`).
 2. Select your project from the **"Select Project"** dropdown.
 3. Log in with the **"Team ID"** and **"Passcode"** provided by the organizer.
 
 ### 4-2. Profile & Password Management
-- Click **"⚙️ Edit Profile"** under the **"📤 Submission"** header to update your product name (system name), team name (candidate name), and catchphrase (One-liner).
+- Use the **"Team Profile"** panel to update your product name (Product Name), team name (Team Name), and catchphrase (One-liner Pitch). Click "Save" to save your profile.
 - Use **"🔐 Change Password"** to update your passcode.
 
-### 4-3. Uploading Artifacts & Requesting AI Coaching
+### 4-3. Uploading Artifacts & Requesting AI Coaching (AI Consultation)
 
 Teams can request intermediate feedback from the AI judges before final submission.
 - The remaining consultations count is shown in "Consultations Left" (the system default is **up to 3 times**).
@@ -183,21 +183,20 @@ Source code ZIP is not mandatory—you can submit only PDF slides and demo video
 
 #### Steps to Request Coaching
 1. **Upload Files:**
-   - Drag and drop your files into the "Artifacts (ZIP, MP4, MOV, PDF)" uploader area. You can upload multiple files at once.
+   - Drag and drop your files into the "Submit Your Work" uploader area. You can upload multiple files at once.
 2. **Request Coaching:**
-   - Click **"Get AI Coaching"**. The AI judges will analyze your files and generate feedback in a few minutes, consuming one consultation count.
+   - Click **"Submit for AI Consultation"**. The AI judges will analyze your files and generate feedback in a few minutes, consuming one consultation count.
 
 ### 4-4. Reviewing Feedback & Scores
 
-Once analysis is complete, your results will appear on the **"💬 AI Feedback Dashboard"**.
+Once analysis is complete, your results will appear on the **"Evaluation Results"** panel.
 
-- **Total Score:** A weighted score scaled out of 100.
-- **Score Breakdown:** Individual criteria scores (out of 5.0) and score changes (deltas) from your previous consultation.
-- **Score History & Radar Charts:** Visual representations of your project's improvements over time.
-- **Feedback Tabs:**
-  - **Top Priorities (Next Steps):** Specific action items suggested by the AI to improve your product.
-  - **AI Product Understanding:** A summary of how the AI understands your project/system/submission.
-  - **Judges Feedback:** Individual reviews from each active AI judge, written in their unique persona's tone.
+- **OVERALL IMPACT SCORE:** A weighted score scaled out of 100.
+- **Evaluation Balance (Radar):** A radar chart visualizing individual criteria scores (out of 5.0).
+- **Score Trend (Max 100):** A line chart visualizing your score improvement over time (you can switch between past consultation records using the "History" dropdown on the top right).
+- **Criteria Breakdown (Left Panel):** Lists individual criteria scores and contributions to the overall score.
+- **AI Summary:** A concise AI-generated summary of your product and submission.
+- **AI Judges Feedback:** Individual reviews from each active AI judge, written in their unique persona's tone.
   - *Note: If multiple response languages are configured, tabs for each language will appear within each feedback section.*
 
 ### 4-5. Raising an Objection / Q&A ("Objection!")
@@ -208,7 +207,7 @@ For each evaluation, teams can submit questions or objections to the AI panel up
 3. The AI judges will hold a panel debate using the submission context and provide a unified response. In some cases, the judges may adjust their evaluation.
 
 ### 4-6. Final Submission
-When your product/assignment is complete and ready for final grading, upload your latest files and click **"Submit Final Pitch"**.
+When your product/assignment is complete and ready for final grading, upload your latest files, check the **"Final Submission"** checkbox, and click the **"Submit Final Submission"** button.
 - After submitting your final pitch, you can no longer modify submissions or request AI coaching.
 - Your final score will be locked and shown on the organizer's scoreboard.
 
@@ -219,7 +218,7 @@ When your product/assignment is complete and ready for final grading, upload you
 Observers (spectators) log in using the accounts provided by the project administrator to securely monitor and view the progress and scoreboards of each team in the project.
 
 ### 5-1. Logging in as an Observer
-1. Navigate to the login page (`http://localhost:8501`).
+1. Navigate to the login page (`http://localhost:5173/login`).
 2. Select the target project from the **"Select Project"** dropdown.
 3. Log in with the **"Observer ID"** and **"Passcode"** provided by the organizer.
 
@@ -227,15 +226,15 @@ Observers (spectators) log in using the accounts provided by the project adminis
 Once logged in, Observers access a dashboard similar to the Participant UI, but the top displays **"Observer Mode: Read-Only View"**, restricting all editing or submission actions.
 
 - **Available Information**:
-  - **Browse Team Dashboards:** Select any team from the "Select Team to View" dropdown to view their submission history, AI scores, feedback breakdowns, and Objection debate logs.
-  - **Browse Leaderboard:** View the real-time rank of all teams, their total scores, impact metrics, and used consultations.
+  - **Browse Team Dashboards:** Select any team from the left sidebar navigation menu (under the "TEAM DASHBOARDS" section) to view their submission history, AI scores, feedback breakdowns, and Objection debate logs.
+  - **Browse Leaderboard:** View the real-time rank of all teams, their total scores, impact metrics, and used consultations. You can also view category-specific leaders under the Category Leaders tabs.
 - **Restricted Actions (Write-Disabled)**:
-  - Edit Profile details.
+  - Save Team Profile details.
   - Change Passcode.
   - Upload submission files.
-  - Request coaching (Get AI Coaching).
+  - Request coaching (Submit for AI Consultation).
   - Send Q&A/Objections messages (Send Message).
-  - Submit Final Pitch.
+  - Submit Final Pitch (Final Submission).
 
 ---
 
