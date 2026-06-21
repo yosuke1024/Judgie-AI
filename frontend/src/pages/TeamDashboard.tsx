@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { teamsApi, evaluationsApi, submissionsApi, chatApi, settingsApi } from '@/api/client';
@@ -24,6 +24,13 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
 } from 'recharts';
 
 interface EvaluationItem {
@@ -43,6 +50,36 @@ interface ChatMessageItem {
   message_json: string | Record<string, any>;
   created_at?: string;
 }
+
+// Parse JSON data safely
+const parseJson = (str: string, fallback: any = {}) => {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return fallback;
+  }
+};
+
+// Parse Scores for Radar Chart
+const getChartData = (scoresJson: string) => {
+  const scores = parseJson(scoresJson);
+  return Object.entries(scores).map(([key, val]) => ({
+    subject: key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+    score: Number(val),
+    fullMark: 5,
+  }));
+};
+
+const CRITERIA_COLORS = [
+  '#34d399', // グリーン
+  '#f59e0b', // オレンジ
+  '#ec4899', // ピンク
+  '#3b82f6', // ブルー
+  '#a855f7', // パープル
+  '#06b6d4', // シアン
+  '#10b981', // エメラルド
+  '#f43f5e', // ローズ
+];
 
 export default function TeamDashboard() {
   const { t, i18n } = useTranslation();
@@ -198,6 +235,76 @@ export default function TeamDashboard() {
     }
   }, [selectedEval, fetchChat]);
 
+  // Calculate 100-point total score considering criteria weights
+  const calculateTotalScore = useCallback((evaluation: EvaluationItem) => {
+    if (!evaluation) return 0;
+    const scores = parseJson(evaluation.scores_json);
+    const totalWeight = criteria.reduce((sum, c) => sum + (c.weight || 0), 0) || 1;
+    return criteria.reduce((sum, crit) => {
+      const score = Number(scores[crit.name] || 0);
+      return sum + score * 20.0 * ((crit.weight || 0) / totalWeight);
+    }, 0);
+  }, [criteria]);
+
+  // Generate unique display names for each evaluation based on chronological order
+  const evalNames = useMemo(() => {
+    const chrono = [...evaluations].sort((a, b) => a.id - b.id);
+    const names: Record<number, string> = {};
+    let consultationCount = 0;
+
+    chrono.forEach((ev) => {
+      if (ev.is_final) {
+        names[ev.id] = t('team.final_eval');
+      } else {
+        consultationCount++;
+        names[ev.id] = t('team.consultation_num', { number: consultationCount });
+      }
+    });
+    return names;
+  }, [evaluations, t]);
+
+  // Generate trend line chart data
+  const trendData = useMemo(() => {
+    const chrono = [...evaluations].sort((a, b) => a.id - b.id);
+    let consultationCount = 0;
+    return chrono.map((ev) => {
+      let name = '';
+      if (ev.is_final) {
+        name = i18n.language === 'ja' ? '最終' : 'Final';
+      } else {
+        consultationCount++;
+        name = `#${consultationCount}`;
+      }
+
+      const totalScore = calculateTotalScore(ev);
+      const scores = parseJson(ev.scores_json);
+
+      const criteriaScores: Record<string, number> = {};
+      criteria.forEach((crit) => {
+        // Convert 5-point max score to 100-point max score (score * 20.0)
+        criteriaScores[crit.name] = Math.round(Number(scores[crit.name] || 0) * 20.0 * 10) / 10;
+      });
+
+      return {
+        name,
+        score: Math.round(totalScore * 10) / 10,
+        date: ev.evaluated_at ? new Date(ev.evaluated_at).toLocaleDateString() : '',
+        ...criteriaScores,
+      };
+    });
+  }, [evaluations, calculateTotalScore, criteria, i18n.language]);
+
+  const [hiddenSeries, setHiddenSeries] = useState<string[]>([]);
+
+  const handleLegendClick = useCallback((o: any) => {
+    const { dataKey } = o;
+    setHiddenSeries((prev) =>
+      prev.includes(dataKey)
+        ? prev.filter((item) => item !== dataKey)
+        : [...prev, dataKey]
+    );
+  }, []);
+
   if (!user) return null;
 
   // Handle Profile Update
@@ -298,31 +405,11 @@ export default function TeamDashboard() {
     }
   };
 
-  // Parse JSON data safely
-  const parseJson = (str: string, fallback: any = {}) => {
-    try {
-      return JSON.parse(str);
-    } catch {
-      return fallback;
-    }
-  };
-
-  // Parse Scores for Radar Chart
-  const getChartData = (scoresJson: string) => {
-    const scores = parseJson(scoresJson);
-    return Object.entries(scores).map(([key, val]) => ({
-      subject: key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-      score: Number(val),
-      fullMark: 5,
-    }));
-  };
-
   // Render criteria breakdown
   const renderCriteriaBreakdown = () => {
     if (!selectedEval) return null;
 
     const scores = parseJson(selectedEval.scores_json);
-    const chartData = getChartData(selectedEval.scores_json);
 
     // Find previous evaluation to calculate deltas
     const currentIdx = evaluations.findIndex(e => e.id === selectedEval.id);
@@ -397,25 +484,7 @@ export default function TeamDashboard() {
           })}
         </div>
 
-        {/* Radar Chart */}
-        {chartData.length > 0 && (
-          <div className="radar-chart-container" style={{ display: 'flex', justifyContent: 'center', background: '#111827', borderRadius: '8px', padding: '12px', border: '1px solid #374151' }}>
-            <ResponsiveContainer width="100%" height={240}>
-              <RadarChart cx="50%" cy="50%" outerRadius="65%" data={chartData}>
-                <PolarGrid stroke="#374151" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 9 }} />
-                <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fill: '#6b7280', fontSize: 8 }} />
-                <Radar
-                  name={user.team_id}
-                  dataKey="score"
-                  stroke="#818cf8"
-                  fill="#818cf8"
-                  fillOpacity={0.3}
-                />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+
       </div>
     );
   };
@@ -443,6 +512,7 @@ export default function TeamDashboard() {
                     '';
 
     const judgesFeedback = strengthsRisks.judges_feedback || [];
+    const chartData = getChartData(selectedEval.scores_json);
 
     return (
       <div className="evaluation-detail">
@@ -484,7 +554,7 @@ export default function TeamDashboard() {
         <div className="eval-detail-header">
           <div className="eval-meta">
             <span className={`status-badge ${selectedEval.is_final ? 'status-final' : 'status-progress'}`}>
-              {selectedEval.is_final ? t('leaderboard.final') : 'Consultation'}
+              {evalNames[selectedEval.id] || (selectedEval.is_final ? t('leaderboard.final') : 'Consultation')}
             </span>
             <span className="eval-date">
               <Clock size={14} />
@@ -493,8 +563,106 @@ export default function TeamDashboard() {
           </div>
           <div className="eval-impact">
             <span className="impact-label">Overall Impact Score</span>
-            <span className="impact-value">{selectedEval.impact_score.toFixed(1)}</span>
+            <span className="impact-value">{calculateTotalScore(selectedEval).toFixed(1)}</span>
           </div>
+        </div>
+
+        {/* Charts Section */}
+        <div className="eval-charts-container" style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '16px',
+          marginBottom: '24px',
+          marginTop: '16px'
+        }}>
+          {/* Radar Chart */}
+          {chartData.length > 0 && (
+            <div className="radar-chart-card" style={{
+              background: '#111827',
+              borderRadius: '8px',
+              padding: '16px',
+              border: '1px solid #374151',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}>
+              <h5 style={{ margin: '0 0 12px 0', fontSize: '0.95em', color: '#9ca3af', fontWeight: '600' }}>
+                {t('team.evaluation_balance')}
+              </h5>
+              <ResponsiveContainer width="100%" height={200}>
+                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={chartData}>
+                  <PolarGrid stroke="#374151" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 9 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 5]} tick={{ fill: '#6b7280', fontSize: 8 }} />
+                  <Radar
+                    name={user.team_id}
+                    dataKey="score"
+                    stroke="#818cf8"
+                    fill="#818cf8"
+                    fillOpacity={0.3}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Trend Line Chart */}
+          {trendData.length > 0 && (
+            <div className="trend-chart-card" style={{
+              background: '#111827',
+              borderRadius: '8px',
+              padding: '16px',
+              border: '1px solid #374151',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}>
+              <h5 style={{ margin: '0 0 12px 0', fontSize: '0.95em', color: '#9ca3af', fontWeight: '600' }}>
+                {t('team.score_trend')}
+              </h5>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={trendData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 9 }} />
+                  <YAxis domain={[0, 100]} stroke="#9ca3af" tick={{ fontSize: 9 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', borderRadius: '4px' }}
+                    labelStyle={{ color: '#ffffff', fontSize: '10px' }}
+                    itemStyle={{ fontSize: '10px' }}
+                  />
+                  <Legend
+                    onClick={handleLegendClick}
+                    wrapperStyle={{ fontSize: '8px', paddingTop: '10px', cursor: 'pointer' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#818cf8"
+                    activeDot={{ r: 6 }}
+                    strokeWidth={3}
+                    name={t('team.total_score_label')}
+                    hide={hiddenSeries.includes('score')}
+                  />
+                  {criteria.map((crit, idx) => {
+                    const color = CRITERIA_COLORS[idx % CRITERIA_COLORS.length];
+                    return (
+                      <Line
+                        key={crit.name}
+                        type="monotone"
+                        dataKey={crit.name}
+                        stroke={color}
+                        strokeDasharray="4 4"
+                        strokeWidth={1.5}
+                        dot={{ r: 3 }}
+                        name={crit.name}
+                        hide={hiddenSeries.includes(crit.name)}
+                      />
+                    );
+                  })}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         {/* Evaluation Summary */}
@@ -861,8 +1029,8 @@ export default function TeamDashboard() {
                   >
                     {evaluations.map((ev) => (
                       <option key={ev.id} value={ev.id}>
-                        {ev.is_final ? '🏆 Final' : '💡 Consultation'} (
-                        {ev.evaluated_at ? new Date(ev.evaluated_at).toLocaleDateString() : ''})
+                        {ev.is_final ? '🏆 ' : '💡 '}
+                        {evalNames[ev.id]} ({ev.evaluated_at ? new Date(ev.evaluated_at).toLocaleDateString() : ''})
                       </option>
                     ))}
                   </select>

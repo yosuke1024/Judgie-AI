@@ -61,7 +61,12 @@
     "zip_hint_command": "zip -r submission.zip . -x \"node_modules/*\" -x \".git/*\" -x \"venv/*\" -x \".next/*\"",
     "api_limit_error": "Gemini APIの無料枠の制限（1分あたりのトークン上限）に達しました。しばらく待ってから再試行するか、システム設定から有料枠のAPIキーを設定してください。あるいは、不要なファイルを除外してZIPファイルの容量を軽量化してください。",
     "consultations_remaining": "残り相談回数",
-    "contribution_score": "貢献スコア: {{contribution}} / {{max}}点"
+    "contribution_score": "貢献スコア: {{contribution}} / {{max}}点",
+    "consultation_num": "相談 #{{number}}",
+    "evaluation_balance": "評価バランス (レーダーチャート)",
+    "score_trend": "スコア推移 (100点満点)",
+    "total_score_label": "総合スコア",
+    "final_eval": "最終提出"
   },
   "admin": {
     "title": "⚡ コマンドセンター",
