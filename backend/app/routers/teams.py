@@ -75,7 +75,7 @@ def create_team(
             hackathon_id=hackathon_id,
             team_id=req.team_id,
             passcode=hash_passcode(req.passcode),
-            role="team",
+            role=req.role,
             product_name=req.product_name,
             team_name=req.team_name,
             one_liner=req.one_liner,

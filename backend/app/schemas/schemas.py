@@ -65,6 +65,7 @@ class HackathonInitialize(BaseModel):
 class TeamCreate(BaseModel):
     team_id: str
     passcode: str
+    role: str = "team"
     product_name: str | None = None
     team_name: str | None = None
     one_liner: str | None = None
