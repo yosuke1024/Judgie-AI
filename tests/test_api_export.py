@@ -1,5 +1,6 @@
-import pytest
 import json
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.auth.deps import CurrentUser, get_current_user
@@ -77,7 +78,7 @@ def test_export_template_indented_json(client, db_session_fixture):
 
     # Read response content as plain text and parse as JSON
     content_str = res.content.decode("utf-8")
-    
+
     # Verify it is pretty-printed (has newlines and indentations)
     assert "\n" in content_str
     assert "  " in content_str
