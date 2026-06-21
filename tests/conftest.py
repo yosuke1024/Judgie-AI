@@ -82,8 +82,14 @@ from sqlalchemy.orm import sessionmaker  # noqa: E402
 import backend.app.models.db  # noqa: E402
 import core.db  # noqa: E402
 
+from sqlalchemy.pool import StaticPool
+
 # Setup test-specific in-memory SQLite database
-test_engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+test_engine = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
 test_SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 # Replace core.db engine and session maker with mock instances
@@ -93,6 +99,11 @@ core.db.SessionLocal = test_SessionLocal
 # Replace backend.app.models.db engine and session maker with mock instances
 backend.app.models.db.engine = test_engine
 backend.app.models.db.SessionLocal = test_SessionLocal
+
+# Also mock app.models.db directly to handle sys.path imports cleanly
+import app.models.db
+app.models.db.engine = test_engine
+app.models.db.SessionLocal = test_SessionLocal
 
 
 @pytest.fixture(autouse=True)

@@ -26,7 +26,8 @@ def configure_gemini(hackathon_id, api_key_override=None):
 
 def list_available_gemini_models(hackathon_id, api_key_override=None):
     """
-    Fetches the dynamically available Gemini models from the API.
+    Fetches the dynamically available Gemini models from the API,
+    filtered to only standard LLMs (flash, pro, flash-lite).
     Optionally overrides the API key (used for validation before saving).
     """
     try:
@@ -37,7 +38,12 @@ def list_available_gemini_models(hackathon_id, api_key_override=None):
             if m.supported_actions and "generateContent" in m.supported_actions:
                 name = m.name.replace("models/", "")
                 if name.startswith("gemini-"):
-                    gemini_models.append(name)
+                    name_lower = name.lower()
+                    # Filter: must contain 'flash' or 'pro', and exclude non-LLM/special utility models
+                    if ("flash" in name_lower or "pro" in name_lower) and not any(
+                        x in name_lower for x in ["embed", "vision", "aqa", "thinking"]
+                    ):
+                        gemini_models.append(name)
         gemini_models.sort()
         return gemini_models
     except Exception as e:

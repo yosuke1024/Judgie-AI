@@ -125,9 +125,11 @@ def list_templates():
 def reset_admin_passcode(
     hackathon_id: int,
     req: dict,
-    user: CurrentUser = Depends(require_role("superadmin")),
+    user: CurrentUser = Depends(require_role("admin", "superadmin")),
 ):
-    """Reset the admin password for a tenant (SuperAdmin only)."""
+    """Reset the admin password for a tenant (SuperAdmin or the tenant's Admin)."""
+    if user.role == "admin" and user.hackathon_id != hackathon_id:
+        raise HTTPException(status_code=403, detail="Not authorized to change passcode for this project")
     new_pass = req.get("new_passcode")
     if not new_pass:
         raise HTTPException(status_code=400, detail="new_passcode is required")
