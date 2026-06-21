@@ -15,7 +15,7 @@ from app.models.db import verify_user
 from app.schemas.schemas import (
     LoginRequest, LoginResponse, UserInfo,
     OIDCLoginInitResponse, OIDCCallbackRequest, OIDCCallbackResponse,
-    TenantInfo, OIDCTenantSelectRequest
+    TenantInfo, OIDCTenantSelectRequest, TenantSelectRequest
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -94,6 +94,7 @@ def oidc_callback(
                 "team_id": user.team_id,
                 "role": user.role,
                 "hackathon_id": user.hackathon_id,
+                "email": user.email,
             }
             token = create_access_token(token_data)
 
@@ -176,6 +177,117 @@ def oidc_select_tenant(req: OIDCTenantSelectRequest, response: Response):
             "team_id": user.team_id,
             "role": user.role,
             "hackathon_id": user.hackathon_id,
+            "email": user.email,
+        }
+        token = create_access_token(token_data)
+
+        response.set_cookie(
+            key="access_token",
+            value=token,
+            httponly=True,
+            samesite="lax",
+            secure=False,
+            max_age=60 * 60 * 12,
+        )
+        return LoginResponse(
+            team_id=user.team_id,
+            role=user.role,
+            hackathon_id=user.hackathon_id,
+        )
+
+
+@router.get("/my-tenants", response_model=list[TenantInfo])
+def get_my_tenants(user: CurrentUser = Depends(get_current_user)):
+    """Return all tenants associated with the current user's email."""
+    email = user.email
+    if not email:
+        # Fallback to DB query if email is not in JWT payload
+        from app.models.db import db_session, User as DBUser
+        with db_session() as db:
+            db_user = db.query(DBUser).filter(
+                DBUser.hackathon_id == user.hackathon_id,
+                DBUser.team_id == user.team_id
+            ).first()
+            email = db_user.email if db_user else None
+
+    if not email:
+        # Fallback: return just the current tenant if no email registered
+        from app.models.db import db_session, Hackathon
+        with db_session() as db:
+            h = db.query(Hackathon).filter(Hackathon.id == user.hackathon_id).first()
+            h_name = h.name if h else f"Hackathon #{user.hackathon_id}"
+            return [
+                TenantInfo(
+                    hackathon_id=user.hackathon_id or 0,
+                    hackathon_name=h_name,
+                    team_id=user.team_id,
+                    role=user.role,
+                )
+            ]
+
+    from app.models.db import db_session, User as DBUser, Hackathon
+
+    with db_session() as db:
+        user_records = db.query(DBUser).filter(DBUser.email == email).all()
+        tenants = []
+        for u in user_records:
+            h = db.query(Hackathon).filter(Hackathon.id == u.hackathon_id).first()
+            h_name = h.name if h else f"Hackathon #{u.hackathon_id}"
+            tenants.append(
+                TenantInfo(
+                    hackathon_id=u.hackathon_id,
+                    hackathon_name=h_name,
+                    team_id=u.team_id,
+                    team_name=u.team_name,
+                    role=u.role,
+                )
+            )
+        return tenants
+
+
+@router.post("/switch-tenant", response_model=LoginResponse)
+def switch_tenant(
+    req: TenantSelectRequest,
+    response: Response,
+    current_user: CurrentUser = Depends(get_current_user)
+):
+    """Switch user's current session to a different tenant they belong to."""
+    email = current_user.email
+    if not email:
+        from app.models.db import db_session, User as DBUser
+        with db_session() as db:
+            db_user = db.query(DBUser).filter(
+                DBUser.hackathon_id == current_user.hackathon_id,
+                DBUser.team_id == current_user.team_id
+            ).first()
+            email = db_user.email if db_user else None
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot switch tenant: Current session has no registered email.",
+        )
+
+    from app.models.db import db_session, User as DBUser
+
+    with db_session() as db:
+        user = db.query(DBUser).filter(
+            DBUser.email == email,
+            DBUser.hackathon_id == req.hackathon_id,
+            DBUser.team_id == req.team_id
+        ).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized for the selected tenant/team.",
+            )
+
+        token_data = {
+            "team_id": user.team_id,
+            "role": user.role,
+            "hackathon_id": user.hackathon_id,
+            "email": user.email,
         }
         token = create_access_token(token_data)
 
@@ -208,6 +320,7 @@ def login(req: LoginRequest, response: Response):
         "team_id": req.team_id,
         "role": user_info["role"],
         "hackathon_id": user_info["hackathon_id"],
+        "email": user_info.get("email"),
     }
     token = create_access_token(token_data)
 

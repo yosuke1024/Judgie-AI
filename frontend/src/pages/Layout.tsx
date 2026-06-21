@@ -3,13 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Trophy, Settings, Shield, LogOut, Zap, Globe } from 'lucide-react';
-import { teamsApi } from '@/api/client';
+import { teamsApi, authApi } from '@/api/client';
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, switchTenant } = useAuth();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [teams, setTeams] = useState<any[]>([]);
+  const [myTenants, setMyTenants] = useState<any[]>([]);
 
   const showAdminCenter = user?.role === 'admin';
   const showTeamDashboards = user?.role === 'admin' || user?.role === 'observer';
@@ -24,9 +25,26 @@ export default function Layout() {
     }
   }, [showTeamDashboards, user?.hackathon_id]);
 
+  useEffect(() => {
+    if (user) {
+      authApi.getMyTenants()
+        .then((data) => setMyTenants(data))
+        .catch((err) => console.error('Failed to load my tenants for switcher:', err));
+    }
+  }, [user]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleTenantChange = async (hackathonId: number, teamId: string) => {
+    try {
+      await switchTenant(hackathonId, teamId);
+      navigate('/');
+    } catch (err) {
+      console.error('Failed to switch project:', err);
+    }
   };
 
   const toggleLang = () => {
@@ -135,6 +153,43 @@ export default function Layout() {
             </NavLink>
           )}
         </nav>
+
+        {myTenants.length > 1 && (
+          <div className="sidebar-tenant-switcher" style={{
+            padding: '12px 16px',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px'
+          }}>
+            <label style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600 }}>
+              {t('login.select_project').toUpperCase()}
+            </label>
+            <select
+              value={`${user.hackathon_id}-${user.team_id}`}
+              onChange={(e) => {
+                const [hId, tId] = e.target.value.split('-');
+                handleTenantChange(Number(hId), tId);
+              }}
+              style={{
+                width: '100%',
+                padding: '6px 8px',
+                fontSize: '0.85rem',
+                background: '#1f2937',
+                color: '#ffffff',
+                border: '1px solid #374151',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              {myTenants.map((t) => (
+                <option key={`${t.hackathon_id}-${t.team_id}`} value={`${t.hackathon_id}-${t.team_id}`}>
+                  {t.hackathon_name} - {t.team_name || t.team_id} ({t.role.toUpperCase()})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="sidebar-footer">
           <div className="user-badge">

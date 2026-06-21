@@ -129,3 +129,100 @@ def test_oidc_callback_multiple_tenants(client, db_session_fixture):
             json={"temp_token": temp_token, "hackathon_id": 999, "team_id": "badteam"}
         )
         assert res_select_bad.status_code == 403
+
+
+def test_oidc_get_my_tenants(client, db_session_fixture):
+    # Setup multiple tenants with same email
+    h1 = DBHackathon(id=1, name="Hackathon 1")
+    h2 = DBHackathon(id=2, name="Hackathon 2")
+    db_session_fixture.add_all([h1, h2])
+    db_session_fixture.flush()
+
+    user1 = DBUser(
+        hackathon_id=1,
+        team_id="teamA",
+        passcode="hashedpass1",
+        role="team",
+        email="user@example.com"
+    )
+    user2 = DBUser(
+        hackathon_id=2,
+        team_id="teamB",
+        passcode="hashedpass2",
+        role="observer",
+        email="user@example.com"
+    )
+    db_session_fixture.add_all([user1, user2])
+    db_session_fixture.commit()
+
+    # Issue a valid access token first
+    from app.auth.jwt_handler import create_access_token
+    token = create_access_token({
+        "team_id": "teamA",
+        "role": "team",
+        "hackathon_id": 1,
+        "email": "user@example.com"
+    })
+    client.cookies.set("access_token", token)
+
+    res = client.get("/api/auth/my-tenants")
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data) == 2
+    assert data[0]["hackathon_id"] == 1
+    assert data[1]["hackathon_id"] == 2
+
+
+def test_oidc_switch_tenant(client, db_session_fixture):
+    # Setup multiple tenants with same email
+    h1 = DBHackathon(id=1, name="Hackathon 1")
+    h2 = DBHackathon(id=2, name="Hackathon 2")
+    db_session_fixture.add_all([h1, h2])
+    db_session_fixture.flush()
+
+    user1 = DBUser(
+        hackathon_id=1,
+        team_id="teamA",
+        passcode="hashedpass1",
+        role="team",
+        email="user@example.com"
+    )
+    user2 = DBUser(
+        hackathon_id=2,
+        team_id="teamB",
+        passcode="hashedpass2",
+        role="observer",
+        email="user@example.com"
+    )
+    db_session_fixture.add_all([user1, user2])
+    db_session_fixture.commit()
+
+    # Issue a valid access token for first tenant
+    from app.auth.jwt_handler import create_access_token
+    token = create_access_token({
+        "team_id": "teamA",
+        "role": "team",
+        "hackathon_id": 1,
+        "email": "user@example.com"
+    })
+    client.cookies.set("access_token", token)
+
+    # 1. Switch to second tenant (success)
+    res_switch = client.post(
+        "/api/auth/switch-tenant",
+        json={"hackathon_id": 2, "team_id": "teamB"}
+    )
+    assert res_switch.status_code == 200
+    data_switch = res_switch.json()
+    assert data_switch["team_id"] == "teamB"
+    assert data_switch["role"] == "observer"
+    assert data_switch["hackathon_id"] == 2
+    assert "access_token" in res_switch.cookies
+
+    # 2. Try switching to a non-existent tenant (forbidden)
+    res_switch_bad = client.post(
+        "/api/auth/switch-tenant",
+        json={"hackathon_id": 999, "team_id": "badteam"}
+    )
+    assert res_switch_bad.status_code == 403
+

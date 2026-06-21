@@ -54,6 +54,11 @@ class OIDCTenantSelectRequest(BaseModel):
     team_id: str
 
 
+class TenantSelectRequest(BaseModel):
+    hackathon_id: int
+    team_id: str
+
+
 class UserInfo(BaseModel):
     team_id: str
     role: str

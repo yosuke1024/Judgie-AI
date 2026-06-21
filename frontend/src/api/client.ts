@@ -91,6 +91,21 @@ export const authApi = {
       method: 'POST',
       body: data,
     }),
+  getMyTenants: () =>
+    request<
+      Array<{
+        hackathon_id: number;
+        hackathon_name: string;
+        team_id: string;
+        team_name: string | null;
+        role: string;
+      }>
+    >('/api/auth/my-tenants'),
+  switchTenant: (data: { hackathon_id: number; team_id: string }) =>
+    request<{ team_id: string; role: string; hackathon_id: number | null }>('/api/auth/switch-tenant', {
+      method: 'POST',
+      body: data,
+    }),
 };
 
 // Hackathons

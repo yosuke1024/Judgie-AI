@@ -20,6 +20,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   oidcSelectTenant: (tempToken: string, hackathonId: number, teamId: string) => Promise<void>;
+  switchTenant: (hackathonId: number, teamId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -64,8 +65,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await refreshUser();
   };
 
+  const switchTenant = async (hackathonId: number, teamId: string) => {
+    await authApi.switchTenant({
+      hackathon_id: hackathonId,
+      team_id: teamId,
+    });
+    await refreshUser();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, oidcSelectTenant }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, oidcSelectTenant, switchTenant }}>
       {children}
     </AuthContext.Provider>
   );
