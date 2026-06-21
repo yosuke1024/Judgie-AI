@@ -1,8 +1,8 @@
 import io
 import zipfile
 
-from core.db import User, create_hackathon, save_evaluation, set_ai_response_languages
-from core.services.export_service import (
+from app.models.db import User, create_hackathon, save_evaluation, set_ai_response_languages
+from app.services.export_service import (
     export_hackathon_to_markdown,
     export_hackathon_to_markdown_zip,
     generate_all_teams_markdown_zip,

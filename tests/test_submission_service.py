@@ -1,6 +1,6 @@
 from unittest.mock import ANY
 
-from core.services.submission_service import process_submission, sanitize_evaluation_response
+from app.services.submission_service import process_submission, sanitize_evaluation_response
 
 
 def test_sanitize_evaluation_response():
@@ -24,7 +24,7 @@ def test_sanitize_evaluation_response():
         ],
     }
 
-    res = sanitize_evaluation_response(input_data)
+    res = sanitize_evaluation_response(input_data, hackathon_id=1)
     assert res["product_understanding_english"] == "understanding"
     assert res["action_items_english"] == ["item1"]
     assert res["judges_feedback"][0]["judge_name"] == "Lisa"
@@ -38,12 +38,12 @@ def test_sanitize_evaluation_response():
             {"judge_name": "David"},  # Partial missing keys
         ],
     }
-    res_bad = sanitize_evaluation_response(bad_input)
+    res_bad = sanitize_evaluation_response(bad_input, hackathon_id=1)
     assert isinstance(res_bad["action_items_english"], list)
     assert res_bad["action_items_english"] == ["not_a_list"]
     assert len(res_bad["judges_feedback"]) == 1
     assert res_bad["judges_feedback"][0]["judge_name"] == "David"
-    assert res_bad["judges_feedback"][0]["judge_role"] == "Expert Panelist"  # Default fallback
+    assert res_bad["judges_feedback"][0]["judge_role"] == "Principal Software Engineer"  # Resolved from persona
 
     # Dynamic multi-language case
     custom_langs = ["English", "Spanish", "French"]
@@ -60,7 +60,7 @@ def test_sanitize_evaluation_response():
             {"judge_name": "Lisa", "feedback_en": "Great UI", "feedback_es": "Buen UI", "feedback_french": "Bon UI"}
         ],
     }
-    res_multi = sanitize_evaluation_response(input_multilang, custom_langs)
+    res_multi = sanitize_evaluation_response(input_multilang, hackathon_id=1, languages=custom_langs)
     assert res_multi["product_understanding_english"] == "understanding"
     assert res_multi["product_understanding_spanish"] == "comprehension"
     assert res_multi["product_understanding_french"] == "comprendre"
@@ -79,21 +79,21 @@ def test_process_submission_with_zip_and_media(mocker):
     mock_media.read.return_value = b"video_data"
 
     # Mocking related utility functions
-    mocker.patch("core.services.submission_service.is_video_upload_enabled", return_value=True)
-    mock_extract = mocker.patch("core.services.submission_service.extract_text_from_zip", return_value="print('hello')")
+    mocker.patch("app.services.submission_service.is_video_upload_enabled", return_value=True)
+    mock_extract = mocker.patch("app.services.submission_service.extract_text_from_zip", return_value="print('hello')")
 
     mock_file_obj = mocker.MagicMock()
     mock_file_obj.name = "files/mock-media-id"
-    mock_upload = mocker.patch("core.services.submission_service.upload_to_gemini", return_value=mock_file_obj)
+    mock_upload = mocker.patch("app.services.submission_service.upload_to_gemini", return_value=mock_file_obj)
 
-    mock_wait = mocker.patch("core.services.submission_service.wait_for_files_active")
+    mock_wait = mocker.patch("app.services.submission_service.wait_for_files_active")
 
     mock_analysis = mocker.patch(
-        "core.services.submission_service.analyze_submission",
+        "app.services.submission_service.analyze_submission",
         return_value={"product_understanding_en": "nice", "scores": {}, "impact_score": 4.0, "judges_feedback": []},
     )
 
-    mock_save = mocker.patch("core.services.submission_service.save_evaluation")
+    mock_save = mocker.patch("app.services.submission_service.save_evaluation")
 
     # Execute submission workflow processing
     res = process_submission(
@@ -123,7 +123,7 @@ def test_process_submission_with_video_disabled(mocker):
     mock_media = mocker.MagicMock()
     mock_media.name = "demo.mp4"
 
-    mocker.patch("core.services.submission_service.is_video_upload_enabled", return_value=False)
+    mocker.patch("app.services.submission_service.is_video_upload_enabled", return_value=False)
 
     import pytest
 

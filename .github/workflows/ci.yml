@@ -36,9 +36,9 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=core --cov=views --cov-report=term-missing | tee pytest-coverage.txt
+        pytest --cov=backend/app --cov-report=term-missing | tee pytest-coverage.txt
         echo "### 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
         echo '```text' >> $GITHUB_STEP_SUMMARY
-        cat pytest-coverage.txt | grep -E "Name|TOTAL|core/|views/" >> $GITHUB_STEP_SUMMARY
+        cat pytest-coverage.txt | grep -E "Name|TOTAL|backend/app/" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
 

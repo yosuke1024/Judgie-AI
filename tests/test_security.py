@@ -1,4 +1,4 @@
-from core.security import hash_passcode, verify_passcode
+from app.security import hash_passcode, verify_passcode
 
 
 def test_hash_passcode():
