@@ -1,7 +1,10 @@
 import json
+import logging
 
 from app.models.db import Evaluation, TeamChat, db_session, get_ai_response_languages, normalize_lang_to_key
-from app.services.gemini import object_to_judges
+from app.services.gemini import object_to_judges, translate_text
+
+logger = logging.getLogger(__name__)
 
 
 def get_team_evaluations(team_id: str) -> list[dict]:
@@ -55,11 +58,10 @@ def submit_team_objection(hackathon_id: int, eval_id: int, prev_eval_json: str, 
     # 1. Translate the user's objection into all configured languages
     languages = get_ai_response_languages(hackathon_id)
     try:
-        from app.services.gemini import translate_text
         translated = translate_text(hackathon_id, objection_text, languages)
         translated["user_objection"] = objection_text
     except Exception as e:
-        print(f"Translation failed: {e}")
+        logger.warning(f"Translation failed: {e}")
         translated = {"user_objection": objection_text}
         for lang in languages:
             lang_key = normalize_lang_to_key(lang)

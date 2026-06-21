@@ -142,6 +142,27 @@ git clone https://github.com/yosuke1024/Judgie-AI.git
 cd Judgie
 ```
 
+#### Option A: Docker Compose (Easiest)
+You can launch the entire stack (both backend and frontend) using Docker Compose.
+
+1. **Configure Environment Variables**:
+   Copy `.env.example` to `.env` and fill in your details (such as `GEMINI_API_KEY` for AI evaluations to function):
+   ```bash
+   cp .env.example .env
+   ```
+2. **Start the Stack**:
+   ```bash
+   docker compose up --build
+   ```
+3. **Access the App**:
+   Open `http://localhost:8080` in your browser.
+   - Log in as the default admin: **Team ID:** `admin`, **Passcode:** `admin123` (configured in `docker-compose.yml`).
+
+> [!NOTE]
+> Since this method builds the production assets for the React frontend to serve them through FastAPI, frontend changes will not hot-reload (HMR). If you edit the frontend code, you must rebuild the container using `docker compose up --build`.
+
+#### Option B: Bare Metal (Recommended for Frontend Active Development)
+
 Setup and Run the Backend:
 ```bash
 cd backend

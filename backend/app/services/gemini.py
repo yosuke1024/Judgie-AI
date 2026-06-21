@@ -1,10 +1,13 @@
 import json
+import logging
 import time
 
 from google import genai
 from google.genai import types
 
 from app.models.db import get_ai_response_languages, get_criteria, get_personas, get_setting, normalize_lang_to_key
+
+logger = logging.getLogger(__name__)
 
 
 def get_gemini_client(hackathon_id, api_key_override=None):
@@ -13,15 +16,6 @@ def get_gemini_client(hackathon_id, api_key_override=None):
     if not api_key:
         raise ValueError("Gemini API Key has not been set by the Admin yet. Please contact the organizer.")
     return genai.Client(api_key=api_key)
-
-
-def configure_gemini(hackathon_id, api_key_override=None):
-    """
-    Deprecated in favor of get_gemini_client.
-    Kept for backward compatibility and testing.
-    """
-    # Verify that we can obtain a client (will raise ValueError if missing)
-    get_gemini_client(hackathon_id, api_key_override=api_key_override)
 
 
 def list_available_gemini_models(hackathon_id, api_key_override=None):
@@ -342,7 +336,7 @@ def admin_chat_about_submission(
                     f = client.files.get(name=name)
                     gemini_media_files.append(f)
                 except Exception as e:
-                    print(f"Warning: Could not retrieve Gemini file {name}: {e}")
+                    logger.warning(f"Could not retrieve Gemini file {name}: {e}")
         except Exception:
             pass
 

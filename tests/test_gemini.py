@@ -5,32 +5,11 @@ import pytest
 from app.services.gemini import (
     admin_chat_about_submission,
     analyze_submission,
-    configure_gemini,
     list_available_gemini_models,
     object_to_judges,
     upload_to_gemini,
     wait_for_files_active,
 )
-
-
-def test_configure_gemini_success(mocker):
-    # Case where API key is correctly configured
-    mocker.patch("app.services.gemini.get_setting", return_value="test_api_key")
-    mock_client_cls = mocker.patch("google.genai.Client")
-
-    configure_gemini(1)
-
-    mock_client_cls.assert_called_once_with(api_key="test_api_key")
-
-
-def test_configure_gemini_missing_key(mocker):
-    # Case where API key is missing
-    mocker.patch("app.services.gemini.get_setting", return_value=None)
-
-    with pytest.raises(ValueError) as excinfo:
-        configure_gemini(1)
-
-    assert "Gemini API Key has not been set" in str(excinfo.value)
 
 
 def test_upload_to_gemini(mocker):

@@ -415,29 +415,26 @@ def test_initialize_hackathon_template(db_session_fixture):
     # Ensure it returns empty lists because template_id is None and no settings exist
     assert get_criteria(hid) == []
     assert get_personas(hid) == []
-
-    # Initialize with startup_pitch template
+    # Initialize with hackathon template
     from app.models.db import initialize_hackathon_template
 
-    initialize_hackathon_template(hid, "startup_pitch")
+    initialize_hackathon_template(hid, "hackathon")
 
     db_session_fixture.expire_all()
     hackathon_updated = db_session_fixture.query(Hackathon).filter(Hackathon.id == hid).first()
-    assert hackathon_updated.template_id == "startup_pitch"
-    assert hackathon_updated.re_evaluation_context_mode == "independent"
-    assert hackathon_updated.max_qa_turns == 3
+    assert hackathon_updated.template_id == "hackathon"
+    assert hackathon_updated.re_evaluation_context_mode == "cumulative"
+    assert hackathon_updated.max_qa_turns == 1
     assert hackathon_updated.max_consultations == 3
 
     # Check criteria and personas are initialized
     criteria = get_criteria(hid)
     assert len(criteria) > 0
-    assert criteria[0]["name"] == "Market Opportunity"
+    assert criteria[0]["name"] == "Innovation & Creativity"
 
     personas = get_personas(hid)
     assert len(personas) > 0
-    assert personas[0]["name"] == "Marcus"
-
-
+    assert personas[0]["name"] == "Alex"
 def test_max_consultations(db_session_fixture):
     hid = create_hackathon("Hack1", "admin1", "pass123")
 
