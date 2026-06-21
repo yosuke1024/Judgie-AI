@@ -6,9 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
-  <img src="https://img.shields.io/badge/python-3.9+-blue.svg" alt="Python Version">
-  <img src="https://img.shields.io/badge/Streamlit-1.50+-red.svg" alt="Streamlit">
-  <a href="https://judgie-ai.streamlit.app"><img src="https://img.shields.io/badge/Streamlit_App-%23FE4B4B?logo=streamlit&logoColor=white" alt="Streamlit App"></a>
+  <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python Version">
   <a href="https://railway.com/deploy/judgieai"><img src="https://railway.com/button.svg" alt="Deploy on Railway"></a>
   <a href="https://github.com/sponsors/yosuke1024"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github-sponsors" alt="Sponsor"></a>
 </p>
@@ -175,7 +173,7 @@ Once the project is created:
 3. Input and save your **Gemini API Key**. This will dynamically fetch and let you select the available Gemini models.
 
 ### 2. Deploying to Railway (One-Click)
-You can deploy Judgie-AI to Railway with a single click. This template automatically provisions a Streamlit container and a PostgreSQL database.
+You can deploy Judgie-AI to Railway with a single click. This template automatically builds the React frontend and provisions the FastAPI backend container. It can connect to PostgreSQL or run using local SQLite with Litestream replication.
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/judgieai)
 
@@ -248,7 +246,7 @@ To enable OIDC authentication, configure the following variables in your `.env` 
 - `OIDC_ISSUER=https://accounts.google.com` (Your OIDC identity provider issuer URL, defaults to Google)
 - `OIDC_CLIENT_ID=your-client-id`
 - `OIDC_CLIENT_SECRET=your-client-secret`
-- `OIDC_REDIRECT_URI=http://localhost:8501/` (Your application's base URL)
+- `OIDC_REDIRECT_URI=http://localhost:5173/` (Your application's base URL in local development, or your production URL)
 - `OIDC_ALLOWED_DOMAINS=yourcompany.com` (Comma-separated list of allowed email domains. Leave empty to allow any authenticated user)
 - `OIDC_ALLOWED_EMAILS=admin@gmail.com` (Comma-separated list of allowed individual emails)
 - `DEFAULT_ADMIN_EMAIL=organizer@company.com` (Optional: The email address of the initial Tenant Admin. Used during startup automatic provisioning in single-tenant deployments)

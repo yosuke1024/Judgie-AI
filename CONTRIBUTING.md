@@ -38,10 +38,12 @@ One of the easiest ways to contribute to Judgie-AI is by adding new evaluation t
 
 ## Local Development
 
-1. Clone the repository
-2. Install requirements: `pip install -r requirements.txt`
-3. Run the app: `streamlit run app.py`
-4. Log in as `superadmin` (passcode: `superadmin123`) to create a hackathon tenant, then log in as the tenant admin and set your Gemini API key in the **System Settings** UI.
+Please refer to the **Local Development Setup** section in the [README.md](README.md) for detailed, step-by-step instructions on setting up and running the React frontend and FastAPI backend.
+
+Briefly:
+1. Start the FastAPI backend server on port 8000.
+2. Start the React frontend client (Vite) on port 5173.
+3. Log in as `superadmin` (passcode: `superadmin123`) at `http://localhost:5173` to create your evaluation project. Then, log in as the newly created project admin and configure your Gemini API Key in the **System Settings** UI.
 
 ## Coding Guidelines
 Please refer to the existing code style. We encourage clear variable names, concise functions, and documenting complex logic ("Why" over "What").
