@@ -87,9 +87,10 @@ Whether it's auditing software system architectures, screening startup pitches, 
 
 ## 🚀 Tech Stack
 
-- **Frontend & Backend**: Streamlit (Python)
+- **Frontend**: React (TypeScript), Vite, TailwindCSS & Vanilla CSS
+- **Backend**: FastAPI (Python)
 - **Database**: SQLite3 / PostgreSQL (Cloud SQL)
-- **AI Core**: Google Gemini API (Supports dynamic model selection: `gemini-2.5-flash`, `gemini-2.0-flash`, etc.) - Utilizes the File API for asynchronous parsing of large contexts (Code ZIPs, Videos, etc.)
+- **AI Core**: Google Gemini API (Supports dynamic model selection: `gemini-3.5-flash`, `gemini-3.1-pro`, etc.) - Utilizes the File API for asynchronous parsing of large contexts (Code ZIPs, Videos, etc.)
 
 ---
 
@@ -143,15 +144,23 @@ git clone https://github.com/yosuke1024/Judgie-AI.git
 cd Judgie
 ```
 
-Install dependencies:
+Setup and Run the Backend:
 ```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Run the application:
+Setup and Run the Frontend:
 ```bash
-streamlit run app.py
+cd ../frontend
+npm install
+npm run dev
 ```
+
+Open `http://localhost:5173` in your browser.
 
 Initial Login & Config:
 Upon the first launch, a default `superadmin` account is created automatically.
@@ -260,29 +269,23 @@ To enable OIDC authentication, configure the following variables in your `.env` 
 ### Directory Structure
 ```
 ├── .github/              # GitHub Actions workflows & PR templates
-├── app.py                # Main Streamlit application entry point
-├── config.py             # Configuration and constants
-├── core/                 # Shared system logic and modules
-│   ├── services/         # Business logic layer (evaluations, submissions)
-│   ├── auth.py           # Authentication and session logic
-│   ├── db.py             # SQLite database operations and models
-│   ├── file_handler.py   # File system processing and validation
-│   ├── gemini.py         # Google Gemini API integration
-│   ├── i18n.py           # Translations and bilingual routing
-│   ├── security.py       # Password hashing (bcrypt)
-│   ├── templates.py      # Predefined Evaluation Template Packs
-│   └── ui_utils.py       # Reusable Streamlit UI components
+├── backend/              # FastAPI Backend Server
+│   ├── app/              # Application modules (auth, models, routers, schemas, services)
+│   ├── data/             # Database storage (judgie.db)
+│   ├── tests/            # Python backend tests
+│   └── requirements.txt  # Python package requirements
+├── frontend/             # React Frontend Client (Vite + TypeScript)
+│   ├── src/              # Source files (api, contexts, pages, components, locales)
+│   ├── public/           # Static assets
+│   └── package.json      # Node package requirements
 ├── docs/                 # Documentation (testing guide, user manuals)
-├── tests/                # Test suite for db, auth, services, and UI
-├── views/                # Streamlit UI pages for different roles
-├── requirements.txt      # Production dependencies
-├── requirements-dev.txt  # Development dependencies (pytest, ruff)
+└── assets/               # Repository assets (screenshots and logo)
 ```
 
 ### Technical Notes
-- The SQLite database (`judgie.db`) is automatically created in the `data/` directory upon execution.
-- To prevent session loss upon Streamlit reloads, **persistent session management** is implemented via URL query parameters (`?sid=`).
-- File Watcher is disabled (`fileWatcherType = "none"`) in `.streamlit/config.toml` to prevent unintended session resets during development.
+- The SQLite database (`judgie.db`) is automatically created in the `backend/data/` directory upon backend execution.
+- Session Management: Authentication and credentials are managed using secure session cookies, eliminating complex URL parameters.
+- Dev Mode Auto-reload: Hot-reloading is supported out-of-the-box for both backend (Uvicorn `--reload`) and frontend (Vite HMR).
 
 ### Testing
 Judgie-AI features a comprehensive test suite. For details on how to run tests locally and verify code coverage, please refer to [docs/testing.md](docs/testing.md).
