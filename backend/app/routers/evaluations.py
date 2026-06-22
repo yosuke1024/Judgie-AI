@@ -72,7 +72,7 @@ def get_scoreboard(user: CurrentUser = Depends(get_current_user)):
     try:
         users = (
             db.query(User)
-            .filter(User.role == "team", User.hackathon_id == hackathon_id, User.is_active == True)
+            .filter(User.role == "team", User.hackathon_id == hackathon_id, User.is_active)
             .order_by(User.team_id)
             .all()
         )

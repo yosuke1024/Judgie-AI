@@ -246,7 +246,7 @@ def verify_user(team_id: str, passcode: str, hackathon_id: int = None) -> dict |
         return None
 
     with db_session() as db:
-        query = db.query(User).filter(User.team_id == team_id, User.is_active == True)
+        query = db.query(User).filter(User.team_id == team_id, User.is_active)
         if team_id == "superadmin":
             user = query.filter(User.role == "superadmin").first()
         else:
