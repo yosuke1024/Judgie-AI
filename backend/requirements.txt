@@ -15,7 +15,7 @@ google-genai>=0.1.1
 bcrypt>=4.2.0
 
 # HTTP
-requests>=2.31.0
+requests>=2.34.2
 
 # Data (used by export service)
 pandas>=2.2.0
