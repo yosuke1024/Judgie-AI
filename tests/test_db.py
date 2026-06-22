@@ -606,3 +606,67 @@ def test_delete_evaluation_cascades(db_session_fixture):
 
     # Verify eval2 is still present
     assert db_session_fixture.query(Evaluation).filter(Evaluation.id == eval2_id).first() is not None
+
+
+def test_update_user_active(db_session_fixture):
+    from app.models.db import update_user_active
+    init_db()
+    hid = create_hackathon("HackActiveTest", "active_admin", "pass123", template_id="hackathon")
+
+    # Register a team
+    from app.security import hash_passcode
+    team_user = User(
+        hackathon_id=hid,
+        team_id="active_team",
+        passcode=hash_passcode("teampass"),
+        role="team",
+    )
+    db_session_fixture.add(team_user)
+    db_session_fixture.commit()
+
+    # Initial state should be active (default True)
+    assert team_user.is_active is True
+
+    # Disable team
+    success = update_user_active(hid, "active_team", False)
+    assert success is True
+    db_session_fixture.expire_all()
+
+    user_in_db = db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "active_team").first()
+    assert user_in_db.is_active is False
+
+    # Enable team again
+    success = update_user_active(hid, "active_team", True)
+    assert success is True
+    db_session_fixture.expire_all()
+    user_in_db = db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "active_team").first()
+    assert user_in_db.is_active is True
+
+
+def test_verify_user_inactive(db_session_fixture):
+    from app.models.db import update_user_active, verify_user
+    init_db()
+    hid = create_hackathon("HackActiveVerifyTest", "active_admin2", "pass123", template_id="hackathon")
+
+    from app.security import hash_passcode
+    team_user = User(
+        hackathon_id=hid,
+        team_id="verify_team",
+        passcode=hash_passcode("teampass"),
+        role="team",
+    )
+    db_session_fixture.add(team_user)
+    db_session_fixture.commit()
+
+    # Should succeed when active
+    verified = verify_user("verify_team", "teampass", hid)
+    assert verified is not None
+    assert verified["role"] == "team"
+
+    # Disable team
+    update_user_active(hid, "verify_team", False)
+
+    # Should fail when inactive
+    verified_inactive = verify_user("verify_team", "teampass", hid)
+    assert verified_inactive is None
+

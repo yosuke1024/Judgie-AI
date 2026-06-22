@@ -302,8 +302,9 @@ export default function TeamDashboard() {
   const calculateTotalScore = useCallback((evaluation: EvaluationItem) => {
     if (!evaluation) return 0;
     const scores = parseJson(evaluation.scores_json);
-    const totalWeight = criteria.reduce((sum, c) => sum + (c.weight || 0), 0) || 1;
-    return criteria.reduce((sum, crit) => {
+    const evalCriteria = criteria.filter((c) => scores[c.name] !== undefined);
+    const totalWeight = evalCriteria.reduce((sum, c) => sum + (c.weight || 0), 0) || 1;
+    return evalCriteria.reduce((sum, crit) => {
       const score = Number(scores[crit.name] || 0);
       return sum + score * 20.0 * ((crit.weight || 0) / totalWeight);
     }, 0);
@@ -495,7 +496,8 @@ export default function TeamDashboard() {
     const prevScores = prevEval ? parseJson(prevEval.scores_json) : null;
 
     // Calculate total weight and contributions
-    const totalWeight = criteria.reduce((sum, c) => sum + (c.weight || 0), 0) || 1;
+    const evalCriteria = criteria.filter((c) => scores[c.name] !== undefined);
+    const totalWeight = evalCriteria.reduce((sum, c) => sum + (c.weight || 0), 0) || 1;
     const isJa = i18n.language === 'ja';
 
     return (
@@ -510,7 +512,7 @@ export default function TeamDashboard() {
           marginBottom: '20px',
           marginTop: '16px'
         }}>
-          {criteria.map((crit) => {
+          {evalCriteria.map((crit) => {
             const score = Number(scores[crit.name] || 0);
             const contribution = score * 20.0 * ((crit.weight || 0) / totalWeight);
             const maxContrib = 100.0 * ((crit.weight || 0) / totalWeight);

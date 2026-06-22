@@ -141,6 +141,7 @@ export const teamsApi = {
         product_name: string | null;
         team_name: string | null;
         one_liner: string | null;
+        is_active: boolean;
       }>
     >(`/api/hackathons/${hackathonId}/teams`),
   create: (hackathonId: number, data: object) =>
@@ -153,6 +154,8 @@ export const teamsApi = {
     request(`/api/hackathons/${hackathonId}/teams/${teamId}/passcode`, { method: 'PUT', body: { new_passcode: newPasscode } }),
   updateRole: (hackathonId: number, teamId: string, newRole: string) =>
     request(`/api/hackathons/${hackathonId}/teams/${teamId}/role`, { method: 'PUT', body: { new_role: newRole } }),
+  updateActive: (hackathonId: number, teamId: string, isActive: boolean) =>
+    request(`/api/hackathons/${hackathonId}/teams/${teamId}/active`, { method: 'PUT', body: { is_active: isActive } }),
   delete: (hackathonId: number, teamId: string) =>
     request(`/api/hackathons/${hackathonId}/teams/${teamId}`, { method: 'DELETE' }),
 };

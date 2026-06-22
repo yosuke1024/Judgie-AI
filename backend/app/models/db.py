@@ -75,6 +75,7 @@ class User(Base):
     product_name = Column(String)
     team_name = Column(String)
     one_liner = Column(String)
+    is_active = Column(Boolean, default=True, nullable=False)
 
 
 class Submission(Base):
@@ -184,6 +185,7 @@ def init_db():
         "ALTER TABLE hackathons ADD COLUMN max_qa_turns INTEGER DEFAULT 1;",
         "ALTER TABLE hackathons ADD COLUMN max_consultations INTEGER DEFAULT 3;",
         "ALTER TABLE users ADD COLUMN email TEXT;",
+        "ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1;",
     ]
     for stmt in migration_statements:
         try:
@@ -244,7 +246,7 @@ def verify_user(team_id: str, passcode: str, hackathon_id: int = None) -> dict |
         return None
 
     with db_session() as db:
-        query = db.query(User).filter(User.team_id == team_id)
+        query = db.query(User).filter(User.team_id == team_id, User.is_active)
         if team_id == "superadmin":
             user = query.filter(User.role == "superadmin").first()
         else:
@@ -633,6 +635,23 @@ def update_user_role(hackathon_id: int, team_id: str, new_role: str) -> bool:
         )
         if user:
             user.role = new_role
+            return True
+        return False
+
+
+def update_user_active(hackathon_id: int, team_id: str, is_active: bool) -> bool:
+    with db_session() as db:
+        user = (
+            db.query(User)
+            .filter(
+                User.hackathon_id == hackathon_id,
+                User.team_id == team_id,
+                User.role.in_(["team", "observer"]),
+            )
+            .first()
+        )
+        if user:
+            user.is_active = is_active
             return True
         return False
 

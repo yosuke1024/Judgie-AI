@@ -19,6 +19,7 @@ interface CriteriaEntry {
   name: string;
   weight: number;
   description: string;
+  active?: boolean;
 }
 
 interface PersonaEntry {
@@ -167,7 +168,7 @@ export default function Leaderboard() {
       </section>
 
       {/* Category Leaders Section */}
-      {criteria.length > 0 && entries.length > 0 && (
+      {criteria.filter((c) => c.active !== false).length > 0 && entries.length > 0 && (
         <section className="category-leaders-section">
           <h2>
             <Award size={20} />
@@ -175,7 +176,7 @@ export default function Leaderboard() {
           </h2>
           
           <div className="category-tabs">
-            {criteria.map((c) => (
+            {criteria.filter((c) => c.active !== false).map((c) => (
               <button
                 key={c.name}
                 className={`category-tab-btn ${activeCategoryTab === c.name ? 'active' : ''}`}
@@ -306,14 +307,14 @@ export default function Leaderboard() {
       )}
 
       {/* Rules of the Game Section */}
-      {criteria.length > 0 && (
+      {criteria.filter((c) => c.active !== false).length > 0 && (
         <section className="rules-section">
           <h2>
             <BookOpen size={20} />
             {t('leaderboard.rules')}
           </h2>
           <div className="criteria-grid">
-            {criteria.map((c) => (
+            {criteria.filter((c) => c.active !== false).map((c) => (
               <div key={c.name} className="criteria-card">
                 <div className="criteria-card-header">
                   <h3>{c.name}</h3>

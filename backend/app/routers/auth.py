@@ -86,7 +86,7 @@ def oidc_callback(
     from app.models.db import Hackathon, User, db_session
 
     with db_session() as db:
-        user_records = db.query(User).filter(User.email == email).all()
+        user_records = db.query(User).filter(User.email == email, User.is_active).all()
 
         if not user_records:
             raise HTTPException(
@@ -171,7 +171,8 @@ def oidc_select_tenant(req: OIDCTenantSelectRequest, response: Response):
         user = db.query(User).filter(
             User.email == email,
             User.hackathon_id == req.hackathon_id,
-            User.team_id == req.team_id
+            User.team_id == req.team_id,
+            User.is_active
         ).first()
 
         if not user:
@@ -237,7 +238,7 @@ def get_my_tenants(user: CurrentUser = Depends(get_current_user)):
     from app.models.db import User as DBUser
 
     with db_session() as db:
-        user_records = db.query(DBUser).filter(DBUser.email == email).all()
+        user_records = db.query(DBUser).filter(DBUser.email == email, DBUser.is_active).all()
         tenants = []
         for u in user_records:
             h = db.query(Hackathon).filter(Hackathon.id == u.hackathon_id).first()
@@ -285,7 +286,8 @@ def switch_tenant(
         user = db.query(DBUser).filter(
             DBUser.email == email,
             DBUser.hackathon_id == req.hackathon_id,
-            DBUser.team_id == req.team_id
+            DBUser.team_id == req.team_id,
+            DBUser.is_active
         ).first()
 
         if not user:
