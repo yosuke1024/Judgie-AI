@@ -14,11 +14,13 @@ from app.models.db import (
     delete_team,
     update_team_passcode,
     update_team_profile,
+    update_user_active,
     update_user_role,
 )
 from app.schemas.schemas import (
     PasscodeChange,
     RoleUpdate,
+    TeamActiveUpdate,
     TeamBulkCreate,
     TeamCreate,
     TeamProfileUpdate,
@@ -50,6 +52,7 @@ def list_teams(
                 product_name=u.product_name,
                 team_name=u.team_name,
                 one_liner=u.one_liner,
+                is_active=u.is_active,
             )
             for u in users
         ]
@@ -227,6 +230,20 @@ def change_role(
     if not success:
         raise HTTPException(status_code=400, detail="Invalid role or team not found")
     return {"message": f"Role changed to {req.new_role}"}
+
+
+@router.put("/{team_id}/active")
+def change_active(
+    hackathon_id: int,
+    team_id: str,
+    req: TeamActiveUpdate,
+    user: CurrentUser = Depends(require_role("admin")),
+):
+    """Change a team's active status (Admin only)."""
+    success = update_user_active(hackathon_id, team_id, req.is_active)
+    if not success:
+        raise HTTPException(status_code=404, detail="Team not found")
+    return {"message": "Team active status updated"}
 
 
 @router.delete("/{team_id}")

@@ -128,12 +128,17 @@ class RoleUpdate(BaseModel):
     new_role: str
 
 
+class TeamActiveUpdate(BaseModel):
+    is_active: bool
+
+
 class TeamResponse(BaseModel):
     team_id: str
     role: str
     product_name: str | None = None
     team_name: str | None = None
     one_liner: str | None = None
+    is_active: bool = True
 
 
 # ──────────────────────────────────────────────

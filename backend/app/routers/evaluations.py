@@ -65,13 +65,14 @@ def get_scoreboard(user: CurrentUser = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="No active hackathon")
 
     criteria = get_criteria(hackathon_id)
-    total_weight = sum(c["weight"] for c in criteria) if criteria else 1
+    active_criteria = [c for c in criteria if c.get("active", True)]
+    total_weight = sum(c["weight"] for c in active_criteria) if active_criteria else 1
 
     db = SessionLocal()
     try:
         users = (
             db.query(User)
-            .filter(User.role == "team", User.hackathon_id == hackathon_id)
+            .filter(User.role == "team", User.hackathon_id == hackathon_id, User.is_active == True)
             .order_by(User.team_id)
             .all()
         )
@@ -118,7 +119,7 @@ def get_scoreboard(user: CurrentUser = Depends(get_current_user)):
                 scores = json.loads(ed["scores_json"])
                 total_score = sum(
                     scores.get(c["name"], 0) * 20.0 * (c["weight"] / total_weight)
-                    for c in criteria
+                    for c in active_criteria
                 )
                 entry.total_score = round(total_score, 1)
                 entry.consults = ed["consults"]

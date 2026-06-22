@@ -75,8 +75,8 @@ def analyze_submission(
 
     model_name = get_setting(hackathon_id, "gemini_model") or "gemini-2.5-flash"
 
-    criteria = get_criteria(hackathon_id)
-    active_personas = [p for p in get_personas(hackathon_id) if p.get("active", False)]
+    criteria = [c for c in get_criteria(hackathon_id) if c.get("active", True)]
+    active_personas = [p for p in get_personas(hackathon_id) if p.get("active", True)]
 
     criteria_str = "\n".join([f"- {c['name']} (Weight: {c['weight']}%): {c.get('description', '')}" for c in criteria])
     personas_str = "\n".join(
@@ -204,7 +204,7 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
 
     model_name = get_setting(hackathon_id, "gemini_model") or "gemini-2.5-flash"
 
-    active_personas = [p for p in get_personas(hackathon_id) if p.get("active", False)]
+    active_personas = [p for p in get_personas(hackathon_id) if p.get("active", True)]
     personas_str = "\n".join(
         [
             f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n"

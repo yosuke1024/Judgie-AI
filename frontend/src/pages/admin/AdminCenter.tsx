@@ -38,6 +38,7 @@ interface TeamItem {
   product_name: string | null;
   team_name: string | null;
   one_liner: string | null;
+  is_active?: boolean;
 }
 
 interface ScoreboardEntry {
@@ -327,14 +328,27 @@ export default function AdminCenter() {
   };
 
   const handleUpdateTeamPasscode = async (teamId: string) => {
-    if (!newPassVal.trim()) return;
+    if (!user || user.hackathon_id === null || !newPassVal.trim()) return;
     try {
-      await teamsApi.updatePasscode(user!.hackathon_id!, teamId, newPassVal);
-      showSuccess(`Passcode updated for ${teamId}`);
+      setError('');
+      await teamsApi.updatePasscode(user.hackathon_id, teamId, newPassVal.trim());
+      showSuccess(`Passcode reset for team '${teamId}'`);
       setEditingPassTeam(null);
       setNewPassVal('');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Failed to reset passcode.');
+    }
+  };
+
+  const handleUpdateTeamActive = async (teamId: string, isActive: boolean) => {
+    if (!user || user.hackathon_id === null) return;
+    try {
+      setError('');
+      await teamsApi.updateActive(user.hackathon_id, teamId, isActive);
+      showSuccess(`Status updated for team '${teamId}'`);
+      loadTeams();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update team status.');
     }
   };
 
@@ -761,6 +775,7 @@ export default function AdminCenter() {
                           <th>Role</th>
                           <th>Product Name</th>
                           <th>Passcode</th>
+                          <th>Active</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -817,6 +832,16 @@ export default function AdminCenter() {
                               )}
                             </td>
                             <td>
+                              <input
+                                type="checkbox"
+                                checked={t.is_active !== false}
+                                onChange={(e) => handleUpdateTeamActive(t.team_id, e.target.checked)}
+                                disabled={isObserver}
+                                className="table-checkbox"
+                                style={{ transform: 'scale(1.2)', cursor: isObserver ? 'default' : 'pointer' }}
+                              />
+                            </td>
+                            <td>
                               <button
                                 onClick={() => handleDeleteTeam(t.team_id)}
                                 className="btn btn-danger btn-xs"
@@ -829,7 +854,7 @@ export default function AdminCenter() {
                         ))}
                         {teams.length === 0 && (
                           <tr>
-                            <td colSpan={5} className="text-center dim-text">
+                            <td colSpan={6} className="text-center dim-text">
                               {loading ? (
                                 <div className="inline-flex items-center gap-2" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                                   <Loader2 size={16} className="animate-spin" />
@@ -887,6 +912,16 @@ export default function AdminCenter() {
                           value={crit.weight}
                           onChange={(e) => updateCriteriaField(index, 'weight', parseFloat(e.target.value) || 1)}
                           disabled={isObserver}
+                        />
+                      </div>
+                      <div className="form-group" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px' }}>
+                        <label>Active</label>
+                        <input
+                          type="checkbox"
+                          checked={crit.active !== false}
+                          onChange={(e) => updateCriteriaField(index, 'active', e.target.checked)}
+                          disabled={isObserver}
+                          style={{ marginTop: '10px', transform: 'scale(1.2)' }}
                         />
                       </div>
                       <button onClick={() => deleteCriteria(index)} className="btn btn-danger btn-icon-only mt-6" disabled={isObserver}>
@@ -960,6 +995,16 @@ export default function AdminCenter() {
                           value={persona.role}
                           onChange={(e) => updatePersonaField(index, 'role', e.target.value)}
                           disabled={isObserver}
+                        />
+                      </div>
+                      <div className="form-group" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px' }}>
+                        <label>Active</label>
+                        <input
+                          type="checkbox"
+                          checked={persona.active !== false}
+                          onChange={(e) => updatePersonaField(index, 'active', e.target.checked)}
+                          disabled={isObserver}
+                          style={{ marginTop: '10px', transform: 'scale(1.2)' }}
                         />
                       </div>
                       <button onClick={() => deletePersona(index)} className="btn btn-danger btn-icon-only mt-6" disabled={isObserver}>
