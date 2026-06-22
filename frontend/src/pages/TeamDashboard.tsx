@@ -384,6 +384,8 @@ export default function TeamDashboard() {
     return user?.consultation_count || 0;
   }, [isReadOnly, evaluations, user?.consultation_count]);
 
+  const isConsultationLimitReached = maxConsultations !== -1 && effectiveConsultationCount >= maxConsultations;
+
   if (!user || !effectiveTeamId) return null;
 
   // Handle Profile Update
@@ -1257,17 +1259,21 @@ export default function TeamDashboard() {
                 <button
                   type="submit"
                   className="btn btn-primary w-full"
-                  disabled={uploading || selectedFiles.length === 0}
+                  disabled={
+                    uploading ||
+                    selectedFiles.length === 0 ||
+                    (!isFinalUpload && isConsultationLimitReached)
+                  }
                 >
                   {uploading ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      Evaluating Project...
+                      {isFinalUpload ? 'Submitting Final...' : 'Evaluating Project...'}
                     </>
                   ) : (
                     <>
                       <Sparkles size={16} />
-                      {t('team.consultation')}
+                      {isFinalUpload ? t('team.final_submission') : t('team.consultation')}
                     </>
                   )}
                 </button>
