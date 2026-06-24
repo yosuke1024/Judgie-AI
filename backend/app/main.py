@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import CORS_ORIGINS
+from app.middleware.ip_filter import IPLimitMiddleware
 from app.models.db import init_db
 from app.routers import auth, chat, evaluations, export, settings, submissions, tasks, teams
 
@@ -30,7 +31,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware for React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -38,6 +38,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# IP limit middleware (added after CORS to be the outermost middleware)
+app.add_middleware(IPLimitMiddleware)
 
 # Register routers
 

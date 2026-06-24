@@ -3,6 +3,7 @@ Application configuration for FastAPI backend.
 Reads from environment variables with sensible defaults for local development.
 """
 
+import ipaddress
 import os
 
 # 'local' or 'production'
@@ -82,3 +83,16 @@ for _ in range(5):
 
 if not TEMPLATES_DIR:
     TEMPLATES_DIR = os.path.join(os.path.dirname(BASE_DIR), "templates")
+
+# --- IP Address Restriction ---
+_raw_allowed_ips = os.environ.get("ALLOWED_IPS", "")
+ALLOWED_IPS = []
+if _raw_allowed_ips:
+    for _ip_str in _raw_allowed_ips.split(","):
+        _ip_str = _ip_str.strip()
+        if not _ip_str:
+            continue
+        try:
+            ALLOWED_IPS.append(ipaddress.ip_network(_ip_str, strict=False))
+        except ValueError:
+            pass
