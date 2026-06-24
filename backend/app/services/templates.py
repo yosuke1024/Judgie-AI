@@ -8,10 +8,22 @@ import os
 
 TEMPLATES = {}
 
-# Resolve templates directory relative to project root
-_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-_PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
-TEMPLATES_DIR = os.path.join(_PROJECT_ROOT, "templates")
+# Resolve templates directory dynamically (works for both local dev and Docker container)
+_HERE = os.path.abspath(__file__)
+_DIR = _HERE
+TEMPLATES_DIR = None
+for _ in range(5):
+    _DIR = os.path.dirname(_DIR)
+    _potential = os.path.join(_DIR, "templates")
+    if os.path.exists(_potential) and os.path.isdir(_potential):
+        TEMPLATES_DIR = _potential
+        break
+
+if not TEMPLATES_DIR:
+    # Fallback to local dev path structure
+    _BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(_HERE)))
+    _PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
+    TEMPLATES_DIR = os.path.join(_PROJECT_ROOT, "templates")
 
 if os.path.exists(TEMPLATES_DIR):
     for filename in sorted(os.listdir(TEMPLATES_DIR)):
