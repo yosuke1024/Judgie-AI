@@ -5,6 +5,7 @@ import LoginPage from '@/pages/Login';
 import Leaderboard from '@/pages/Leaderboard';
 import TeamDashboard from '@/pages/TeamDashboard';
 import AdminCenter from '@/pages/admin/AdminCenter';
+import ManualPage from '@/pages/Manual';
 
 function ProtectedRoute({
   children,
@@ -100,6 +101,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AdminCenter />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="manual"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'observer', 'team', 'superadmin']}>
+              <ManualPage />
             </ProtectedRoute>
           }
         />

@@ -246,4 +246,9 @@ export const exportApi = {
     request('/api/export/template/import', { method: 'POST', body: { url } }),
 };
 
+// Manual
+export const manualApi = {
+  getManual: (lang: string) => request<{ content: string }>(`/api/manual?lang=${lang}`),
+};
+
 export { ApiError };
