@@ -69,9 +69,7 @@ def submit_team_objection(eval_id: int, prev_eval_json: str, objection_text: str
 
     # 2. Insert user message to TeamChat table
     with db_session() as db:
-        user_msg = TeamChat(
-            evaluation_id=eval_id, sender="team", message_json=json.dumps(translated)
-        )
+        user_msg = TeamChat(evaluation_id=eval_id, sender="team", message_json=json.dumps(translated))
         db.add(user_msg)
         db.flush()
 
@@ -95,7 +93,6 @@ def submit_team_objection(eval_id: int, prev_eval_json: str, objection_text: str
     return qa_result
 
 
-
 def sanitize_objection_response(data: dict) -> dict:
     """
     Sanitizes LLM panel objection debate responses.
@@ -103,6 +100,7 @@ def sanitize_objection_response(data: dict) -> dict:
     """
     languages = get_ai_response_languages()
     from app.models.db import get_personas
+
     personas = get_personas()
     persona_map = {p["name"].lower(): p for p in personas}
 

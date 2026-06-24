@@ -7,6 +7,15 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth.deps import CurrentUser, require_role
+from app.auth.oidc_settings import (
+    get_oidc_allowed_domains,
+    get_oidc_allowed_emails,
+    get_oidc_client_id,
+    get_oidc_client_secret,
+    get_oidc_enabled,
+    get_oidc_issuer,
+    get_oidc_redirect_uri,
+)
 from app.models.db import (
     change_my_passcode,
     get_ai_response_languages,
@@ -31,6 +40,8 @@ from app.schemas.schemas import (
     CriteriaUpdate,
     GeminiConfig,
     LanguageSettings,
+    OIDCSettings,
+    OIDCSettingsUpdate,
     PasscodeChange,
     PasswordChange,
     PersonasUpdate,
@@ -42,6 +53,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
 # ── Criteria ──
+
 
 @router.get("/criteria")
 def get_criteria_endpoint(user: CurrentUser = Depends(require_role("admin", "observer", "team"))):
@@ -61,6 +73,7 @@ def update_criteria(
 
 # ── Personas ──
 
+
 @router.get("/personas")
 def get_personas_endpoint(user: CurrentUser = Depends(require_role("admin", "observer", "team"))):
     """Get AI judge personas."""
@@ -78,6 +91,7 @@ def update_personas(
 
 
 # ── Gemini Config ──
+
 
 @router.get("/gemini")
 def get_gemini_config(user: CurrentUser = Depends(require_role("admin"))):
@@ -111,6 +125,7 @@ def update_gemini_config(
     if req.api_key:
         # Validate by listing models
         from app.services.gemini import list_available_gemini_models
+
         models = list_available_gemini_models(api_key_override=req.api_key)
         if not models:
             raise HTTPException(status_code=400, detail="Invalid API key or no models available")
@@ -127,6 +142,7 @@ def update_gemini_config(
 
 
 # ── Project Settings ──
+
 
 @router.get("/project")
 def get_project_settings(user: CurrentUser = Depends(require_role("admin", "observer"))):
@@ -159,6 +175,7 @@ def update_project_settings(
 
 # ── AI Response Languages ──
 
+
 @router.get("/languages")
 def get_languages(user: CurrentUser = Depends(require_role("admin", "observer", "team"))):
     """Get configured AI response languages."""
@@ -181,6 +198,7 @@ def update_languages(
 
 # ── Password Change ──
 
+
 @router.post("/change-password")
 def change_password(
     req: PasswordChange,
@@ -188,7 +206,9 @@ def change_password(
 ):
     """Change the current user's password."""
     success = change_my_passcode(
-        user.team_id, req.current_password, req.new_password,
+        user.team_id,
+        req.current_password,
+        req.new_password,
     )
     if not success:
         raise HTTPException(status_code=400, detail="Incorrect current password")
@@ -197,14 +217,13 @@ def change_password(
 
 # ── Templates Preset ──
 
+
 @router.get("/templates")
 def get_templates(user: CurrentUser = Depends(require_role("admin"))):
     """Get list of available project templates."""
     from app.services.templates import TEMPLATES
-    return {
-        k: {"name": t.get("name"), "description": t.get("description")}
-        for k, t in TEMPLATES.items()
-    }
+
+    return {k: {"name": t.get("name"), "description": t.get("description")} for k, t in TEMPLATES.items()}
 
 
 @router.post("/templates/initialize")
@@ -214,6 +233,7 @@ def initialize_template(
 ):
     """Initialize project setting with a preset template."""
     from app.models.db import initialize_project_template
+
     try:
         initialize_project_template(req.template_id, req.custom_template_data)
     except ValueError as e:
@@ -229,3 +249,47 @@ def reset_admin_passcode(
     """Reset the admin passcode."""
     update_admin_passcode(req.new_passcode)
     return {"message": "Admin passcode updated"}
+
+
+# ── OIDC settings ──
+
+
+@router.get("/oidc", response_model=OIDCSettings)
+def get_oidc_settings_endpoint(user: CurrentUser = Depends(require_role("admin"))):
+    """Get OIDC configuration settings."""
+    allowed_domains = get_oidc_allowed_domains()
+    allowed_emails = get_oidc_allowed_emails()
+
+    return OIDCSettings(
+        oidc_enabled=get_oidc_enabled(),
+        oidc_issuer=get_oidc_issuer(),
+        oidc_client_id=get_oidc_client_id(),
+        has_client_secret=bool(get_oidc_client_secret()),
+        oidc_redirect_uri=get_oidc_redirect_uri(),
+        oidc_allowed_domains=",".join(allowed_domains) if allowed_domains else "",
+        oidc_allowed_emails=",".join(allowed_emails) if allowed_emails else "",
+    )
+
+
+@router.put("/oidc")
+def update_oidc_settings(
+    req: OIDCSettingsUpdate,
+    user: CurrentUser = Depends(require_role("admin")),
+):
+    """Update OIDC configuration settings."""
+    if req.oidc_enabled is not None:
+        set_setting("oidc_enabled", "true" if req.oidc_enabled else "false")
+    if req.oidc_issuer is not None:
+        set_setting("oidc_issuer", req.oidc_issuer)
+    if req.oidc_client_id is not None:
+        set_setting("oidc_client_id", req.oidc_client_id)
+    if req.oidc_client_secret:  # Only update if not empty/None
+        set_setting("oidc_client_secret", req.oidc_client_secret)
+    if req.oidc_redirect_uri is not None:
+        set_setting("oidc_redirect_uri", req.oidc_redirect_uri)
+    if req.oidc_allowed_domains is not None:
+        set_setting("oidc_allowed_domains", req.oidc_allowed_domains)
+    if req.oidc_allowed_emails is not None:
+        set_setting("oidc_allowed_emails", req.oidc_allowed_emails)
+
+    return {"message": "OIDC settings updated"}

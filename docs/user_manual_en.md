@@ -1,6 +1,6 @@
 # ⚖️ Judgie-AI User Manual
 
-Judgie-AI is an AI-powered project evaluation platform (multi-tenant) leveraging Google Gemini and other LLM capabilities. It automatically analyzes team/candidate submissions (source code ZIPs, demo videos, presentation PDFs, resumes) from various professional angles using customizable AI judge personas, providing teams with score breakdowns and actionable coaching feedback.
+Judgie-AI is an AI-powered project evaluation platform (single-tenant, hosting one project per instance) leveraging Google Gemini's multimodal capabilities. It automatically analyzes team/candidate submissions (source code ZIPs, demo videos, presentation PDFs, resumes) from various professional angles using customizable AI judge personas, providing teams with score breakdowns and actionable coaching feedback.
 
 This manual explains how to use the platform step-by-step for each role (**Super Admin**, **Project Admin (Organizer)**, **Team / Participant (Candidate)**, and **Observer (Spectator)**).
 
@@ -8,7 +8,7 @@ This manual explains how to use the platform step-by-step for each role (**Super
 
 ## 📂 Quick Navigation
 - [1. Initial Launch & Login](#1-initial-launch--login)
-- [2. 🌍 Super Admin (Global Administrator) Guide](#2--super-admin-global-administrator-guide)
+- [2. 🔐 System Setup & Admin Guide](#2-🔐-system-setup--admin-guide)
 - [3. 👑 Project Admin (Organizer) Guide](#3--project-admin-organizer-guide)
 - [4. 🧑‍💻 Team (Participant / Candidate) Guide](#4--team-participant--candidate-guide)
 - [5. 👁️ Observer (Spectator) Guide](#5--observer-spectator-guide)
@@ -43,46 +43,40 @@ Under the "✨ Demo Experience" section on the login page, you can log in with:
 
 ---
 
-## 2. 🌍 Super Admin (Global Administrator) Guide
+## 2. 🔐 System Setup & Admin Guide
 
-The Super Admin is responsible for global system management, creating new projects (tenants), and issuing project administrator accounts.
+The system administrator is responsible for initial setup, configuring OIDC (SSO) authentication, and setting up the Gemini API key.
 
 ### 2-1. Initial Login & Security Setup
-1. Click the **"🌍 Super Admin Login"** link at the bottom of the login page to navigate to the Super Admin login screen.
-2. Log in using the default credentials:
-   - **Super Admin ID:** `superadmin`
+1. Click the **"🔐 Admin Login (Passcode)"** link at the bottom of the login page to switch to the passcode login form.
+2. Log in using the default credentials (unless customized via env vars like `DEFAULT_ADMIN_ID`):
+   - **ID:** `superadmin`
    - **Passcode:** `superadmin123`
-3. After logging in, you will see the **"🌍 Super Admin Console"**.
+3. After logging in, navigate to the **"👑 Command Center"** using the top navigation menu.
 4. > [!CAUTION]
-   > For security reasons, please change the default passcode immediately using the **"Change Password"** section (note that this section is hidden when OIDC is enabled).
+   > For security reasons, please change the default passcode immediately using the **"System Settings"** -> **"Change Admin Passcode"** section.
 
-### 2-2. Creating a New Project (Tenant)
-1. Go to the **"Create New Project"** form.
-2. Enter the following information:
-   - **Project Name:** e.g., "Summer AI Project 2026"
-   - **Tenant Admin ID:** e.g., `admin`
-   - **Tenant Admin Passcode / Email:**
-     - **Default Mode**: Enter the passcode the tenant admin will use to log in.
-     - **OIDC (SSO) Mode**: Enter the "Admin Email" instead of a passcode.
-3. Click the **"Create Project"** button. This creates a fully isolated database partition for the new tenant.
+### 2-2. Configuring OIDC Authentication (SSO)
+You can configure Single Sign-On (SSO) in the **"System Settings"** tab, under the **"OIDC Authentication Settings (SSO)"** card.
 
-### 2-3. Tenant Management & Deletion
-1. From the registered projects list, you can reset tenant admin passwords (in default mode) or delete projects.
-2. > [!WARNING]
-   > Deleting a project will permanently erase all associated teams, submissions, and AI evaluation logs. This action is irreversible.
+* **Settings Fields:**
+  - **Enable OIDC (SSO) Authentication:** Check this to enable SSO. When active, team passcode login is disabled.
+  - **Issuer URL:** The identity provider's issuer URL (e.g., `https://accounts.google.com`).
+  - **Client ID / Client Secret:** The credentials issued by your identity provider.
+  - **Redirect URI:** The callback URL (e.g., `http://localhost:5173/login/callback`). Leave blank to use the default value.
+  - **Allowed Email Domains / Allowed Individual Emails:** Restrict access to specific email domains or addresses (comma-separated list). Leave blank to allow any authenticated user.
+* **Emergency Login Bypass (Anti-Lockout):**
+  If OIDC is misconfigured, the seed administrator accounts (e.g., `superadmin`) can still log in locally via the **"Admin Login"** link at the bottom, using their passcode. Once logged in, you can update OIDC credentials or turn OIDC off.
 
 ---
 
 ## 3. 👑 Project Admin (Organizer) Guide
 
-Project Admins log in using the accounts provided by the Super Admin. They configure project settings, select evaluation templates, manage AI judges, register teams/participants, and monitor submissions.
+Project Admins log in using their administrator credentials (`admin` or `superadmin`) to set up the evaluation environment, manage AI judges, register teams, and monitor evaluations.
 
 ### 3-1. Logging in as Project Admin
 1. Navigate to the login page (`http://localhost:5173/login`).
-2. Select your project from the **"Select Project"** dropdown.
-3. Complete the login based on the authentication setup:
-   - **Default Mode**: Enter your **"Team ID / Admin ID"** (e.g., `admin`) and **"Passcode"**, then click **"Log In"**.
-   - **OIDC Mode**: Click **"Sign in with SSO"** to log in automatically.
+2. Click the **"Admin Login (Passcode)"** link at the bottom, enter your **"Admin ID"** (e.g., `admin`) and **"Passcode"**, then click **"Log In"** (If OIDC is active, you can also log in via SSO).
 
 ### 3-2. Setting Up the Project
 

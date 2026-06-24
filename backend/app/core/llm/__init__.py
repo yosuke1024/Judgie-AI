@@ -15,6 +15,7 @@ def get_llm_provider(provider_name: Optional[str] = None) -> BaseLLMProvider:
     """
     if not provider_name:
         from app.models.db import get_setting
+
         provider_name = get_setting("llm_provider") or LLM_PROVIDER or "gemini"
 
     provider_name = provider_name.lower()

@@ -15,13 +15,32 @@ def extract_text_from_zip(uploaded_zip):
         return ""
 
     allowed_extensions = (
-        ".py", ".js", ".ts", ".jsx", ".tsx", ".html", ".css",
-        ".md", ".txt", ".json", ".yml", ".yaml",
+        ".py",
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".html",
+        ".css",
+        ".md",
+        ".txt",
+        ".json",
+        ".yml",
+        ".yaml",
     )
     ignore_dirs = (
-        "node_modules/", ".git/", "venv/", ".venv/", "env/",
-        ".next/", "dist/", "build/", "out/", ".expo/",
-        "android/", "ios/",
+        "node_modules/",
+        ".git/",
+        "venv/",
+        ".venv/",
+        "env/",
+        ".next/",
+        "dist/",
+        "build/",
+        "out/",
+        ".expo/",
+        "android/",
+        "ios/",
     )
     ignore_files = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml")
 

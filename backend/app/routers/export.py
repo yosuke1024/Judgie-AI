@@ -41,11 +41,7 @@ def get_team_markdown(
 
     db = SessionLocal()
     try:
-        team_user = (
-            db.query(User)
-            .filter(User.team_id == team_id)
-            .first()
-        )
+        team_user = db.query(User).filter(User.team_id == team_id).first()
         if not team_user:
             raise HTTPException(status_code=404, detail="Team not found")
     finally:
@@ -86,6 +82,7 @@ def get_notebooklm_zip(user: CurrentUser = Depends(require_role("admin"))):
 
 
 # ── Template Export/Import ──
+
 
 @router.get("/template")
 def export_template(user: CurrentUser = Depends(require_role("admin"))):
@@ -140,16 +137,24 @@ def import_template(
             hostname = parsed.hostname
 
     allowed_domains = {
-        "github.com", "raw.githubusercontent.com",
-        "gist.githubusercontent.com", "githubusercontent.com",
+        "github.com",
+        "raw.githubusercontent.com",
+        "gist.githubusercontent.com",
+        "githubusercontent.com",
     }
     if hostname not in allowed_domains:
         raise HTTPException(status_code=400, detail="Domain not allowed")
 
-    safe_url = urlunparse((
-        parsed.scheme, parsed.netloc, parsed.path,
-        parsed.params, parsed.query, parsed.fragment,
-    ))
+    safe_url = urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
     if not is_safe_url(safe_url):
         raise HTTPException(status_code=400, detail="URL fails security checks")

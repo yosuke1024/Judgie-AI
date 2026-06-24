@@ -122,9 +122,7 @@ def test_submit_team_objection(mocker, db_session_fixture):
     mocker.patch("app.services.evaluation_service.object_to_judges", return_value=mock_llm_response)
 
     # Execute
-    res = submit_team_objection(
-        eval_id=eval_id, prev_eval_json='{"scores": {}}', objection_text="Please reconsider"
-    )
+    res = submit_team_objection(eval_id=eval_id, prev_eval_json='{"scores": {}}', objection_text="Please reconsider")
 
     assert res["qa_summary_en"] == "Objection accepted"
 

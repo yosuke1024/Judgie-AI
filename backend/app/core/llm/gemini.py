@@ -17,6 +17,7 @@ from app.models.db import (
 
 logger = logging.getLogger(__name__)
 
+
 class GeminiProvider(BaseLLMProvider):
     @property
     def supports_video(self) -> bool:
@@ -69,7 +70,7 @@ class GeminiProvider(BaseLLMProvider):
         text_content: str,
         media_files: Optional[List[Any]] = None,
         previous_evaluations_json: Optional[str] = None,
-        is_final: bool = False
+        is_final: bool = False,
     ) -> Dict[str, Any]:
         client = self._get_client()
         model = model_name if model_name else (get_setting("gemini_model") or "gemini-2.5-flash")
@@ -77,7 +78,9 @@ class GeminiProvider(BaseLLMProvider):
         criteria = [c for c in get_criteria() if c.get("active", True)]
         active_personas = [p for p in get_personas() if p.get("active", True)]
 
-        criteria_str = "\n".join([f"- {c['name']} (Weight: {c['weight']}%): {c.get('description', '')}" for c in criteria])
+        criteria_str = "\n".join(
+            [f"- {c['name']} (Weight: {c['weight']}%): {c.get('description', '')}" for c in criteria]
+        )
         personas_str = "\n".join(
             [
                 f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n"
@@ -197,7 +200,7 @@ Output a strictly valid JSON object with the following structure:
         text_content: str,
         media_files: Optional[List[Any]] = None,
         previous_evaluation_json: Optional[str] = None,
-        chat_history_list: Optional[List[Dict[str, Any]]] = None
+        chat_history_list: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         client = self._get_client()
         model = model_name if model_name else (get_setting("gemini_model") or "gemini-2.5-flash")
@@ -314,7 +317,7 @@ Output a strictly valid JSON object with the following structure:
         source_text: str,
         file_ids_json: Optional[str] = None,
         previous_evaluation_json: Optional[str] = None,
-        admin_question: str = ""
+        admin_question: str = "",
     ) -> Dict[str, Any]:
         client = self._get_client()
         model = model_name if model_name else (get_setting("gemini_model") or "gemini-2.5-flash")
@@ -342,7 +345,9 @@ Output a strictly valid JSON object with the following structure:
             question_fields.append(
                 f'  "question_{lang_key}": "Translation or original of the administrator\'s question in {lang}"'
             )
-            answer_fields.append(f'  "answer_{lang_key}": "Detailed response in {lang} based on the source code and files"')
+            answer_fields.append(
+                f'  "answer_{lang_key}": "Detailed response in {lang} based on the source code and files"'
+            )
 
         question_str = ",\n".join(question_fields)
         answer_str = ",\n".join(answer_fields)

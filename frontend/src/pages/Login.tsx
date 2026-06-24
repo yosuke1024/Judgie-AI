@@ -25,7 +25,7 @@ export default function LoginPage() {
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isLocalAdmin, setIsLocalAdmin] = useState(false);
   const [oidcEnabled, setOidcEnabled] = useState(false);
 
   useEffect(() => {
@@ -142,7 +142,7 @@ export default function LoginPage() {
         {/* Error */}
         {error && <div className="login-error">{error}</div>}
 
-        {oidcEnabled && !isSuperAdmin ? (
+        {oidcEnabled && !isLocalAdmin ? (
           <div className="sso-only-container" style={{ textAlign: 'center', marginTop: '1.5rem', width: '100%' }}>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: '1.5' }}>
               {t('login.sso_required_message')}
@@ -166,7 +166,7 @@ export default function LoginPage() {
                 type="text"
                 value={teamId}
                 onChange={(e) => setTeamId(e.target.value)}
-                placeholder={isSuperAdmin ? 'superadmin' : ''}
+                placeholder={isLocalAdmin ? 'admin or superadmin' : ''}
                 autoComplete="username"
               />
             </div>
@@ -219,11 +219,11 @@ export default function LoginPage() {
           <button
             className="btn btn-ghost"
             onClick={() => {
-              setIsSuperAdmin(!isSuperAdmin);
-              setTeamId(isSuperAdmin ? '' : 'superadmin');
+              setIsLocalAdmin(!isLocalAdmin);
+              setTeamId('');
             }}
           >
-            {isSuperAdmin ? '← Back' : t('login.super_admin_login')}
+            {isLocalAdmin ? '← Back' : t('login.super_admin_login')}
           </button>
         </div>
 

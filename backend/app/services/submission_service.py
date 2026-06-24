@@ -6,9 +6,7 @@ from app.services.file_handler import extract_text_from_zip
 from app.services.gemini import analyze_submission, upload_to_gemini, wait_for_files_active
 
 
-def process_submission(
-    team_id: str, uploaded_files: list, prev_evaluations_json: str, is_final: bool
-) -> dict:
+def process_submission(team_id: str, uploaded_files: list, prev_evaluations_json: str, is_final: bool) -> dict:
     """
     Handles the entire submission workflow: extraction, Gemini upload, polling, and parsing.
     Includes defensive fallback structures to protect against LLM schema malformations.
@@ -61,9 +59,7 @@ def process_submission(
 
     # Save the normalized evaluation to database
     g_file_names = [f.name for f in gemini_media_files] if gemini_media_files else []
-    save_evaluation(
-        team_id, result_json, is_final=is_final, source_text=text_content, gemini_file_ids=g_file_names
-    )
+    save_evaluation(team_id, result_json, is_final=is_final, source_text=text_content, gemini_file_ids=g_file_names)
 
     return result_json
 

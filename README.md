@@ -11,7 +11,7 @@
   <a href="https://github.com/sponsors/yosuke1024"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=github-sponsors" alt="Sponsor"></a>
 </p>
 
-**Judgie-AI** is a multi-tenant **AI Evaluation Platform** that automates and enhances the judging, feedback, and coaching process for various workflows (including Hackathons, Startup Pitches, Hiring Evaluations, and Software Architecture Reviews). Leveraging Google Gemini's multimodal capabilities, it evaluates submissions (source code ZIPs, demo videos, PDF slides, resumes) from the diverse perspectives of a customizable panel of AI expert personas, providing actionable coaching, scoring, and multi-turn Q&A dialogue.
+**Judgie-AI** is an **AI Evaluation Platform** that automates and enhances the judging, feedback, and coaching process for various workflows (including Hackathons, Startup Pitches, Hiring Evaluations, and Software Architecture Reviews). Leveraging Google Gemini's multimodal capabilities, it evaluates submissions (source code ZIPs, demo videos, PDF slides, resumes) from the diverse perspectives of a customizable panel of AI expert personas, providing actionable coaching, scoring, and multi-turn Q&A dialogue.
 
 > 💡 **Judgie-AI** is part of the **[PixApps](https://pixapps.ai/)** suite — a collection of innovative, AI-powered applications. Explore our other projects and support our work at [pixapps.ai](https://pixapps.ai/).
 
@@ -61,10 +61,10 @@ Whether it's auditing software system architectures, screening startup pitches, 
 
 ## ✨ Core Features
 
-1. **🏢 Multi-tenant Architecture & Administration**
-   - Super Admins can create/delete evaluation projects (tenants) and manage Tenant Admin credentials.
-   - Tenant Admins can manage team accounts, including bulk import via CSV, passcode resets, and settings.
-   - Each project operates in an isolated database space ensuring secure data separation.
+1. **🏢 Role-based Access Control & Administration**
+   - Super Admins can manage global configurations, database state, and system-level setups.
+   - Project Admins can manage team accounts, including bulk import via CSV, passcode resets, and settings.
+   - The entire instance operates in a secure environment with role-based access control (Super Admin, Project Admin, Team, Observer).
 2. **⚖️ Evaluation Template Packs & Custom Imports**
    - Spin up new projects instantly with built-in templates: **Hackathon Evaluation**, **Startup Pitch Review**, **Hiring & Technical Interview**, and **Software Architecture Review**.
    - Create and reuse custom template JSON files directly from GitHub Raw URLs or other Web endpoints to run your own custom rubrics and expert panel.
@@ -186,12 +186,11 @@ Upon the first launch, a default `superadmin` account is created automatically.
 - **Team ID**: `superadmin`
 - **Passcode**: `superadmin123`
 
-Log in, go to the "🌍 Super Admin Console", and create a new project. **Please change your password immediately after your first login.**
+Log in using your administrator credentials. **Please change your password immediately after your first login.**
 
-Once the project is created:
-1. Log out and log back in using the newly created **Tenant Admin** credentials.
-2. Go to **⚙️ System Settings** -> **🤖 Gemini Configuration** tab.
-3. Input and save your **Gemini API Key**. This will dynamically fetch and let you select the available Gemini models.
+Once logged in:
+1. Go to **⚙️ System Settings** -> **🤖 Gemini Configuration** tab.
+2. Input and save your **Gemini API Key**. This will dynamically fetch and let you select the available Gemini models.
 
 ### 2. Deploying to Railway (One-Click)
 You can deploy Judgie-AI to Railway with a single click. This template automatically builds the React frontend and provisions the FastAPI backend container. It can connect to PostgreSQL or run using local SQLite with Litestream replication.
@@ -270,12 +269,12 @@ To enable OIDC authentication, configure the following variables in your `.env` 
 - `OIDC_REDIRECT_URI=http://localhost:5173/` (Your application's base URL in local development, or your production URL)
 - `OIDC_ALLOWED_DOMAINS=yourcompany.com` (Comma-separated list of allowed email domains. Leave empty to allow any authenticated user)
 - `OIDC_ALLOWED_EMAILS=admin@gmail.com` (Comma-separated list of allowed individual emails)
-- `DEFAULT_ADMIN_EMAIL=organizer@company.com` (Optional: The email address of the initial Tenant Admin. Used during startup automatic provisioning in single-tenant deployments)
+- `DEFAULT_ADMIN_EMAIL=organizer@company.com` (Optional: The email address of the initial Project Admin. Used during startup automatic provisioning in single-tenant deployments)
 
 #### How it works:
 1. **SSO Redirect:** When users visit the site, they are redirected to the OIDC provider (e.g., Google Sign-In) to authenticate.
 2. **Auto-Login:** Once authenticated, Judgie-AI verifies the email against the `users` database table. If a match is found, the user is automatically logged in under their corresponding role (`admin`, `team`, `observer`) without any passcode prompts.
-3. **Registration:** Tenant Admins must register participants' email addresses beforehand in the Admin Command Center (passcodes are generated randomly behind the scenes). For new projects, the initial admin email can be set via `DEFAULT_ADMIN_EMAIL` or designated during project creation in the Super Admin Console.
+3. **Registration:** Project Admins must register participants' email addresses beforehand in the Admin Command Center (passcodes are generated randomly behind the scenes). For initial setup, the initial admin email can be set via `DEFAULT_ADMIN_EMAIL` or designated during system seeding.
 4. **Access Denied:** If an authenticated user's email is not registered in the database, access is blocked and an "Account Not Registered" error page is displayed.
 
 * **Passcode Hashing:** Team and admin passcodes are safely hashed using `bcrypt` before being stored in the database.

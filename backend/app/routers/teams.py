@@ -38,12 +38,7 @@ def list_teams(
     """List all teams."""
     db = SessionLocal()
     try:
-        users = (
-            db.query(User)
-            .filter(User.role.in_(["team", "observer"]))
-            .order_by(User.team_id)
-            .all()
-        )
+        users = db.query(User).filter(User.role.in_(["team", "observer"])).order_by(User.team_id).all()
         return [
             TeamResponse(
                 team_id=u.team_id,
@@ -90,6 +85,7 @@ def bulk_create_teams(
 ):
     """Bulk import teams from CSV content."""
     import os
+
     oidc_enabled = os.environ.get("OIDC_ENABLED") == "true"
 
     lines = req.csv_content.strip().splitlines()
@@ -158,6 +154,7 @@ def bulk_create_teams(
 
             if not pwd:
                 import secrets
+
                 pwd = secrets.token_urlsafe(32)
 
             existing = db.query(User).filter(User.team_id == tid).first()
@@ -165,15 +162,17 @@ def bulk_create_teams(
                 skipped += 1
                 continue
 
-            db.add(User(
-                team_id=tid,
-                passcode=hash_passcode(pwd),
-                role=role_val,
-                email=email_val,
-                product_name=product_name or None,
-                team_name=team_name or None,
-                one_liner=one_liner or None,
-            ))
+            db.add(
+                User(
+                    team_id=tid,
+                    passcode=hash_passcode(pwd),
+                    role=role_val,
+                    email=email_val,
+                    product_name=product_name or None,
+                    team_name=team_name or None,
+                    one_liner=one_liner or None,
+                )
+            )
             created += 1
 
     return {"created": created, "skipped": skipped}

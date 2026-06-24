@@ -51,6 +51,7 @@ Base = declarative_base()
 # ORM Models
 # ──────────────────────────────────────────────
 
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -123,6 +124,7 @@ class TeamChat(Base):
 
 class AsyncTask(Base):
     """Tracks long-running background tasks (submissions, objections, admin chat)."""
+
     __tablename__ = "async_tasks"
     task_id = Column(String, primary_key=True)
     team_id = Column(String, nullable=False)
@@ -137,6 +139,7 @@ class AsyncTask(Base):
 # ──────────────────────────────────────────────
 # Session helpers
 # ──────────────────────────────────────────────
+
 
 @contextmanager
 def db_session():
@@ -168,6 +171,7 @@ def get_db():
 # ──────────────────────────────────────────────
 # Schema Migrations
 # ──────────────────────────────────────────────
+
 
 def init_db():
     """Create tables and run dynamic schema migrations."""
@@ -226,6 +230,7 @@ def init_db():
 # CRUD Functions
 # ──────────────────────────────────────────────
 
+
 def verify_user(team_id: str, passcode: str) -> dict | None:
     """Verify user credentials and return role if valid."""
     from app.security import verify_passcode
@@ -242,11 +247,7 @@ def verify_user(team_id: str, passcode: str) -> dict | None:
 
 def get_consultation_count(team_id: str) -> int:
     with db_session() as db:
-        return (
-            db.query(Evaluation)
-            .filter(Evaluation.team_id == team_id)
-            .count()
-        )
+        return db.query(Evaluation).filter(Evaluation.team_id == team_id).count()
 
 
 def save_evaluation(
@@ -291,6 +292,7 @@ def save_objection_qa(evaluation_id: int, qa_json: dict):
 
 
 # --- Settings CRUD ---
+
 
 def get_setting(key: str) -> str | None:
     with db_session() as db:
@@ -374,6 +376,7 @@ def get_personas():
 
     # Automatically resolve custom avatar image from assets/avatars/ if not set
     import base64
+
     current_dir = os.path.dirname(os.path.abspath(__file__))
     base_dir = current_dir
     for _ in range(5):
@@ -444,8 +447,6 @@ def set_max_consultations(max_consultations: int):
     set_setting("max_consultations", str(max_consultations))
 
 
-
-
 def initialize_project_template(template_id: str, custom_template_data: dict = None):
     from app.services.templates import TEMPLATES
 
@@ -483,6 +484,7 @@ def initialize_project_template(template_id: str, custom_template_data: dict = N
 
 
 # --- User / Team CRUD ---
+
 
 def update_admin_passcode(new_passcode: str):
     from app.security import hash_passcode
@@ -584,6 +586,7 @@ def update_team_profile(team_id: str, product_name: str, team_name: str, one_lin
 
 # --- Session CRUD ---
 
+
 def create_session(team_id: str, role: str) -> str:
     with db_session() as db:
         session_id = str(uuid.uuid4())
@@ -615,15 +618,22 @@ def delete_session(session_id: str):
 
 # --- Chat CRUD ---
 
+
 def save_admin_chat(
-    evaluation_id: int, question_en: str, question_ja: str,
-    answer_en: str, answer_ja: str, qa_json: dict = None,
+    evaluation_id: int,
+    question_en: str,
+    question_ja: str,
+    answer_en: str,
+    answer_ja: str,
+    qa_json: dict = None,
 ) -> AdminChat:
     with db_session() as db:
         chat = AdminChat(
             evaluation_id=evaluation_id,
-            question_en=question_en, question_ja=question_ja,
-            answer_en=answer_en, answer_ja=answer_ja,
+            question_en=question_en,
+            question_ja=question_ja,
+            answer_en=answer_en,
+            answer_ja=answer_ja,
             qa_json=json.dumps(qa_json) if qa_json else None,
         )
         db.add(chat)
@@ -657,27 +667,26 @@ def get_admin_chats(evaluation_id: int) -> list[dict]:
             if "answer_japanese" not in qa_data and c.answer_ja:
                 qa_data["answer_japanese"] = c.answer_ja
 
-            result.append({
-                "id": c.id,
-                "question_en": c.question_en,
-                "question_ja": c.question_ja,
-                "answer_en": c.answer_en,
-                "answer_ja": c.answer_ja,
-                "qa_json": qa_data,
-                "created_at": str(c.created_at) if c.created_at else None,
-            })
+            result.append(
+                {
+                    "id": c.id,
+                    "question_en": c.question_en,
+                    "question_ja": c.question_ja,
+                    "answer_en": c.answer_en,
+                    "answer_ja": c.answer_ja,
+                    "qa_json": qa_data,
+                    "created_at": str(c.created_at) if c.created_at else None,
+                }
+            )
         return result
 
 
 # --- Delete Operations ---
 
+
 def delete_team(team_id: str):
     with db_session() as db:
-        eval_ids = [
-            e.id for e in db.query(Evaluation)
-            .filter(Evaluation.team_id == team_id)
-            .all()
-        ]
+        eval_ids = [e.id for e in db.query(Evaluation).filter(Evaluation.team_id == team_id).all()]
         if eval_ids:
             db.query(AdminChat).filter(AdminChat.evaluation_id.in_(eval_ids)).delete(synchronize_session=False)
             db.query(TeamChat).filter(TeamChat.evaluation_id.in_(eval_ids)).delete(synchronize_session=False)
@@ -692,11 +701,7 @@ def delete_team(team_id: str):
 
 def delete_evaluation(evaluation_id: int):
     with db_session() as db:
-        eval_record = (
-            db.query(Evaluation)
-            .filter(Evaluation.id == evaluation_id)
-            .first()
-        )
+        eval_record = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
         if eval_record:
             db.query(AdminChat).filter(AdminChat.evaluation_id == evaluation_id).delete(synchronize_session=False)
             db.query(TeamChat).filter(TeamChat.evaluation_id == evaluation_id).delete(synchronize_session=False)
@@ -706,6 +711,7 @@ def delete_evaluation(evaluation_id: int):
 # ──────────────────────────────────────────────
 # Async Task CRUD
 # ──────────────────────────────────────────────
+
 
 def create_async_task(team_id: str, task_type: str, task_id: str | None = None) -> str:
     """Create a new async task and return its task_id (UUID)."""
@@ -754,4 +760,3 @@ def get_async_task(task_id: str) -> dict | None:
         }
     finally:
         db.close()
-

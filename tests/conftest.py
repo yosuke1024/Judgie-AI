@@ -16,11 +16,7 @@ import app.models.db
 import backend.app.models.db
 
 # Setup test-specific in-memory SQLite database
-test_engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool
-)
+test_engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
 test_SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 # Replace backend.app.models.db engine and session maker with mock instances

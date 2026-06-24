@@ -15,6 +15,7 @@ from app.models.db import (
 
 logger = logging.getLogger(__name__)
 
+
 class AnthropicProvider(BaseLLMProvider):
     @property
     def supports_video(self) -> bool:
@@ -22,9 +23,12 @@ class AnthropicProvider(BaseLLMProvider):
 
     def _get_client(self, api_key_override: Optional[str] = None) -> Anthropic:
         from app.config import ANTHROPIC_API_KEY
+
         api_key = api_key_override if api_key_override else (get_setting("anthropic_api_key") or ANTHROPIC_API_KEY)
         if not api_key:
-            raise ValueError("Anthropic API Key has not been set. Please configure ANTHROPIC_API_KEY in environment variables or system settings.")
+            raise ValueError(
+                "Anthropic API Key has not been set. Please configure ANTHROPIC_API_KEY in environment variables or system settings."
+            )
         return Anthropic(api_key=api_key)
 
     def list_models(self, api_key_override: Optional[str] = None) -> List[str]:
@@ -57,7 +61,7 @@ class AnthropicProvider(BaseLLMProvider):
         text_content: str,
         media_files: Optional[List[Any]] = None,
         previous_evaluations_json: Optional[str] = None,
-        is_final: bool = False
+        is_final: bool = False,
     ) -> Dict[str, Any]:
         client = self._get_client()
         model = model_name if model_name else (get_setting("anthropic_model") or "claude-3-5-sonnet-20241022")
@@ -65,7 +69,9 @@ class AnthropicProvider(BaseLLMProvider):
         criteria = [c for c in get_criteria() if c.get("active", True)]
         active_personas = [p for p in get_personas() if p.get("active", True)]
 
-        criteria_str = "\n".join([f"- {c['name']} (Weight: {c['weight']}%): {c.get('description', '')}" for c in criteria])
+        criteria_str = "\n".join(
+            [f"- {c['name']} (Weight: {c['weight']}%): {c.get('description', '')}" for c in criteria]
+        )
         personas_str = "\n".join(
             [
                 f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n"
@@ -108,12 +114,12 @@ This team is submitting a revised version. You MUST carefully review the action 
 
             properties[pu_key] = {
                 "type": "string",
-                "description": f"Detailed explanation of product problem, solution, and core value in {lang}."
+                "description": f"Detailed explanation of product problem, solution, and core value in {lang}.",
             }
             properties[ai_key] = {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": f"Top 3 priority action items in {lang}."
+                "description": f"Top 3 priority action items in {lang}.",
             }
             required.extend([pu_key, ai_key])
 
@@ -126,12 +132,9 @@ This team is submitting a revised version. You MUST carefully review the action 
             "type": "object",
             "properties": score_props,
             "required": [c["name"] for c in criteria],
-            "description": "Consensus float score (0.0 to 5.0) for each criteria"
+            "description": "Consensus float score (0.0 to 5.0) for each criteria",
         }
-        properties["impact_score"] = {
-            "type": "number",
-            "description": "Overall project impact score (0.0 to 5.0)"
-        }
+        properties["impact_score"] = {"type": "number", "description": "Overall project impact score (0.0 to 5.0)"}
         required.extend(["scores", "impact_score"])
 
         # Judges feedback item properties
@@ -143,13 +146,10 @@ This team is submitting a revised version. You MUST carefully review the action 
                 "type": "array",
                 "items": {
                     "type": "object",
-                    "properties": {
-                        "criteria_name": {"type": "string"},
-                        "score": {"type": "number"}
-                    },
-                    "required": ["criteria_name", "score"]
-                }
-            }
+                    "properties": {"criteria_name": {"type": "string"}, "score": {"type": "number"}},
+                    "required": ["criteria_name", "score"],
+                },
+            },
         }
         judge_req = ["judge_name", "judge_role", "judge_persona", "judge_scores"]
 
@@ -158,29 +158,21 @@ This team is submitting a revised version. You MUST carefully review the action 
             fb_key = f"feedback_{lang_key}"
             judge_feedback_props[fb_key] = {
                 "type": "string",
-                "description": f"Deeply detailed, highly informative feedback in {lang} based on persona and context."
+                "description": f"Deeply detailed, highly informative feedback in {lang} based on persona and context.",
             }
             judge_req.append(fb_key)
 
         properties["judges_feedback"] = {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": judge_feedback_props,
-                "required": judge_req
-            },
-            "description": "List of evaluations from each expert judge"
+            "items": {"type": "object", "properties": judge_feedback_props, "required": judge_req},
+            "description": "List of evaluations from each expert judge",
         }
         required.append("judges_feedback")
 
         tool_schema = {
             "name": "submit_evaluation",
             "description": "Submit structured evaluation of the hackathon submission.",
-            "input_schema": {
-                "type": "object",
-                "properties": properties,
-                "required": required
-            }
+            "input_schema": {"type": "object", "properties": properties, "required": required},
         }
 
         prompt = f"""You are orchestrating an AI Expert Panel for a Hackathon.
@@ -214,7 +206,7 @@ You must evaluate the submission from the perspectives of the following judges. 
         text_content: str,
         media_files: Optional[List[Any]] = None,
         previous_evaluation_json: Optional[str] = None,
-        chat_history_list: Optional[List[Dict[str, Any]]] = None
+        chat_history_list: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         client = self._get_client()
         model = model_name if model_name else (get_setting("anthropic_model") or "claude-3-5-sonnet-20241022")
@@ -236,13 +228,11 @@ You must evaluate the submission from the perspectives of the following judges. 
             qa_key = f"qa_summary_{lang_key}"
             properties[qa_key] = {
                 "type": "string",
-                "description": f"A brief 2-3 sentence summary of the panel's overall stance on the latest objection in {lang}."
+                "description": f"A brief 2-3 sentence summary of the panel's overall stance on the latest objection in {lang}.",
             }
             required.append(qa_key)
 
-        judge_resp_props = {
-            "judge_name": {"type": "string"}
-        }
+        judge_resp_props = {"judge_name": {"type": "string"}}
         judge_req = ["judge_name"]
 
         for lang in languages:
@@ -250,29 +240,21 @@ You must evaluate the submission from the perspectives of the following judges. 
             resp_key = f"response_{lang_key}"
             judge_resp_props[resp_key] = {
                 "type": "string",
-                "description": f"Direct, persona-driven response to the team's latest point in {lang}."
+                "description": f"Direct, persona-driven response to the team's latest point in {lang}.",
             }
             judge_req.append(resp_key)
 
         properties["judges_responses"] = {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": judge_resp_props,
-                "required": judge_req
-            },
-            "description": "Direct response from each active judge"
+            "items": {"type": "object", "properties": judge_resp_props, "required": judge_req},
+            "description": "Direct response from each active judge",
         }
         required.append("judges_responses")
 
         tool_schema = {
             "name": "submit_objection_response",
             "description": "Submit the judges panel's response to the team's objection.",
-            "input_schema": {
-                "type": "object",
-                "properties": properties,
-                "required": required
-            }
+            "input_schema": {"type": "object", "properties": properties, "required": required},
         }
 
         chat_thread_str = ""
@@ -330,7 +312,9 @@ Here is the dialogue history. The last message from the 'Team (User)' is the act
 {text_content}
 </source_code_and_documents>
 """
-        return self._call_anthropic_forced_tool(client, model, prompt, "submit_objection_response", tool_schema, temp=0.4)
+        return self._call_anthropic_forced_tool(
+            client, model, prompt, "submit_objection_response", tool_schema, temp=0.4
+        )
 
     def admin_chat(
         self,
@@ -338,7 +322,7 @@ Here is the dialogue history. The last message from the 'Team (User)' is the act
         source_text: str,
         file_ids_json: Optional[str] = None,
         previous_evaluation_json: Optional[str] = None,
-        admin_question: str = ""
+        admin_question: str = "",
     ) -> Dict[str, Any]:
         client = self._get_client()
         model = model_name if model_name else (get_setting("anthropic_model") or "claude-3-5-sonnet-20241022")
@@ -352,18 +336,20 @@ Here is the dialogue history. The last message from the 'Team (User)' is the act
             q_key = f"question_{lang_key}"
             a_key = f"answer_{lang_key}"
 
-            properties[q_key] = {"type": "string", "description": f"Translation or original of the administrator's question in {lang}"}
-            properties[a_key] = {"type": "string", "description": f"Detailed response in {lang} based on the source code and files"}
+            properties[q_key] = {
+                "type": "string",
+                "description": f"Translation or original of the administrator's question in {lang}",
+            }
+            properties[a_key] = {
+                "type": "string",
+                "description": f"Detailed response in {lang} based on the source code and files",
+            }
             required.extend([q_key, a_key])
 
         tool_schema = {
             "name": "submit_admin_chat_response",
             "description": "Submit response to admin's question regarding submission.",
-            "input_schema": {
-                "type": "object",
-                "properties": properties,
-                "required": required
-            }
+            "input_schema": {"type": "object", "properties": properties, "required": required},
         }
 
         prompt = f"""You are an AI Expert Panelist assisting a Hackathon Administrator.
@@ -392,7 +378,9 @@ Please reference the attached source code and documents for ground truth to avoi
 {source_text}
 </source_code_and_documents>
 """
-        return self._call_anthropic_forced_tool(client, model, prompt, "submit_admin_chat_response", tool_schema, temp=0.4)
+        return self._call_anthropic_forced_tool(
+            client, model, prompt, "submit_admin_chat_response", tool_schema, temp=0.4
+        )
 
     def translate(self, text: str, target_languages: List[str]) -> Dict[str, str]:
         client = self._get_client()
@@ -410,11 +398,7 @@ Please reference the attached source code and documents for ground truth to avoi
         tool_schema = {
             "name": "submit_translation",
             "description": "Submit translation result.",
-            "input_schema": {
-                "type": "object",
-                "properties": properties,
-                "required": required
-            }
+            "input_schema": {"type": "object", "properties": properties, "required": required},
         }
 
         prompt = f"""You are a professional translator.

@@ -49,6 +49,7 @@ def _run_submission_evaluation(
 
             if filename.endswith(".zip"):
                 import io
+
                 with open(path, "rb") as f:
                     text_content += extract_text_from_zip(io.BytesIO(f.read()))
             elif filename.endswith((".mp4", ".mov", ".pdf")):
@@ -67,21 +68,21 @@ def _run_submission_evaluation(
         context_mode = get_re_evaluation_context_mode()
         if context_mode == "cumulative" and current_count > 0:
             from app.models.db import Evaluation, SessionLocal
+
             db = SessionLocal()
             try:
                 prev_evals = (
-                    db.query(Evaluation)
-                    .filter(Evaluation.team_id == team_id)
-                    .order_by(Evaluation.id.asc())
-                    .all()
+                    db.query(Evaluation).filter(Evaluation.team_id == team_id).order_by(Evaluation.id.asc()).all()
                 )
                 if prev_evals:
                     prev_data = []
                     for pe in prev_evals:
-                        prev_data.append({
-                            "scores": json.loads(pe.scores_json),
-                            "feedback": json.loads(pe.strengths_risks_json),
-                        })
+                        prev_data.append(
+                            {
+                                "scores": json.loads(pe.scores_json),
+                                "feedback": json.loads(pe.strengths_risks_json),
+                            }
+                        )
                     prev_evaluations_json = json.dumps(prev_data)
             finally:
                 db.close()
@@ -101,8 +102,11 @@ def _run_submission_evaluation(
         # Save to DB
         g_file_names = [f.name for f in gemini_media_files] if gemini_media_files else []
         save_evaluation(
-            team_id, result_json,
-            is_final=is_final, source_text=text_content, gemini_file_ids=g_file_names,
+            team_id,
+            result_json,
+            is_final=is_final,
+            source_text=text_content,
+            gemini_file_ids=g_file_names,
         )
 
         update_async_task(task_id, "SUCCESS")
@@ -179,7 +183,11 @@ async def upload_submission(
     # Schedule background work
     background_tasks.add_task(
         _run_submission_evaluation,
-        task_id, team_id, saved_files, is_final, current_count,
+        task_id,
+        team_id,
+        saved_files,
+        is_final,
+        current_count,
     )
 
     return JSONResponse(

@@ -8,13 +8,13 @@ import urllib.parse
 import jwt
 import requests
 
-from app.config import (
-    OIDC_ALLOWED_DOMAINS,
-    OIDC_ALLOWED_EMAILS,
-    OIDC_CLIENT_ID,
-    OIDC_CLIENT_SECRET,
-    OIDC_ISSUER,
-    OIDC_REDIRECT_URI,
+from app.auth.oidc_settings import (
+    get_oidc_allowed_domains,
+    get_oidc_allowed_emails,
+    get_oidc_client_id,
+    get_oidc_client_secret,
+    get_oidc_issuer,
+    get_oidc_redirect_uri,
 )
 
 _oidc_config = None
@@ -26,7 +26,7 @@ def get_oidc_config() -> dict:
     if _oidc_config is not None:
         return _oidc_config
 
-    issuer = OIDC_ISSUER.rstrip("/")
+    issuer = get_oidc_issuer().rstrip("/")
     well_known_url = f"{issuer}/.well-known/openid-configuration"
     try:
         res = requests.get(well_known_url, timeout=10)
@@ -45,8 +45,8 @@ def get_authorization_url(state: str) -> str:
         raise ValueError("OIDC provider configuration missing authorization_endpoint")
 
     params = {
-        "client_id": OIDC_CLIENT_ID,
-        "redirect_uri": OIDC_REDIRECT_URI,
+        "client_id": get_oidc_client_id(),
+        "redirect_uri": get_oidc_redirect_uri(),
         "response_type": "code",
         "scope": "openid email profile",
         "state": state,
@@ -68,9 +68,9 @@ def verify_code_and_get_email(code: str) -> str:
 
     # 1. Exchange authorization code for token
     data = {
-        "client_id": OIDC_CLIENT_ID,
-        "client_secret": OIDC_CLIENT_SECRET,
-        "redirect_uri": OIDC_REDIRECT_URI,
+        "client_id": get_oidc_client_id(),
+        "client_secret": get_oidc_client_secret(),
+        "redirect_uri": get_oidc_redirect_uri(),
         "grant_type": "authorization_code",
         "code": code,
     }
@@ -95,8 +95,8 @@ def verify_code_and_get_email(code: str) -> str:
             id_token,
             signing_key.key,
             algorithms=["RS256"],
-            audience=OIDC_CLIENT_ID,
-            issuer=OIDC_ISSUER,
+            audience=get_oidc_client_id(),
+            issuer=get_oidc_issuer(),
             options={"verify_exp": True},
         )
     except Exception as e:
@@ -115,12 +115,14 @@ def verify_code_and_get_email(code: str) -> str:
 
 def is_email_allowed(email: str) -> bool:
     """Check if the email passes configured restrictions."""
-    if OIDC_ALLOWED_EMAILS and email in OIDC_ALLOWED_EMAILS:
+    allowed_emails = get_oidc_allowed_emails()
+    if allowed_emails and email in allowed_emails:
         return True
-    if OIDC_ALLOWED_DOMAINS:
+    allowed_domains = get_oidc_allowed_domains()
+    if allowed_domains:
         domain = email.split("@")[-1]
-        if domain in OIDC_ALLOWED_DOMAINS:
+        if domain in allowed_domains:
             return True
-    if not OIDC_ALLOWED_EMAILS and not OIDC_ALLOWED_DOMAINS:
+    if not allowed_emails and not allowed_domains:
         return True
     return False

@@ -31,7 +31,7 @@ class BaseLLMProvider(ABC):
         text_content: str,
         media_files: Optional[List[Any]] = None,
         previous_evaluations_json: Optional[str] = None,
-        is_final: bool = False
+        is_final: bool = False,
     ) -> Dict[str, Any]:
         """Perform evaluation of submission content and return structured scores/feedback JSON."""
         pass
@@ -43,7 +43,7 @@ class BaseLLMProvider(ABC):
         text_content: str,
         media_files: Optional[List[Any]] = None,
         previous_evaluation_json: Optional[str] = None,
-        chat_history_list: Optional[List[Dict[str, Any]]] = None
+        chat_history_list: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """Handle Q&A thread turn with the team and return structured feedback JSON."""
         pass
@@ -55,7 +55,7 @@ class BaseLLMProvider(ABC):
         source_text: str,
         file_ids_json: Optional[str] = None,
         previous_evaluation_json: Optional[str] = None,
-        admin_question: str = ""
+        admin_question: str = "",
     ) -> Dict[str, Any]:
         """Allow admin to query details of submission and return bilingual Q&A JSON."""
         pass

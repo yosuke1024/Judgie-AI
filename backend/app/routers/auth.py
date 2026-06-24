@@ -9,7 +9,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from app.auth import oidc_handler
 from app.auth.deps import CurrentUser, get_current_user
 from app.auth.jwt_handler import create_access_token
-from app.config import OIDC_ENABLED
+from app.auth.oidc_settings import get_oidc_enabled
 from app.models.db import verify_user
 from app.schemas.schemas import (
     LoginRequest,
@@ -27,21 +27,19 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 def get_auth_config():
     """Return backend configurations related to authentication and LLM features."""
     from app.core.llm import get_llm_provider
+
     try:
         provider = get_llm_provider()
         supports_video = provider.supports_video
     except Exception:
         supports_video = True
-    return {
-        "oidc_enabled": OIDC_ENABLED,
-        "supports_video": supports_video
-    }
+    return {"oidc_enabled": get_oidc_enabled(), "supports_video": supports_video}
 
 
 @router.get("/oidc/login", response_model=OIDCLoginInitResponse)
 def oidc_login(response: Response):
     """Initialize OIDC login flow. Generate state and redirect URL."""
-    if not OIDC_ENABLED:
+    if not get_oidc_enabled():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="OIDC authentication is not enabled.",
@@ -62,16 +60,12 @@ def oidc_login(response: Response):
 
 
 @router.post("/oidc/callback", response_model=OIDCCallbackResponse)
-def oidc_callback(
-    req: OIDCCallbackRequest,
-    response: Response,
-    oidc_state: str | None = Cookie(default=None)
-):
+def oidc_callback(req: OIDCCallbackRequest, response: Response, oidc_state: str | None = Cookie(default=None)):
     """
     Callback endpoint for OIDC.
     Verifies code and state, queries DB by email, and sets JWT cookie.
     """
-    if not OIDC_ENABLED:
+    if not get_oidc_enabled():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="OIDC authentication is not enabled.",

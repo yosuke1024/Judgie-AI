@@ -34,6 +34,7 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 # ── Team Q&A (Objections) ──
 
+
 @router.get("/team/{eval_id}", response_model=list[ChatMessage])
 def get_team_chat_history(
     eval_id: int,
@@ -42,24 +43,21 @@ def get_team_chat_history(
     """Get team Q&A chat history for an evaluation."""
     db = SessionLocal()
     try:
-        chats = (
-            db.query(TeamChat)
-            .filter(TeamChat.evaluation_id == eval_id)
-            .order_by(TeamChat.created_at.asc())
-            .all()
-        )
+        chats = db.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).order_by(TeamChat.created_at.asc()).all()
         result = []
         for c in chats:
             try:
                 msg_data = json.loads(c.message_json)
             except Exception:
                 msg_data = c.message_json
-            result.append(ChatMessage(
-                id=c.id,
-                sender=c.sender,
-                message_json=msg_data,
-                created_at=str(c.created_at) if c.created_at else None,
-            ))
+            result.append(
+                ChatMessage(
+                    id=c.id,
+                    sender=c.sender,
+                    message_json=msg_data,
+                    created_at=str(c.created_at) if c.created_at else None,
+                )
+            )
         return result
     finally:
         db.close()
@@ -70,6 +68,7 @@ def _run_team_objection(task_id: str, eval_id: int, prev_eval_json: str, objecti
     update_async_task(task_id, "PROCESSING")
     try:
         from app.services.evaluation_service import submit_team_objection as svc_submit
+
         svc_submit(eval_id, prev_eval_json, objection_text)
         update_async_task(task_id, "SUCCESS")
     except Exception as e:
@@ -91,11 +90,7 @@ def submit_team_objection(
     max_turns = get_max_qa_turns()
     db = SessionLocal()
     try:
-        team_turns = (
-            db.query(TeamChat)
-            .filter(TeamChat.evaluation_id == eval_id, TeamChat.sender == "team")
-            .count()
-        )
+        team_turns = db.query(TeamChat).filter(TeamChat.evaluation_id == eval_id, TeamChat.sender == "team").count()
     finally:
         db.close()
 
@@ -127,6 +122,7 @@ def submit_team_objection(
 
 # ── Admin Private Chat ──
 
+
 @router.get("/admin/{eval_id}", response_model=list[AdminChatResponse])
 def get_admin_chat_history(
     eval_id: int,
@@ -137,14 +133,19 @@ def get_admin_chat_history(
     return [AdminChatResponse(**c) for c in chats]
 
 
-def _run_admin_chat(task_id: str, eval_id: int, source_text: str, gemini_file_ids: str, prev_json_str: str, question: str):
+def _run_admin_chat(
+    task_id: str, eval_id: int, source_text: str, gemini_file_ids: str, prev_json_str: str, question: str
+):
     """Background task: process admin private chat question via Gemini."""
     update_async_task(task_id, "PROCESSING")
     try:
         from app.services.gemini import admin_chat_about_submission
 
         res_json = admin_chat_about_submission(
-            source_text, gemini_file_ids, prev_json_str, question,
+            source_text,
+            gemini_file_ids,
+            prev_json_str,
+            question,
         )
 
         # Map dynamic keys to static columns for backward compatibility
@@ -165,8 +166,10 @@ def _run_admin_chat(task_id: str, eval_id: int, source_text: str, gemini_file_id
 
         save_admin_chat(
             evaluation_id=eval_id,
-            question_en=q_en, question_ja=q_ja,
-            answer_en=a_en, answer_ja=a_ja,
+            question_en=q_en,
+            question_ja=q_ja,
+            answer_en=a_en,
+            answer_ja=a_ja,
             qa_json=res_json,
         )
 
@@ -204,7 +207,13 @@ def submit_admin_question(
     # Create async task and schedule background work
     task_id = create_async_task(user.team_id, "admin_chat")
     background_tasks.add_task(
-        _run_admin_chat, task_id, eval_id, source_text, gemini_file_ids, prev_json_str, req.question,
+        _run_admin_chat,
+        task_id,
+        eval_id,
+        source_text,
+        gemini_file_ids,
+        prev_json_str,
+        req.question,
     )
 
     return JSONResponse(
