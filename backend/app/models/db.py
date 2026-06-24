@@ -121,6 +121,19 @@ class TeamChat(Base):
     created_at = Column(DateTime, default=func.now())
 
 
+class AsyncTask(Base):
+    """Tracks long-running background tasks (submissions, objections, admin chat)."""
+    __tablename__ = "async_tasks"
+    task_id = Column(String, primary_key=True)
+    team_id = Column(String, nullable=False)
+    task_type = Column(String, nullable=False)  # 'submission', 'objection', 'admin_chat'
+    status = Column(String, nullable=False, default="PENDING")  # PENDING, PROCESSING, SUCCESS, FAILED
+    error_message = Column(Text, nullable=True)
+    result_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
 # ──────────────────────────────────────────────
 # Session helpers
 # ──────────────────────────────────────────────
@@ -688,3 +701,57 @@ def delete_evaluation(evaluation_id: int):
             db.query(AdminChat).filter(AdminChat.evaluation_id == evaluation_id).delete(synchronize_session=False)
             db.query(TeamChat).filter(TeamChat.evaluation_id == evaluation_id).delete(synchronize_session=False)
             db.delete(eval_record)
+
+
+# ──────────────────────────────────────────────
+# Async Task CRUD
+# ──────────────────────────────────────────────
+
+def create_async_task(team_id: str, task_type: str, task_id: str | None = None) -> str:
+    """Create a new async task and return its task_id (UUID)."""
+    if task_id is None:
+        task_id = str(uuid.uuid4())
+    with db_session() as db:
+        task = AsyncTask(
+            task_id=task_id,
+            team_id=team_id,
+            task_type=task_type,
+            status="PENDING",
+        )
+        db.add(task)
+    return task_id
+
+
+def update_async_task(
+    task_id: str,
+    status: str,
+    error_message: str | None = None,
+    result_id: int | None = None,
+):
+    """Update the status of an async task."""
+    with db_session() as db:
+        task = db.query(AsyncTask).filter(AsyncTask.task_id == task_id).first()
+        if task:
+            task.status = status
+            task.error_message = error_message
+            task.result_id = result_id
+
+
+def get_async_task(task_id: str) -> dict | None:
+    """Get async task info as a dictionary."""
+    db = SessionLocal()
+    try:
+        task = db.query(AsyncTask).filter(AsyncTask.task_id == task_id).first()
+        if not task:
+            return None
+        return {
+            "task_id": task.task_id,
+            "team_id": task.team_id,
+            "task_type": task.task_type,
+            "status": task.status,
+            "error_message": task.error_message,
+            "result_id": task.result_id,
+        }
+    finally:
+        db.close()
+

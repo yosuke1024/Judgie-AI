@@ -50,6 +50,46 @@ async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T
   return response.json();
 }
 
+// Async Task types & polling utility
+
+export interface AsyncTaskResult {
+  task_id: string;
+  status: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
+  result_id: number | null;
+  error_message: string | null;
+}
+
+/**
+ * Poll an async task until it reaches a terminal state (SUCCESS or FAILED).
+ * Calls onUpdate on each poll to allow UI updates.
+ * Returns the final task result.
+ */
+export async function pollTaskUntilDone(
+  taskId: string,
+  onUpdate?: (task: AsyncTaskResult) => void,
+  intervalMs = 2000,
+  maxAttempts = 150,
+): Promise<AsyncTaskResult> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const task = await tasksApi.getStatus(taskId);
+    onUpdate?.(task);
+
+    if (task.status === 'SUCCESS' || task.status === 'FAILED') {
+      return task;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  // If we exhaust all attempts, return a timeout-like failure
+  return {
+    task_id: taskId,
+    status: 'FAILED',
+    result_id: null,
+    error_message: 'Polling timeout: task did not complete in time.',
+  };
+}
+
 // Auth
 export const authApi = {
   login: (data: { team_id: string; passcode: string }) =>
@@ -127,9 +167,9 @@ export const evaluationsApi = {
     request(`/api/evaluations/${evaluationId}`, { method: 'DELETE' }),
 };
 
-// Submissions
+// Submissions (async — returns task_id)
 export const submissionsApi = {
-  upload: async (files: File[], isFinal: boolean) => {
+  upload: async (files: File[], isFinal: boolean): Promise<AsyncTaskResult> => {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
     formData.append('is_final', String(isFinal));
@@ -149,14 +189,20 @@ export const submissionsApi = {
   },
 };
 
-// Chat
+// Tasks (async task polling)
+export const tasksApi = {
+  getStatus: (taskId: string) =>
+    request<AsyncTaskResult>(`/api/tasks/${taskId}`),
+};
+
+// Chat (async — POST endpoints return task_id)
 export const chatApi = {
   getTeamChat: (evalId: number) => request<unknown[]>(`/api/chat/team/${evalId}`),
   submitObjection: (evalId: number, objectionText: string) =>
-    request(`/api/chat/team/${evalId}`, { method: 'POST', body: { objection_text: objectionText } }),
+    request<AsyncTaskResult>(`/api/chat/team/${evalId}`, { method: 'POST', body: { objection_text: objectionText } }),
   getAdminChat: (evalId: number) => request<unknown[]>(`/api/chat/admin/${evalId}`),
   submitAdminQuestion: (evalId: number, question: string) =>
-    request(`/api/chat/admin/${evalId}`, { method: 'POST', body: { question } }),
+    request<AsyncTaskResult>(`/api/chat/admin/${evalId}`, { method: 'POST', body: { question } }),
 };
 
 // Settings
