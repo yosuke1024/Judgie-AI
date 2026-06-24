@@ -1,14 +1,14 @@
 import logging
-from typing import Optional, List, Dict, Any
 
 from app.core.llm import get_llm_provider
+
 # Maintained for backward compatibility and test mock compatibility
 from app.models.db import (
+    get_ai_response_languages,  # noqa: F401
+    get_criteria,  # noqa: F401
+    get_personas,  # noqa: F401
     get_setting,
-    get_ai_response_languages,
-    get_criteria,
-    get_personas,
-    normalize_lang_to_key,
+    normalize_lang_to_key,  # noqa: F401
 )
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ def analyze_submission(
 ):
     """Calls the active LLM provider to evaluate the submission and returns structured JSON."""
     provider = get_llm_provider()
-    
+
     # Resolve provider-specific model setting, e.g. openai_model or anthropic_model, fallback to gemini_model
     current_provider = get_setting("llm_provider") or "gemini"
     model_setting_key = f"{current_provider.lower()}_model"
@@ -61,7 +61,7 @@ def analyze_submission(
 def object_to_judges(text_content, gemini_media_files, previous_evaluation_json, chat_history_list):
     """Handles Q&A debate turn with the team using the active LLM provider."""
     provider = get_llm_provider()
-    
+
     current_provider = get_setting("llm_provider") or "gemini"
     model_setting_key = f"{current_provider.lower()}_model"
     model_name = get_setting(model_setting_key) or get_setting("gemini_model")
@@ -79,7 +79,7 @@ def admin_chat_about_submission(
 ):
     """Allows Hackathon Admin to ask a specific question using the active LLM provider."""
     provider = get_llm_provider()
-    
+
     current_provider = get_setting("llm_provider") or "gemini"
     model_setting_key = f"{current_provider.lower()}_model"
     model_name = get_setting(model_setting_key) or get_setting("gemini_model")

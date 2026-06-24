@@ -1,11 +1,12 @@
-import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from app.core.llm import get_llm_provider
+from app.core.llm.anthropic import AnthropicProvider
 from app.core.llm.gemini import GeminiProvider
 from app.core.llm.openai import OpenAIProvider
-from app.core.llm.anthropic import AnthropicProvider
+
 
 @pytest.fixture
 def mock_db_settings():
@@ -34,7 +35,7 @@ def test_factory_get_llm_provider(mock_db_settings):
 
 def test_openai_provider_analyze_submission(mock_db_settings):
     provider = OpenAIProvider()
-    
+
     # Mock OpenAI client
     mock_client = MagicMock()
     mock_response = MagicMock()
@@ -47,7 +48,7 @@ def test_openai_provider_analyze_submission(mock_db_settings):
          patch("app.models.db.get_criteria", return_value=[{"name": "Innovation", "weight": 20, "active": True}]), \
          patch("app.models.db.get_personas", return_value=[{"name": "Steve", "prompt": "Cares about design", "active": True}]), \
          patch("app.models.db.get_ai_response_languages", return_value=["English"]):
-        
+
         result = provider.analyze_submission(
             model_name="gpt-4o-mini",
             text_content="print('hello')",
@@ -75,7 +76,7 @@ def test_anthropic_provider_analyze_submission(mock_db_settings):
          patch("app.models.db.get_criteria", return_value=[{"name": "Innovation", "weight": 20, "active": True}]), \
          patch("app.models.db.get_personas", return_value=[{"name": "Steve", "prompt": "Cares about design", "active": True}]), \
          patch("app.models.db.get_ai_response_languages", return_value=["English"]):
-        
+
         result = provider.analyze_submission(
             model_name="claude-3-5-sonnet-20241022",
             text_content="print('hello')",

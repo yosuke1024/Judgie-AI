@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from anthropic import Anthropic
 
 from app.core.llm.base import BaseLLMProvider
@@ -104,7 +105,7 @@ This team is submitting a revised version. You MUST carefully review the action 
             lang_key = normalize_lang_to_key(lang)
             pu_key = f"product_understanding_{lang_key}"
             ai_key = f"action_items_{lang_key}"
-            
+
             properties[pu_key] = {
                 "type": "string",
                 "description": f"Detailed explanation of product problem, solution, and core value in {lang}."
@@ -350,7 +351,7 @@ Here is the dialogue history. The last message from the 'Team (User)' is the act
             lang_key = normalize_lang_to_key(lang)
             q_key = f"question_{lang_key}"
             a_key = f"answer_{lang_key}"
-            
+
             properties[q_key] = {"type": "string", "description": f"Translation or original of the administrator's question in {lang}"}
             properties[a_key] = {"type": "string", "description": f"Detailed response in {lang} based on the source code and files"}
             required.extend([q_key, a_key])

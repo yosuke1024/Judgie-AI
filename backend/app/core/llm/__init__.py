@@ -1,9 +1,11 @@
 from typing import Optional
+
 from app.config import LLM_PROVIDER
+from app.core.llm.anthropic import AnthropicProvider
 from app.core.llm.base import BaseLLMProvider
 from app.core.llm.gemini import GeminiProvider
 from app.core.llm.openai import OpenAIProvider
-from app.core.llm.anthropic import AnthropicProvider
+
 
 def get_llm_provider(provider_name: Optional[str] = None) -> BaseLLMProvider:
     """
