@@ -14,7 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import CORS_ORIGINS
 from app.middleware.ip_filter import IPLimitMiddleware
 from app.models.db import init_db
-from app.routers import auth, chat, evaluations, export, settings, submissions, tasks, teams
+from app.routers import auth, chat, evaluations, export, manual, settings, submissions, tasks, teams
 
 
 @asynccontextmanager
@@ -52,6 +52,7 @@ app.include_router(chat.router)
 app.include_router(settings.router)
 app.include_router(export.router)
 app.include_router(tasks.router)
+app.include_router(manual.router)
 
 
 @app.get("/api/health")

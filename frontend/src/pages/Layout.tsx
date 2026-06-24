@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Trophy, Settings, Shield, LogOut, Zap, Globe } from 'lucide-react';
+import { LayoutDashboard, Trophy, Settings, Shield, LogOut, Zap, Globe, BookOpen } from 'lucide-react';
 
 const GithubIcon = ({ size = 16 }: { size?: number }) => (
   <svg
@@ -144,6 +144,11 @@ export default function Layout() {
               <span>{t('nav.super_admin')}</span>
             </NavLink>
           )}
+
+          <NavLink to="/manual" className="nav-link">
+            <BookOpen size={18} />
+            <span>{t('nav.manual')}</span>
+          </NavLink>
         </nav>
 
         <div className="sidebar-footer">

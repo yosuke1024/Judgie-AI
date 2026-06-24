@@ -47,6 +47,9 @@ COPY assets/ ./assets
 # Copy global templates required by templates.py
 COPY templates/ ./templates
 
+# Copy user manuals for in-app viewing
+COPY docs/ ./docs
+
 # Copy the built React assets to static directory for FastAPI to serve
 COPY --from=frontend-builder /frontend/dist/ ./static
 
