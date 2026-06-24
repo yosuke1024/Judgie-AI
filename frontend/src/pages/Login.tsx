@@ -52,7 +52,12 @@ export default function LoginPage() {
   const [selectedTenantIndex, setSelectedTenantIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    hackathonsApi.list().then(setHackathons).catch(() => {});
+    hackathonsApi.list().then((list) => {
+      setHackathons(list);
+      if (list.length === 1) {
+        setSelectedHackathon(list[0].id);
+      }
+    }).catch(() => {});
 
     // Check OIDC callback parameters in URL
     const params = new URLSearchParams(window.location.search);
@@ -242,7 +247,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="login-form">
           {/* Project Selector (non-superadmin) */}
-          {!isSuperAdmin && hackathons.length > 0 && (
+          {!isSuperAdmin && hackathons.length > 1 && (
             <div className="form-group">
               <label>{t('login.select_project')}</label>
               <select
