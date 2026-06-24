@@ -2,6 +2,12 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 
 class BaseLLMProvider(ABC):
+    @property
+    @abstractmethod
+    def supports_video(self) -> bool:
+        """Return True if the provider natively supports large video input files."""
+        pass
+
     @abstractmethod
     def list_models(self, api_key_override: Optional[str] = None) -> List[str]:
         """Return list of supported models available for this provider."""

@@ -15,6 +15,10 @@ from app.models.db import (
 logger = logging.getLogger(__name__)
 
 class OpenAIProvider(BaseLLMProvider):
+    @property
+    def supports_video(self) -> bool:
+        return False
+
     def _get_client(self, api_key_override: Optional[str] = None) -> OpenAI:
         from app.config import OPENAI_API_KEY
         api_key = api_key_override if api_key_override else (get_setting("openai_api_key") or OPENAI_API_KEY)

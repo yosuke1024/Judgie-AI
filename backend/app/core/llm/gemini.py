@@ -18,6 +18,10 @@ from app.models.db import (
 logger = logging.getLogger(__name__)
 
 class GeminiProvider(BaseLLMProvider):
+    @property
+    def supports_video(self) -> bool:
+        return True
+
     def _get_client(self, api_key_override: Optional[str] = None):
         """Returns initialized Gemini client using database settings or key override."""
         api_key = api_key_override if api_key_override else get_setting("gemini_api_key")

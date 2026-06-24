@@ -23,6 +23,21 @@ from app.schemas.schemas import (
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
+@router.get("/config")
+def get_auth_config():
+    """Return backend configurations related to authentication and LLM features."""
+    from app.core.llm import get_llm_provider
+    try:
+        provider = get_llm_provider()
+        supports_video = provider.supports_video
+    except Exception:
+        supports_video = True
+    return {
+        "oidc_enabled": OIDC_ENABLED,
+        "supports_video": supports_video
+    }
+
+
 @router.get("/oidc/login", response_model=OIDCLoginInitResponse)
 def oidc_login(response: Response):
     """Initialize OIDC login flow. Generate state and redirect URL."""
