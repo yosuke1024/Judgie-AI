@@ -63,3 +63,39 @@ def test_oidc_callback_success(client, db_session_fixture):
         assert data["team_id"] == "teamA"
         assert data["role"] == "team"
         assert "access_token" in res.cookies
+
+
+def test_get_auth_config(client):
+    with patch("app.routers.auth.OIDC_ENABLED", True):
+        res = client.get("/api/auth/config")
+        assert res.status_code == 200
+        assert res.json()["oidc_enabled"] is True
+
+    with patch("app.routers.auth.OIDC_ENABLED", False):
+        res = client.get("/api/auth/config")
+        assert res.status_code == 200
+        assert res.json()["oidc_enabled"] is False
+
+
+def test_oidc_callback_unregistered(client):
+    with patch("app.routers.auth.OIDC_ENABLED", True), \
+         patch("app.auth.oidc_handler.verify_code_and_get_email", return_value="unregistered@example.com"):
+
+        state = "valid-state-123"
+        client.cookies.set("oidc_state", state)
+
+        res = client.post("/api/auth/oidc/callback", json={"code": "authcode", "state": state})
+        assert res.status_code == 403
+        assert "not registered" in res.json()["detail"].lower()
+
+
+def test_oidc_callback_domain_restricted(client):
+    with patch("app.routers.auth.OIDC_ENABLED", True), \
+         patch("app.auth.oidc_handler.verify_code_and_get_email", side_effect=ValueError("Email hacker@evil.com is not allowed to access this system")):
+
+        state = "valid-state-123"
+        client.cookies.set("oidc_state", state)
+
+        res = client.post("/api/auth/oidc/callback", json={"code": "authcode", "state": state})
+        assert res.status_code == 403
+        assert "not allowed" in res.json()["detail"].lower()

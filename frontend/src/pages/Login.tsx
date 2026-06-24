@@ -26,6 +26,19 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [oidcEnabled, setOidcEnabled] = useState(false);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const config = await authApi.getConfig();
+        setOidcEnabled(config.oidc_enabled);
+      } catch (err) {
+        console.error('Failed to load auth config:', err);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     // Check OIDC callback parameters in URL
@@ -129,57 +142,78 @@ export default function LoginPage() {
         {/* Error */}
         {error && <div className="login-error">{error}</div>}
 
-        <form onSubmit={handleLogin} className="login-form">
-          <div className="form-group">
-            <label>{t('login.team_id')}</label>
-            <input
-              type="text"
-              value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
-              placeholder={isSuperAdmin ? 'superadmin' : ''}
-              autoComplete="username"
-            />
+        {oidcEnabled && !isSuperAdmin ? (
+          <div className="sso-only-container" style={{ textAlign: 'center', marginTop: '1.5rem', width: '100%' }}>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              {t('login.sso_required_message')}
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary login-btn sso-btn"
+              onClick={handleOidcLogin}
+              disabled={loading}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', height: '44px' }}
+            >
+              <Globe size={18} />
+              {t('login.sso_login_btn')}
+            </button>
           </div>
+        ) : (
+          <form onSubmit={handleLogin} className="login-form">
+            <div className="form-group">
+              <label>{t('login.team_id')}</label>
+              <input
+                type="text"
+                value={teamId}
+                onChange={(e) => setTeamId(e.target.value)}
+                placeholder={isSuperAdmin ? 'superadmin' : ''}
+                autoComplete="username"
+              />
+            </div>
 
-          <div className="form-group">
-            <label>{t('login.passcode')}</label>
-            <input
-              type="password"
-              value={passcode}
-              onChange={(e) => setPasscode(e.target.value)}
-              autoComplete="current-password"
-            />
-          </div>
+            <div className="form-group">
+              <label>{t('login.passcode')}</label>
+              <input
+                type="password"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                autoComplete="current-password"
+              />
+            </div>
 
-          <button type="submit" className="btn btn-primary login-btn" disabled={loading}>
-            <LogIn size={18} />
-            {loading ? t('common.loading') : t('login.login_btn')}
-          </button>
+            <button type="submit" className="btn btn-primary login-btn" disabled={loading}>
+              <LogIn size={18} />
+              {loading ? t('common.loading') : t('login.login_btn')}
+            </button>
 
-          {/* SSO Divider & Button */}
-          <div className="sso-divider" style={{
-            display: 'flex',
-            alignItems: 'center',
-            textAlign: 'center',
-            margin: '1.5rem 0 1rem 0',
-            color: 'var(--text-muted, #888)',
-            fontSize: '0.875rem'
-          }}>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color, #e0e0e0)' }}></div>
-            <span style={{ padding: '0 0.75rem' }}>or</span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color, #e0e0e0)' }}></div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary login-btn sso-btn"
-            onClick={handleOidcLogin}
-            disabled={loading}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-          >
-            <Globe size={18} />
-            {t('login.sso_login_btn')}
-          </button>
-        </form>
+            {oidcEnabled && (
+              <>
+                <div className="sso-divider" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  margin: '1.5rem 0 1rem 0',
+                  color: 'var(--text-muted, #888)',
+                  fontSize: '0.875rem'
+                }}>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color, #e0e0e0)' }}></div>
+                  <span style={{ padding: '0 0.75rem' }}>or</span>
+                  <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color, #e0e0e0)' }}></div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary login-btn sso-btn"
+                  onClick={handleOidcLogin}
+                  disabled={loading}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                >
+                  <Globe size={18} />
+                  {t('login.sso_login_btn')}
+                </button>
+              </>
+            )}
+          </form>
+        )}
 
         <div className="login-footer">
           <button
