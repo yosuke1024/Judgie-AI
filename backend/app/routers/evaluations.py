@@ -29,12 +29,11 @@ def get_team_evaluations(
     if user.role == "team" and user.team_id != team_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    hackathon_id = user.hackathon_id
     db = SessionLocal()
     try:
         evaluations = (
             db.query(Evaluation)
-            .filter(Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == team_id)
+            .filter(Evaluation.team_id == team_id)
             .order_by(Evaluation.id.asc())
             .all()
         )
@@ -59,12 +58,8 @@ def get_team_evaluations(
 
 @router.get("/scoreboard", response_model=list[ScoreboardEntry])
 def get_scoreboard(user: CurrentUser = Depends(get_current_user)):
-    """Get the live scoreboard for the current hackathon."""
-    hackathon_id = user.hackathon_id
-    if not hackathon_id:
-        raise HTTPException(status_code=400, detail="No active hackathon")
-
-    criteria = get_criteria(hackathon_id)
+    """Get the live scoreboard."""
+    criteria = get_criteria()
     active_criteria = [c for c in criteria if c.get("active", True)]
     total_weight = sum(c["weight"] for c in active_criteria) if active_criteria else 1
 
@@ -72,7 +67,7 @@ def get_scoreboard(user: CurrentUser = Depends(get_current_user)):
     try:
         users = (
             db.query(User)
-            .filter(User.role == "team", User.hackathon_id == hackathon_id, User.is_active)
+            .filter(User.role == "team", User.is_active)
             .order_by(User.team_id)
             .all()
         )
@@ -140,5 +135,5 @@ def delete_evaluation_endpoint(
     user: CurrentUser = Depends(require_role("admin")),
 ):
     """Delete an evaluation and its chat history."""
-    delete_evaluation(user.hackathon_id, evaluation_id)
+    delete_evaluation(evaluation_id)
     return {"message": f"Evaluation {evaluation_id} deleted"}

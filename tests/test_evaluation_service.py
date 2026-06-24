@@ -1,11 +1,9 @@
-from app.models.db import Evaluation, create_hackathon, save_evaluation
+from app.models.db import Evaluation, save_evaluation
 from app.services.evaluation_service import get_team_evaluations, sanitize_objection_response, submit_team_objection
 
 
 def test_get_team_evaluations(db_session_fixture):
     # Set up test data
-    hid = create_hackathon("Hack1", "admin1", "pass123")
-
     result_data = {
         "scores": {"Innovation": 4.0},
         "impact_score": 4.0,
@@ -13,9 +11,9 @@ def test_get_team_evaluations(db_session_fixture):
         "three_line_summary_ja": "サマリー",
         "judges_feedback": [],
     }
-    save_evaluation(hid, "teamA", result_data, is_final=False)
-    save_evaluation(hid, "teamA", result_data, is_final=True)
-    save_evaluation(hid, "teamB", result_data, is_final=False)  # Different team
+    save_evaluation("teamA", result_data, is_final=False)
+    save_evaluation("teamA", result_data, is_final=True)
+    save_evaluation("teamB", result_data, is_final=False)  # Different team
 
     evals = get_team_evaluations("teamA")
     assert len(evals) == 2
@@ -59,11 +57,10 @@ def test_sanitize_objection_response():
 
 
 def test_sanitize_objection_response_multilingual(db_session_fixture):
-    # Set up a hackathon with multilingual AI response settings
-    from app.models.db import create_hackathon, set_ai_response_languages
+    # Set up multilingual AI response settings
+    from app.models.db import set_ai_response_languages
 
-    hid = create_hackathon("HackMulti", "admin_multi", "pass123", template_id="hackathon")
-    set_ai_response_languages(hid, ["English", "Japanese", "Korean"])
+    set_ai_response_languages(["English", "Japanese", "Korean"])
 
     input_data = {
         "qa_summary_english": "English summary",
@@ -79,7 +76,7 @@ def test_sanitize_objection_response_multilingual(db_session_fixture):
         ],
     }
 
-    res = sanitize_objection_response(input_data, hid)
+    res = sanitize_objection_response(input_data)
 
     # Check that the dynamic keys are correctly sanitized and preserved
     assert res["qa_summary_english"] == "English summary"
@@ -104,8 +101,6 @@ def test_sanitize_objection_response_multilingual(db_session_fixture):
 
 
 def test_submit_team_objection(mocker, db_session_fixture):
-    hid = create_hackathon("Hack1", "admin1", "pass123", template_id="hackathon")
-
     # Pre-save target evaluation records
     result_data = {
         "scores": {},
@@ -114,7 +109,7 @@ def test_submit_team_objection(mocker, db_session_fixture):
         "three_line_summary_ja": "サマリー",
         "judges_feedback": [],
     }
-    save_evaluation(hid, "teamA", result_data, is_final=False)
+    save_evaluation("teamA", result_data, is_final=False)
     eval_rec = db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "teamA").first()
     eval_id = eval_rec.id
 
@@ -128,7 +123,7 @@ def test_submit_team_objection(mocker, db_session_fixture):
 
     # Execute
     res = submit_team_objection(
-        hackathon_id=hid, eval_id=eval_id, prev_eval_json='{"scores": {}}', objection_text="Please reconsider"
+        eval_id=eval_id, prev_eval_json='{"scores": {}}', objection_text="Please reconsider"
     )
 
     assert res["qa_summary_en"] == "Objection accepted"

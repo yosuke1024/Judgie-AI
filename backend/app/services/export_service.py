@@ -7,34 +7,32 @@ import pandas as pd
 from app.models.db import (
     AdminChat,
     Evaluation,
-    Hackathon,
     SessionLocal,
     TeamChat,
     User,
     get_ai_response_languages,
     get_criteria,
     normalize_lang_to_key,
+    get_setting,
 )
 
 
-def export_hackathon_to_markdown(hackathon_id: int) -> str:
+def export_project_to_markdown() -> str:
     """
     Generates a single comprehensive markdown document containing all teams, profiles,
     evaluations, Q&As, and full ZIP source texts for NotebookLM.
     """
     db = SessionLocal()
     try:
-        hackathon = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-        if not hackathon:
-            return "# Project Not Found"
+        project_name = get_setting("project_name") or "Judgie Project"
 
         md = []
-        md.append(f"# Project Data Export: {hackathon.name}")
+        md.append(f"# Project Data Export: {project_name}")
         md.append(f"- **Export Date:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
         md.append("")
 
         # Criteria
-        criteria = get_criteria(hackathon_id)
+        criteria = get_criteria()
         md.append("## Evaluation Criteria")
         for c in criteria:
             md.append(f"- **{c['name']}** (Weight: {c['weight']}%): {c['description']}")
@@ -42,7 +40,7 @@ def export_hackathon_to_markdown(hackathon_id: int) -> str:
 
         # Teams
         users = (
-            db.query(User).filter(User.hackathon_id == hackathon_id, User.role == "team").order_by(User.team_id).all()
+            db.query(User).filter(User.role == "team").order_by(User.team_id).all()
         )
 
         if not users:
@@ -59,7 +57,7 @@ def export_hackathon_to_markdown(hackathon_id: int) -> str:
             # Retrieve all evaluations for this team
             evaluations = (
                 db.query(Evaluation)
-                .filter(Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == u.team_id)
+                .filter(Evaluation.team_id == u.team_id)
                 .order_by(Evaluation.id.asc())
                 .all()
             )
@@ -86,7 +84,7 @@ def export_hackathon_to_markdown(hackathon_id: int) -> str:
 
                 # Detail Feedbacks in all configured languages
                 fb = json.loads(ev.strengths_risks_json)
-                languages = get_ai_response_languages(hackathon_id)
+                languages = get_ai_response_languages()
                 compat_map = {"english": "en", "japanese": "ja", "日本語": "ja", "英語": "en"}
 
                 for lang in languages:
@@ -197,7 +195,7 @@ def export_hackathon_to_markdown(hackathon_id: int) -> str:
         db.close()
 
 
-def generate_team_markdown_report(hackathon_id: int, team_id: str) -> str:
+def generate_team_markdown_report(team_id: str) -> str:
     """
     Generates a high-quality Markdown evaluation report for a team.
     Includes team profile, milestone overview table, and all chronological evaluation histories
@@ -205,10 +203,9 @@ def generate_team_markdown_report(hackathon_id: int, team_id: str) -> str:
     """
     db = SessionLocal()
     try:
-        hackathon = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-        hackathon_name = hackathon.name if hackathon else "Judgie Project"
+        project_name = get_setting("project_name") or "Judgie Project"
 
-        user = db.query(User).filter(User.hackathon_id == hackathon_id, User.team_id == team_id).first()
+        user = db.query(User).filter(User.team_id == team_id).first()
         if not user:
             return "# Team Not Found"
         team_display_name = user.team_name or team_id
@@ -216,14 +213,14 @@ def generate_team_markdown_report(hackathon_id: int, team_id: str) -> str:
         # Get all evaluations for this team in chronological order
         evaluations = (
             db.query(Evaluation)
-            .filter(Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == team_id)
+            .filter(Evaluation.team_id == team_id)
             .order_by(Evaluation.id.asc())
             .all()
         )
 
         md = []
         md.append(f"# Team Evaluation Report: {team_display_name}")
-        md.append(f"- **Project:** {hackathon_name}")
+        md.append(f"- **Project:** {project_name}")
         md.append(f"- **Product Name:** {user.product_name or 'N/A'}")
         md.append(f"- **One-liner:** {user.one_liner or 'N/A'}")
         md.append(f"- **Report Date:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -233,9 +230,9 @@ def generate_team_markdown_report(hackathon_id: int, team_id: str) -> str:
             md.append("No evaluation data recorded for this team yet.")
             return "\n".join(md)
 
-        criteria = get_criteria(hackathon_id)
+        criteria = get_criteria()
         total_weight = sum(c["weight"] for c in criteria) if criteria else 1
-        languages = get_ai_response_languages(hackathon_id)
+        languages = get_ai_response_languages()
 
         # Overview Table
         md.append("## Submission History / 提出履歴一覧")
@@ -355,13 +352,13 @@ def generate_team_markdown_report(hackathon_id: int, team_id: str) -> str:
         db.close()
 
 
-def generate_all_teams_markdown_zip(hackathon_id: int) -> bytes:
+def generate_all_teams_markdown_zip() -> bytes:
     """
-    Generates Markdown reports for all teams in a hackathon, and packages them into a ZIP archive.
+    Generates Markdown reports for all teams in a project, and packages them into a ZIP archive.
     """
     db = SessionLocal()
     try:
-        users = db.query(User).filter(User.hackathon_id == hackathon_id, User.role == "team").all()
+        users = db.query(User).filter(User.role == "team").all()
         if not users:
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w") as zip_file:
@@ -371,7 +368,7 @@ def generate_all_teams_markdown_zip(hackathon_id: int) -> bytes:
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             for u in users:
-                report_md = generate_team_markdown_report(hackathon_id, u.team_id)
+                report_md = generate_team_markdown_report(u.team_id)
                 safe_team_id = "".join([c for c in u.team_id if c.isalnum() or c in ("-", "_", " ")])
                 zip_file.writestr(f"report_{safe_team_id}.md", report_md)
 
@@ -380,26 +377,21 @@ def generate_all_teams_markdown_zip(hackathon_id: int) -> bytes:
         db.close()
 
 
-def export_hackathon_to_markdown_zip(hackathon_id: int) -> bytes:
+def export_project_to_markdown_zip() -> bytes:
     """
     Generates team-specific markdown files and bundles them into a single ZIP archive
     for NotebookLM ingestion.
     """
     db = SessionLocal()
     try:
-        hackathon = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-        if not hackathon:
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, "w") as zip_file:
-                zip_file.writestr("error.txt", "Project not found.")
-            return zip_buffer.getvalue()
+        project_name = get_setting("project_name") or "Judgie Project"
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             # 1. Add evaluation metadata
-            criteria = get_criteria(hackathon_id)
+            criteria = get_criteria()
             meta_md = []
-            meta_md.append(f"# Project Evaluation Meta: {hackathon.name}")
+            meta_md.append(f"# Project Evaluation Meta: {project_name}")
             meta_md.append(f"- **Export Date:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
             meta_md.append("")
             meta_md.append("## Evaluation Criteria")
@@ -411,7 +403,7 @@ def export_hackathon_to_markdown_zip(hackathon_id: int) -> bytes:
             # 2. Add team markdowns
             users = (
                 db.query(User)
-                .filter(User.hackathon_id == hackathon_id, User.role == "team")
+                .filter(User.role == "team")
                 .order_by(User.team_id)
                 .all()
             )
@@ -425,7 +417,7 @@ def export_hackathon_to_markdown_zip(hackathon_id: int) -> bytes:
 
                 evaluations = (
                     db.query(Evaluation)
-                    .filter(Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == u.team_id)
+                    .filter(Evaluation.team_id == u.team_id)
                     .order_by(Evaluation.id.asc())
                     .all()
                 )
@@ -454,7 +446,7 @@ def export_hackathon_to_markdown_zip(hackathon_id: int) -> bytes:
                         team_md.append("")
 
                         fb = json.loads(ev.strengths_risks_json)
-                        languages = get_ai_response_languages(hackathon_id)
+                        languages = get_ai_response_languages()
                         compat_map = {"english": "en", "japanese": "ja", "日本語": "ja", "英語": "en"}
 
                         for lang in languages:

@@ -52,8 +52,8 @@ async function request<T>(endpoint: string, options: ApiOptions = {}): Promise<T
 
 // Auth
 export const authApi = {
-  login: (data: { team_id: string; passcode: string; hackathon_id?: number }) =>
-    request<{ team_id: string; role: string; hackathon_id: number | null }>('/api/auth/login', {
+  login: (data: { team_id: string; passcode: string }) =>
+    request<{ team_id: string; role: string }>('/api/auth/login', {
       method: 'POST',
       body: data,
     }),
@@ -62,7 +62,6 @@ export const authApi = {
     request<{
       team_id: string;
       role: string;
-      hackathon_id: number | null;
       product_name?: string;
       team_name?: string;
       one_liner?: string;
@@ -70,70 +69,18 @@ export const authApi = {
   oidcLogin: () => request<{ auth_url: string; state: string }>('/api/auth/oidc/login'),
   oidcCallback: (data: { code: string; state: string }) =>
     request<{
-      status: 'success' | 'select_tenant';
+      status: 'success';
       team_id?: string;
       role?: string;
-      hackathon_id?: number;
-      tenants?: Array<{
-        hackathon_id: number;
-        hackathon_name: string;
-        team_id: string;
-        team_name: string | null;
-        role: string;
-      }>;
-      temp_token?: string;
     }>('/api/auth/oidc/callback', {
       method: 'POST',
       body: data,
     }),
-  oidcSelectTenant: (data: { temp_token: string; hackathon_id: number; team_id: string }) =>
-    request<{ team_id: string; role: string; hackathon_id: number | null }>('/api/auth/oidc/select-tenant', {
-      method: 'POST',
-      body: data,
-    }),
-  getMyTenants: () =>
-    request<
-      Array<{
-        hackathon_id: number;
-        hackathon_name: string;
-        team_id: string;
-        team_name: string | null;
-        role: string;
-      }>
-    >('/api/auth/my-tenants'),
-  switchTenant: (data: { hackathon_id: number; team_id: string }) =>
-    request<{ team_id: string; role: string; hackathon_id: number | null }>('/api/auth/switch-tenant', {
-      method: 'POST',
-      body: data,
-    }),
-};
-
-// Hackathons
-export const hackathonsApi = {
-  list: () =>
-    request<
-      Array<{
-        id: number;
-        name: string;
-        template_id: string | null;
-        admin_id: string | null;
-        team_count: number;
-        created_at: string | null;
-      }>
-    >('/api/hackathons'),
-  create: (data: { name: string; admin_id: string; admin_pass: string; template_id?: string }) =>
-    request<{ id: number; message: string }>('/api/hackathons', { method: 'POST', body: data }),
-  delete: (id: number) => request(`/api/hackathons/${id}`, { method: 'DELETE' }),
-  initialize: (id: number, data: { template_id: string; custom_template_data?: object }) =>
-    request(`/api/hackathons/${id}/initialize`, { method: 'POST', body: data }),
-  getTemplates: () => request<Record<string, { name: string; description: string }>>('/api/hackathons/templates'),
-  resetAdminPasscode: (id: number, newPasscode: string) =>
-    request(`/api/hackathons/${id}/admin-passcode`, { method: 'PUT', body: { new_passcode: newPasscode } }),
 };
 
 // Teams
 export const teamsApi = {
-  list: (hackathonId: number) =>
+  list: () =>
     request<
       Array<{
         team_id: string;
@@ -143,21 +90,21 @@ export const teamsApi = {
         one_liner: string | null;
         is_active: boolean;
       }>
-    >(`/api/hackathons/${hackathonId}/teams`),
-  create: (hackathonId: number, data: object) =>
-    request(`/api/hackathons/${hackathonId}/teams`, { method: 'POST', body: data }),
-  bulkCreate: (hackathonId: number, csvContent: string) =>
-    request(`/api/hackathons/${hackathonId}/teams/bulk`, { method: 'POST', body: { csv_content: csvContent } }),
-  updateProfile: (hackathonId: number, teamId: string, data: object) =>
-    request(`/api/hackathons/${hackathonId}/teams/${teamId}/profile`, { method: 'PUT', body: data }),
-  updatePasscode: (hackathonId: number, teamId: string, newPasscode: string) =>
-    request(`/api/hackathons/${hackathonId}/teams/${teamId}/passcode`, { method: 'PUT', body: { new_passcode: newPasscode } }),
-  updateRole: (hackathonId: number, teamId: string, newRole: string) =>
-    request(`/api/hackathons/${hackathonId}/teams/${teamId}/role`, { method: 'PUT', body: { new_role: newRole } }),
-  updateActive: (hackathonId: number, teamId: string, isActive: boolean) =>
-    request(`/api/hackathons/${hackathonId}/teams/${teamId}/active`, { method: 'PUT', body: { is_active: isActive } }),
-  delete: (hackathonId: number, teamId: string) =>
-    request(`/api/hackathons/${hackathonId}/teams/${teamId}`, { method: 'DELETE' }),
+    >('/api/teams'),
+  create: (data: object) =>
+    request('/api/teams', { method: 'POST', body: data }),
+  bulkCreate: (csvContent: string) =>
+    request('/api/teams/bulk', { method: 'POST', body: { csv_content: csvContent } }),
+  updateProfile: (teamId: string, data: object) =>
+    request(`/api/teams/${teamId}/profile`, { method: 'PUT', body: data }),
+  updatePasscode: (teamId: string, newPasscode: string) =>
+    request(`/api/teams/${teamId}/passcode`, { method: 'PUT', body: { new_passcode: newPasscode } }),
+  updateRole: (teamId: string, newRole: string) =>
+    request(`/api/teams/${teamId}/role`, { method: 'PUT', body: { new_role: newRole } }),
+  updateActive: (teamId: string, isActive: boolean) =>
+    request(`/api/teams/${teamId}/active`, { method: 'PUT', body: { is_active: isActive } }),
+  delete: (teamId: string) =>
+    request(`/api/teams/${teamId}`, { method: 'DELETE' }),
 };
 
 // Evaluations
@@ -234,6 +181,11 @@ export const settingsApi = {
       method: 'POST',
       body: { current_password: currentPassword, new_password: newPassword },
     }),
+  getTemplates: () => request<Record<string, { name: string; description: string }>>('/api/settings/templates'),
+  initialize: (data: { template_id: string; custom_template_data?: object }) =>
+    request('/api/settings/templates/initialize', { method: 'POST', body: data }),
+  resetAdminPasscode: (newPasscode: string) =>
+    request('/api/settings/admin-passcode', { method: 'PUT', body: { new_passcode: newPasscode } }),
 };
 
 // Export

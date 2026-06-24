@@ -1,5 +1,7 @@
 from unittest.mock import ANY
 
+import pytest
+
 from app.services.submission_service import process_submission, sanitize_evaluation_response
 
 
@@ -24,7 +26,7 @@ def test_sanitize_evaluation_response():
         ],
     }
 
-    res = sanitize_evaluation_response(input_data, hackathon_id=1)
+    res = sanitize_evaluation_response(input_data)
     assert res["product_understanding_english"] == "understanding"
     assert res["action_items_english"] == ["item1"]
     assert res["judges_feedback"][0]["judge_name"] == "Lisa"
@@ -38,7 +40,7 @@ def test_sanitize_evaluation_response():
             {"judge_name": "David"},  # Partial missing keys
         ],
     }
-    res_bad = sanitize_evaluation_response(bad_input, hackathon_id=1)
+    res_bad = sanitize_evaluation_response(bad_input)
     assert isinstance(res_bad["action_items_english"], list)
     assert res_bad["action_items_english"] == ["not_a_list"]
     assert len(res_bad["judges_feedback"]) == 1
@@ -60,7 +62,7 @@ def test_sanitize_evaluation_response():
             {"judge_name": "Lisa", "feedback_en": "Great UI", "feedback_es": "Buen UI", "feedback_french": "Bon UI"}
         ],
     }
-    res_multi = sanitize_evaluation_response(input_multilang, hackathon_id=1, languages=custom_langs)
+    res_multi = sanitize_evaluation_response(input_multilang, languages=custom_langs)
     assert res_multi["product_understanding_english"] == "understanding"
     assert res_multi["product_understanding_spanish"] == "comprehension"
     assert res_multi["product_understanding_french"] == "comprendre"
@@ -97,7 +99,6 @@ def test_process_submission_with_zip_and_media(mocker):
 
     # Execute submission workflow processing
     res = process_submission(
-        hackathon_id=1,
         team_id="teamA",
         uploaded_files=[mock_zip, mock_media],
         prev_evaluations_json="{}",
@@ -106,13 +107,13 @@ def test_process_submission_with_zip_and_media(mocker):
 
     # Verify each processing step is executed with correct arguments
     mock_extract.assert_called_once_with(mock_zip)
-    mock_upload.assert_called_once_with(1, ANY, mime_type="video/mp4")
-    mock_wait.assert_called_once_with(1, [mock_file_obj])
+    mock_upload.assert_called_once_with(ANY, mime_type="video/mp4")
+    mock_wait.assert_called_once_with([mock_file_obj])
     mock_analysis.assert_called_once_with(
-        1, "print('hello')", [mock_file_obj], previous_evaluations_json="{}", is_final=False
+        "print('hello')", [mock_file_obj], previous_evaluations_json="{}", is_final=False
     )
     mock_save.assert_called_once_with(
-        1, "teamA", ANY, is_final=False, source_text="print('hello')", gemini_file_ids=["files/mock-media-id"]
+        "teamA", ANY, is_final=False, source_text="print('hello')", gemini_file_ids=["files/mock-media-id"]
     )
 
     assert res["product_understanding_english"] == "nice"
@@ -125,11 +126,9 @@ def test_process_submission_with_video_disabled(mocker):
 
     mocker.patch("app.services.submission_service.is_video_upload_enabled", return_value=False)
 
-    import pytest
-
     with pytest.raises(ValueError) as excinfo:
         process_submission(
-            hackathon_id=1, team_id="teamA", uploaded_files=[mock_media], prev_evaluations_json="{}", is_final=False
+            team_id="teamA", uploaded_files=[mock_media], prev_evaluations_json="{}", is_final=False
         )
 
     assert "Video uploads" in str(excinfo.value)

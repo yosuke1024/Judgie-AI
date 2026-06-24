@@ -3,16 +3,13 @@ import json
 from app.models.db import (
     AdminChat,
     Evaluation,
-    Hackathon,
     Session,
     Setting,
     TeamChat,
     User,
     change_my_passcode,
-    create_hackathon,
     create_session,
     delete_evaluation,
-    delete_hackathon,
     delete_session,
     delete_team,
     get_admin_chats,
@@ -39,12 +36,13 @@ from app.models.db import (
     update_team_passcode,
     update_team_profile,
     verify_user,
+    initialize_project_template,
 )
 from app.security import hash_passcode, verify_passcode
 
 
 def test_init_db(db_session_fixture):
-    # Test init_db. Ensure the superadmin user is created.
+    # Test init_db. Ensure the superadmin user is created by default.
     init_db()
     superadmin = db_session_fixture.query(User).filter(User.role == "superadmin").first()
     assert superadmin is not None
@@ -54,44 +52,36 @@ def test_init_db(db_session_fixture):
 def test_verify_user(db_session_fixture):
     init_db()
 
-    # Create a hackathon and set up users
-    hid = create_hackathon("Hack1", "admin1", "pass123")
-
     # 1. Superadmin authentication
-    assert verify_user("superadmin", "superadmin123") == {"role": "superadmin", "hackathon_id": None, "email": None}
+    assert verify_user("superadmin", "superadmin123") == {"role": "superadmin", "email": None}
     assert verify_user("superadmin", "wrongpass") is None
 
-    # 2. Tenant admin authentication
-    assert verify_user("admin1", "pass123", hackathon_id=hid) == {"role": "admin", "hackathon_id": hid, "email": None}
-    assert verify_user("admin1", "wrongpass", hackathon_id=hid) is None
-    assert verify_user("admin1", "pass123") is None
+    # 2. Team user authentication
+    team_user = User(team_id="teamA", passcode=hash_passcode("teampass"), role="team")
+    db_session_fixture.add(team_user)
+    db_session_fixture.commit()
 
-    # 3. Non-existent user
-    assert verify_user("nonexistent", "pass", hackathon_id=hid) is None
+    assert verify_user("teamA", "teampass") == {"role": "team", "email": None}
+    assert verify_user("teamA", "wrongpass") is None
 
 
 def test_settings(db_session_fixture):
-    # Retrieve and save setting variables
-    set_setting(1, "theme", "dark")
-    assert get_setting(1, "theme") == "dark"
-    assert get_setting(2, "theme") is None
-    assert get_setting(None, "theme") is None
-
-    # Safeguard when passing None
-    set_setting(None, "theme", "dark")
+    set_setting("theme", "dark")
+    assert get_setting("theme") == "dark"
+    assert get_setting("nonexistent") is None
 
 
 def test_criteria(db_session_fixture):
     # Save and retrieve evaluation criteria lists
     test_criteria_list = [{"name": "Coding", "weight": 50, "description": "Clean code"}]
 
-    # Test default criteria fallback (when None is passed)
-    default_criteria = get_criteria(999)
+    # Test default criteria fallback
+    default_criteria = get_criteria()
     assert len(default_criteria) > 0
     assert default_criteria[0]["name"] == "Innovation & Creativity"
 
-    set_criteria(1, test_criteria_list)
-    criteria = get_criteria(1)
+    set_criteria(test_criteria_list)
+    criteria = get_criteria()
     assert len(criteria) == 1
     assert criteria[0]["name"] == "Coding"
 
@@ -101,19 +91,18 @@ def test_personas(db_session_fixture):
     test_personas_list = [{"id": "1", "name": "Test Judge", "active": True, "prompt": "Evaluate code"}]
 
     # Test default fallback for personas
-    default_personas = get_personas(999)
+    default_personas = get_personas()
     assert len(default_personas) > 0
     assert default_personas[0]["name"] == "Alex"
 
-    set_personas(1, test_personas_list)
-    personas = get_personas(1)
+    set_personas(test_personas_list)
+    personas = get_personas()
     assert len(personas) == 1
     assert personas[0]["name"] == "Test Judge"
 
 
 def test_evaluation_flow(db_session_fixture):
-    # Save evaluations and objection Q&A
-    hid = create_hackathon("Hack1", "admin1", "pass123", template_id="hackathon")
+    init_db()
 
     result_data = {
         "scores": {"Innovation & Creativity": 4.5},
@@ -124,12 +113,11 @@ def test_evaluation_flow(db_session_fixture):
     }
 
     # Save evaluation
-    save_evaluation(hid, "teamA", result_data, is_final=True, source_text="print('hello')", gemini_file_ids=["file1"])
+    save_evaluation("teamA", result_data, is_final=True, source_text="print('hello')", gemini_file_ids=["file1"])
 
     # Verify saved content
     eval_rec = db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "teamA").first()
     assert eval_rec is not None
-    assert eval_rec.hackathon_id == hid
     assert eval_rec.impact_score == 4.2
     assert eval_rec.is_final is True
     assert eval_rec.source_text == "print('hello')"
@@ -149,98 +137,85 @@ def test_evaluation_flow(db_session_fixture):
     assert qa_json_loaded["user_objection"] == "But it is good"
 
     # Check consultation counts
-    assert get_consultation_count(hid, "teamA") == 1
-    assert get_consultation_count(hid, "teamB") == 0
+    assert get_consultation_count("teamA") == 1
+    assert get_consultation_count("teamB") == 0
 
 
 def test_update_admin_passcode(db_session_fixture):
-    hid = create_hackathon("Hack1", "admin1", "pass123")
-    update_admin_passcode(hid, "newpass")
-    assert verify_user("admin1", "newpass", hackathon_id=hid) is not None
-    assert verify_user("admin1", "pass123", hackathon_id=hid) is None
+    # Seed admin user
+    admin_user = User(team_id="admin1", passcode=hash_passcode("pass123"), role="admin")
+    db_session_fixture.add(admin_user)
+    db_session_fixture.commit()
+
+    update_admin_passcode("newpass")
+    assert verify_user("admin1", "newpass") is not None
+    assert verify_user("admin1", "pass123") is None
 
 
 def test_update_team_passcode(db_session_fixture):
-    hid = create_hackathon("Hack1", "admin1", "pass123")
-
     # Create a registered team user
-    team_user = User(hackathon_id=hid, team_id="teamA", passcode=hash_passcode("teampass"), role="team")
+    team_user = User(team_id="teamA", passcode=hash_passcode("teampass"), role="team")
     db_session_fixture.add(team_user)
     db_session_fixture.commit()
 
-    # Verify that the update succeeds with the correct team ID and hackathon ID
-    assert update_team_passcode(hid, "teamA", "newteampass") is True
-    assert verify_user("teamA", "newteampass", hackathon_id=hid) is not None
-    assert verify_user("teamA", "teampass", hackathon_id=hid) is None
+    # Verify that the update succeeds
+    assert update_team_passcode("teamA", "newteampass") is True
+    assert verify_user("teamA", "newteampass") is not None
+    assert verify_user("teamA", "teampass") is None
 
     # Verify that the update fails for a non-existent team ID
-    assert update_team_passcode(hid, "nonexistent", "somepass") is False
-
-    # Verify that the update is not applied if a different hackathon ID is specified
-    assert update_team_passcode(999, "teamA", "anotherpass") is False
+    assert update_team_passcode("nonexistent", "somepass") is False
 
 
 def test_change_my_passcode(db_session_fixture):
     init_db()
-    hid = create_hackathon("Hack1", "admin1", "pass123")
+    admin_user = User(team_id="admin1", passcode=hash_passcode("pass123"), role="admin")
+    db_session_fixture.add(admin_user)
+    db_session_fixture.commit()
 
     # 1. Update admin passcode
     assert (
-        change_my_passcode(hackathon_id=hid, team_id="admin1", current_passcode="pass123", new_passcode="changedpass")
+        change_my_passcode(team_id="admin1", current_passcode="pass123", new_passcode="changedpass")
         is True
     )
-    assert verify_user("admin1", "changedpass", hackathon_id=hid) is not None
+    assert verify_user("admin1", "changedpass") is not None
 
     # 2. Mismatched passcode error
     assert (
-        change_my_passcode(hackathon_id=hid, team_id="admin1", current_passcode="wrong", new_passcode="another")
+        change_my_passcode(team_id="admin1", current_passcode="wrong", new_passcode="another")
         is False
     )
 
-    # 3. Test compatibility fallback signature (using 3 arguments instead of 4)
-    # change_my_passcode(team_id, current_passcode, new_passcode)
-    assert change_my_passcode("admin1", "changedpass", "compatpass") is True
-
-    db_session_fixture.expire_all()
-    user = db_session_fixture.query(User).filter(User.team_id == "admin1").first()
-    assert verify_passcode("compatpass", user.passcode) is True
-
 
 def test_team_profile(db_session_fixture):
-    # Create and update team profiles
-    hid = create_hackathon("Hack1", "admin1", "pass123")
-
     # Set up team user
-    team_user = User(hackathon_id=hid, team_id="teamA", passcode="teampass", role="team")
+    team_user = User(team_id="teamA", passcode="teampass", role="team")
     db_session_fixture.add(team_user)
     db_session_fixture.commit()
 
-    profile = get_team_profile(hid, "teamA")
+    profile = get_team_profile("teamA")
     assert profile["product_name"] is None
 
-    update_team_profile(hid, "teamA", "My Product", "Awesome Team", "We build cool stuff")
+    update_team_profile("teamA", "My Product", "Awesome Team", "We build cool stuff")
 
-    profile_updated = get_team_profile(hid, "teamA")
+    profile_updated = get_team_profile("teamA")
     assert profile_updated["product_name"] == "My Product"
     assert profile_updated["team_name"] == "Awesome Team"
     assert profile_updated["one_liner"] == "We build cool stuff"
 
     # Non-existent team profile
-    assert get_team_profile(hid, "nonexistent") == {"product_name": None, "team_name": None, "one_liner": None}
+    assert get_team_profile("nonexistent") == {"product_name": None, "team_name": None, "one_liner": None}
 
 
 def test_session_management(db_session_fixture):
-    hid = create_hackathon("Hack1", "admin1", "pass123")
-
     # Create session
-    sid = create_session("admin1", "admin", hid)
+    sid = create_session("admin1", "admin")
     assert sid is not None
 
     # Retrieve session
     sdata = get_session(sid)
     assert sdata["team_id"] == "admin1"
     assert sdata["role"] == "admin"
-    assert sdata["hackathon_id"] == hid
 
     # Non-existent session
     assert get_session("nonexistent-sid") is None
@@ -250,228 +225,99 @@ def test_session_management(db_session_fixture):
     delete_session(sid)
     assert get_session(sid) is None
 
-    # Safeguards for None or empty strings
-    delete_session(None)
-    delete_session("")
-
 
 def test_admin_chat(db_session_fixture):
-    # 1. Save chat log in legacy format (qa_json=None)
+    # Save chat log
     save_admin_chat(123, "Q?", "質問?", "A!", "回答!")
 
-    # Retrieve and verify legacy compatibility fallback in qa_json
+    # Retrieve and verify
     chats = get_admin_chats(123)
     assert len(chats) == 1
     assert chats[0]["question_en"] == "Q?"
     assert chats[0]["question_ja"] == "質問?"
     assert chats[0]["answer_en"] == "A!"
     assert chats[0]["answer_ja"] == "回答!"
-    assert chats[0]["qa_json"]["question_english"] == "Q?"
-    assert chats[0]["qa_json"]["question_japanese"] == "質問?"
-    assert chats[0]["qa_json"]["answer_english"] == "A!"
-    assert chats[0]["qa_json"]["answer_japanese"] == "回答!"
-
-    # 2. Save with multi-language qa_json dictionary
-    mock_qa = {
-        "question_english": "What logic?",
-        "answer_english": "Some logic",
-        "question_spanish": "Que logica?",
-        "answer_spanish": "Alguna logica",
-    }
-    save_admin_chat(123, "What logic?", "どんなロジック？", "Some logic", "いくつかのロジック", qa_json=mock_qa)
-
-    chats_all = get_admin_chats(123)
-    assert len(chats_all) == 2
-    assert chats_all[1]["qa_json"]["question_spanish"] == "Que logica?"
-    assert chats_all[1]["qa_json"]["answer_spanish"] == "Alguna logica"
-
-    assert len(get_admin_chats(999)) == 0
-
-
-def test_delete_hackathon(db_session_fixture):
-    init_db()
-
-    # 1. Create a tenant (Hackathon)
-    hid = create_hackathon("HackToDelete", "del_admin", "pass123", template_id="hackathon")
-
-    # 2. Create related dummy data
-    # Team user
-    team_user = User(hackathon_id=hid, team_id="teamDel", passcode="teampass", role="team")
-    db_session_fixture.add(team_user)
-    db_session_fixture.commit()
-
-    # Submission
-    from app.models.db import Submission
-
-    submission = Submission(hackathon_id=hid, team_id="teamDel", files_json="[]")
-    db_session_fixture.add(submission)
-    db_session_fixture.commit()
-
-    # Evaluation data
-    result_data = {
-        "scores": {"Innovation & Creativity": 4.0},
-        "impact_score": 4.0,
-        "three_line_summary_en": "summary",
-        "three_line_summary_ja": "概要",
-        "judges_feedback": [],
-    }
-    save_evaluation(hid, "teamDel", result_data, is_final=True, source_text="code", gemini_file_ids=["fileX"])
-    eval_rec = db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid).first()
-    assert eval_rec is not None
-    eval_id = eval_rec.id
-
-    # Chat history
-    save_admin_chat(eval_id, "Q", "問", "A", "答")
-
-    # Session
-    create_session("teamDel", "team", hid)
-
-    # Verify each data exists
-    assert db_session_fixture.query(Hackathon).filter(Hackathon.id == hid).first() is not None
-    assert db_session_fixture.query(User).filter(User.hackathon_id == hid).count() == 2  # admin + team
-    assert db_session_fixture.query(Setting).filter(Setting.hackathon_id == hid).count() > 0
-    assert db_session_fixture.query(Submission).filter(Submission.hackathon_id == hid).first() is not None
-    assert db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid).first() is not None
-    assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is not None
-    assert db_session_fixture.query(Session).filter(Session.hackathon_id == hid).first() is not None
-
-    # 3. Delete the tenant
-    delete_hackathon(hid)
-
-    # 4. Verify that all associated data has been deleted
-    db_session_fixture.expire_all()
-    assert db_session_fixture.query(Hackathon).filter(Hackathon.id == hid).first() is None
-    assert db_session_fixture.query(User).filter(User.hackathon_id == hid).count() == 0
-    assert db_session_fixture.query(Setting).filter(Setting.hackathon_id == hid).count() == 0
-    assert db_session_fixture.query(Submission).filter(Submission.hackathon_id == hid).first() is None
-    assert db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid).first() is None
-    assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is None
-    assert db_session_fixture.query(Session).filter(Session.hackathon_id == hid).first() is None
 
 
 def test_ai_response_languages(db_session_fixture):
-    # Test setting and getting languages
-    hid = create_hackathon("Hack1", "admin1", "pass123", template_id="hackathon")
-
     # 1. Default languages when not set
-    assert get_ai_response_languages(hid) == ["English", "Japanese"]
+    assert get_ai_response_languages() == ["English", "Japanese"]
 
     # 2. Set custom languages
     custom_langs = ["English", "Japanese", "Spanish", "French"]
-    set_ai_response_languages(hid, custom_langs)
-    assert get_ai_response_languages(hid) == custom_langs
-
-    # 3. Key normalization test
-    from app.models.db import normalize_lang_to_key
-
-    assert normalize_lang_to_key("English") == "english"
-    assert normalize_lang_to_key("日本語") == "日本語"
-    assert normalize_lang_to_key("Spanish") == "spanish"
-    assert normalize_lang_to_key("French") == "french"
-    assert normalize_lang_to_key("Korean") == "korean"
+    set_ai_response_languages(custom_langs)
+    assert get_ai_response_languages() == custom_langs
 
 
-
-
-
-def test_single_tenant_mode(db_session_fixture, monkeypatch):
+def test_single_project_seeding(db_session_fixture, monkeypatch):
     # Mock environment variables
     monkeypatch.setenv("DEFAULT_ADMIN_ID", "railway_admin")
     monkeypatch.setenv("DEFAULT_ADMIN_PASSCODE", "railway_pass123")
     monkeypatch.setenv("DEFAULT_HACKATHON_NAME", "Railway Hackathon")
 
-    # Re-run init_db in single-tenant mode
+    # Run init_db
     init_db()
 
-    # 1. Verify SuperAdmin is NOT created
-    superadmin = db_session_fixture.query(User).filter(User.role == "superadmin").first()
-    assert superadmin is None
+    # Verify default project and admin user are created
+    assert get_setting("project_name") == "Railway Hackathon"
 
-    # 2. Verify default hackathon and admin user are created
-    hackathon = db_session_fixture.query(Hackathon).filter(Hackathon.id == 1).first()
-    assert hackathon is not None
-    assert hackathon.name == "Railway Hackathon"
-
-    admin_user = db_session_fixture.query(User).filter(User.hackathon_id == 1, User.team_id == "railway_admin").first()
+    admin_user = db_session_fixture.query(User).filter(User.team_id == "railway_admin").first()
     assert admin_user is not None
     assert admin_user.role == "admin"
     assert verify_passcode("railway_pass123", admin_user.passcode) is True
 
-    # 3. Verify SuperAdmin login is blocked in verify_user
-    assert verify_user("superadmin", "superadmin123") is None
 
-    # 4. Verify admin login succeeds
-    assert verify_user("railway_admin", "railway_pass123", hackathon_id=1) == {"role": "admin", "hackathon_id": 1, "email": None}
-
-
-def test_initialize_hackathon_template(db_session_fixture):
-    # Create hackathon without a template
-    hid = create_hackathon("HackEmpty", "empty_admin", "pass123", template_id=None)
-
-    db_session_fixture.expire_all()
-    hackathon = db_session_fixture.query(Hackathon).filter(Hackathon.id == hid).first()
-    assert hackathon.template_id is None
-
-    # Ensure it returns empty lists because template_id is None and no settings exist
-    assert get_criteria(hid) == []
-    assert get_personas(hid) == []
+def test_initialize_project_template(db_session_fixture):
     # Initialize with hackathon template
-    from app.models.db import initialize_hackathon_template
+    initialize_project_template("hackathon")
 
-    initialize_hackathon_template(hid, "hackathon")
-
-    db_session_fixture.expire_all()
-    hackathon_updated = db_session_fixture.query(Hackathon).filter(Hackathon.id == hid).first()
-    assert hackathon_updated.template_id == "hackathon"
-    assert hackathon_updated.re_evaluation_context_mode == "cumulative"
-    assert hackathon_updated.max_qa_turns == 1
-    assert hackathon_updated.max_consultations == 3
+    assert get_setting("template_id") == "hackathon"
+    assert get_setting("re_evaluation_context_mode") == "cumulative"
+    assert get_setting("max_qa_turns") == "1"
+    assert get_setting("max_consultations") == "3"
 
     # Check criteria and personas are initialized
-    criteria = get_criteria(hid)
+    criteria = get_criteria()
     assert len(criteria) > 0
     assert criteria[0]["name"] == "Innovation & Creativity"
 
-    personas = get_personas(hid)
+    personas = get_personas()
     assert len(personas) > 0
     assert personas[0]["name"] == "Alex"
-def test_max_consultations(db_session_fixture):
-    hid = create_hackathon("Hack1", "admin1", "pass123")
 
+
+def test_max_consultations(db_session_fixture):
     # Check default
-    assert get_max_consultations(hid) == 3
+    assert get_max_consultations() == 3
 
     # Set to custom value
-    set_max_consultations(hid, 5)
-    assert get_max_consultations(hid) == 5
+    set_max_consultations(5)
+    assert get_max_consultations() == 5
 
     # Set to unlimited
-    set_max_consultations(hid, -1)
-    assert get_max_consultations(hid) == -1
+    set_max_consultations(-1)
+    assert get_max_consultations() == -1
 
 
 def test_video_upload_enabled(db_session_fixture):
-    hid = create_hackathon("Hack1", "admin1", "pass123")
-
     # Check default (should be True)
-    assert is_video_upload_enabled(hid) is True
+    assert is_video_upload_enabled() is True
 
     # Set to False
-    set_video_upload_enabled(hid, False)
-    assert is_video_upload_enabled(hid) is False
+    set_video_upload_enabled(False)
+    assert is_video_upload_enabled() is False
 
     # Set to True
-    set_video_upload_enabled(hid, True)
-    assert is_video_upload_enabled(hid) is True
+    set_video_upload_enabled(True)
+    assert is_video_upload_enabled() is True
 
 
 def test_delete_team_cascades(db_session_fixture):
     init_db()
-    hid = create_hackathon("HackToDeleteTeam", "del_team_admin", "pass123", template_id="hackathon")
 
     # Create two team users
-    team1 = User(hackathon_id=hid, team_id="team1", passcode="pass1", role="team")
-    team2 = User(hackathon_id=hid, team_id="team2", passcode="pass2", role="team")
+    team1 = User(team_id="team1", passcode="pass1", role="team")
+    team2 = User(team_id="team2", passcode="pass2", role="team")
     db_session_fixture.add(team1)
     db_session_fixture.add(team2)
     db_session_fixture.commit()
@@ -479,7 +325,7 @@ def test_delete_team_cascades(db_session_fixture):
     # Submission for team1
     from app.models.db import Submission
 
-    sub1 = Submission(hackathon_id=hid, team_id="team1", files_json="[]")
+    sub1 = Submission(team_id="team1", files_json="[]")
     db_session_fixture.add(sub1)
     db_session_fixture.commit()
 
@@ -491,10 +337,10 @@ def test_delete_team_cascades(db_session_fixture):
         "three_line_summary_ja": "概要",
         "judges_feedback": [],
     }
-    save_evaluation(hid, "team1", result_data, is_final=True, source_text="code", gemini_file_ids=["fileA"])
+    save_evaluation("team1", result_data, is_final=True, source_text="code", gemini_file_ids=["fileA"])
     eval_rec = (
         db_session_fixture.query(Evaluation)
-        .filter(Evaluation.hackathon_id == hid, Evaluation.team_id == "team1")
+        .filter(Evaluation.team_id == "team1")
         .first()
     )
     assert eval_rec is not None
@@ -507,63 +353,53 @@ def test_delete_team_cascades(db_session_fixture):
     db_session_fixture.commit()
 
     # Session for team1
-    create_session("team1", "team", hid)
+    create_session("team1", "team")
 
     # Verify everything exists before deletion
-    assert db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "team1").first() is not None
-    assert db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "team2").first() is not None
+    assert db_session_fixture.query(User).filter(User.team_id == "team1").first() is not None
+    assert db_session_fixture.query(User).filter(User.team_id == "team2").first() is not None
     assert (
         db_session_fixture.query(Submission)
-        .filter(Submission.hackathon_id == hid, Submission.team_id == "team1")
+        .filter(Submission.team_id == "team1")
         .first()
         is not None
     )
     assert (
         db_session_fixture.query(Evaluation)
-        .filter(Evaluation.hackathon_id == hid, Evaluation.team_id == "team1")
+        .filter(Evaluation.team_id == "team1")
         .first()
         is not None
     )
     assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is not None
     assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).first() is not None
-    assert (
-        db_session_fixture.query(Session).filter(Session.hackathon_id == hid, Session.team_id == "team1").first()
-        is not None
-    )
 
     # Delete team1
-    delete_team(hid, "team1")
+    delete_team("team1")
 
     # Verify team1 data is gone
     db_session_fixture.expire_all()
-    assert db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "team1").first() is None
+    assert db_session_fixture.query(User).filter(User.team_id == "team1").first() is None
     assert (
         db_session_fixture.query(Submission)
-        .filter(Submission.hackathon_id == hid, Submission.team_id == "team1")
+        .filter(Submission.team_id == "team1")
         .first()
         is None
     )
     assert (
         db_session_fixture.query(Evaluation)
-        .filter(Evaluation.hackathon_id == hid, Evaluation.team_id == "team1")
+        .filter(Evaluation.team_id == "team1")
         .first()
         is None
     )
     assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is None
     assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).first() is None
-    assert (
-        db_session_fixture.query(Session).filter(Session.hackathon_id == hid, Session.team_id == "team1").first()
-        is None
-    )
 
-    # Verify team2 and admin are NOT deleted
-    assert db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "team2").first() is not None
-    assert db_session_fixture.query(User).filter(User.hackathon_id == hid, User.role == "admin").first() is not None
+    # Verify team2 is NOT deleted
+    assert db_session_fixture.query(User).filter(User.team_id == "team2").first() is not None
 
 
 def test_delete_evaluation_cascades(db_session_fixture):
     init_db()
-    hid = create_hackathon("HackToDeleteEval", "del_eval_admin", "pass123", template_id="hackathon")
 
     result_data = {
         "scores": {"Innovation & Creativity": 4.0},
@@ -574,11 +410,11 @@ def test_delete_evaluation_cascades(db_session_fixture):
     }
 
     # Save two evaluations
-    save_evaluation(hid, "team1", result_data, is_final=False, source_text="code1", gemini_file_ids=[])
-    save_evaluation(hid, "team1", result_data, is_final=True, source_text="code2", gemini_file_ids=[])
+    save_evaluation("team1", result_data, is_final=False, source_text="code1", gemini_file_ids=[])
+    save_evaluation("team1", result_data, is_final=True, source_text="code2", gemini_file_ids=[])
 
     evals = (
-        db_session_fixture.query(Evaluation).filter(Evaluation.hackathon_id == hid, Evaluation.team_id == "team1").all()
+        db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "team1").all()
     )
     assert len(evals) == 2
     eval1_id = evals[0].id
@@ -596,7 +432,7 @@ def test_delete_evaluation_cascades(db_session_fixture):
     assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval1_id).first() is not None
 
     # Delete eval1
-    delete_evaluation(hid, eval1_id)
+    delete_evaluation(eval1_id)
 
     # Verify eval1 and its chats are gone
     db_session_fixture.expire_all()
@@ -611,12 +447,9 @@ def test_delete_evaluation_cascades(db_session_fixture):
 def test_update_user_active(db_session_fixture):
     from app.models.db import update_user_active
     init_db()
-    hid = create_hackathon("HackActiveTest", "active_admin", "pass123", template_id="hackathon")
 
     # Register a team
-    from app.security import hash_passcode
     team_user = User(
-        hackathon_id=hid,
         team_id="active_team",
         passcode=hash_passcode("teampass"),
         role="team",
@@ -628,29 +461,26 @@ def test_update_user_active(db_session_fixture):
     assert team_user.is_active is True
 
     # Disable team
-    success = update_user_active(hid, "active_team", False)
+    success = update_user_active("active_team", False)
     assert success is True
     db_session_fixture.expire_all()
 
-    user_in_db = db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "active_team").first()
+    user_in_db = db_session_fixture.query(User).filter(User.team_id == "active_team").first()
     assert user_in_db.is_active is False
 
     # Enable team again
-    success = update_user_active(hid, "active_team", True)
+    success = update_user_active("active_team", True)
     assert success is True
     db_session_fixture.expire_all()
-    user_in_db = db_session_fixture.query(User).filter(User.hackathon_id == hid, User.team_id == "active_team").first()
+    user_in_db = db_session_fixture.query(User).filter(User.team_id == "active_team").first()
     assert user_in_db.is_active is True
 
 
 def test_verify_user_inactive(db_session_fixture):
     from app.models.db import update_user_active, verify_user
     init_db()
-    hid = create_hackathon("HackActiveVerifyTest", "active_admin2", "pass123", template_id="hackathon")
 
-    from app.security import hash_passcode
     team_user = User(
-        hackathon_id=hid,
         team_id="verify_team",
         passcode=hash_passcode("teampass"),
         role="team",
@@ -659,14 +489,13 @@ def test_verify_user_inactive(db_session_fixture):
     db_session_fixture.commit()
 
     # Should succeed when active
-    verified = verify_user("verify_team", "teampass", hid)
+    verified = verify_user("verify_team", "teampass")
     assert verified is not None
     assert verified["role"] == "team"
 
     # Disable team
-    update_user_active(hid, "verify_team", False)
+    update_user_active("verify_team", False)
 
     # Should fail when inactive
-    verified_inactive = verify_user("verify_team", "teampass", hid)
+    verified_inactive = verify_user("verify_team", "teampass")
     assert verified_inactive is None
-

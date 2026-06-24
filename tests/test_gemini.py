@@ -20,7 +20,7 @@ def test_upload_to_gemini(mocker):
     mock_client.files.upload.return_value = "mock_file_obj"
     mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
 
-    res = upload_to_gemini(1, "dummy_path.mp4", mime_type="video/mp4")
+    res = upload_to_gemini("dummy_path.mp4", mime_type="video/mp4")
 
     assert res == "mock_file_obj"
     mock_client.files.upload.assert_called_once()
@@ -42,7 +42,7 @@ def test_wait_for_files_active_success(mocker):
     mock_file_input = MagicMock()
     mock_file_input.name = "files/testfile"
 
-    wait_for_files_active(1, [mock_file_input])
+    wait_for_files_active([mock_file_input])
     assert mock_client.files.get.call_count == 2
 
 
@@ -62,7 +62,7 @@ def test_wait_for_files_active_failed(mocker):
     mock_file_input.name = "files/testfile"
 
     with pytest.raises(ValueError) as excinfo:
-        wait_for_files_active(1, [mock_file_input])
+        wait_for_files_active([mock_file_input])
 
     assert "File processing failed" in str(excinfo.value)
 
@@ -89,7 +89,6 @@ def test_analyze_submission(mocker):
     mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
 
     res = analyze_submission(
-        hackathon_id=1,
         text_content="print('hello')",
         gemini_media_files=["media_mock"],
         previous_evaluations_json='{"prev": "data"}',
@@ -113,7 +112,6 @@ def test_object_to_judges(mocker):
     mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
 
     res = object_to_judges(
-        hackathon_id=1,
         text_content="print('hello')",
         gemini_media_files=None,
         previous_evaluation_json="{}",
@@ -140,7 +138,6 @@ def test_admin_chat_about_submission(mocker):
     mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
 
     res = admin_chat_about_submission(
-        hackathon_id=1,
         source_text="source",
         gemini_file_ids_json='["files/test"]',
         previous_evaluation_json="{}",
@@ -175,6 +172,6 @@ def test_list_available_gemini_models(mocker):
     mock_client.models.list.return_value = [mock_model_1, mock_model_2, mock_model_3, mock_model_4]
     mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
 
-    res = list_available_gemini_models(1)
+    res = list_available_gemini_models()
 
     assert res == ["gemini-2.5-flash", "gemini-3.1-pro"]

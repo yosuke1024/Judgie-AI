@@ -226,10 +226,10 @@ export default function TeamDashboard() {
 
   // Load team profile if in read-only mode for a specific teamId
   useEffect(() => {
-    if (isReadOnly && teamId && user?.hackathon_id) {
+    if (isReadOnly && teamId && user) {
       const fetchTeamInfo = async () => {
         try {
-          const list = await teamsApi.list(user.hackathon_id!);
+          const list = await teamsApi.list();
           const found = list.find((t) => t.team_id === teamId);
           if (found) {
             setProductName(found.product_name || '');
@@ -242,7 +242,7 @@ export default function TeamDashboard() {
       };
       fetchTeamInfo();
     }
-  }, [isReadOnly, teamId, user?.hackathon_id]);
+  }, [isReadOnly, teamId, user]);
 
   // Fetch evaluation history
   const fetchHistory = useCallback(async () => {
@@ -394,8 +394,7 @@ export default function TeamDashboard() {
     setProfileSaving(true);
     setProfileSuccess(false);
     try {
-      if (user.hackathon_id === null) return;
-      await teamsApi.updateProfile(user.hackathon_id, user.team_id, {
+      await teamsApi.updateProfile(user.team_id, {
         product_name: productName,
         team_name: teamName,
         one_liner: oneLiner,

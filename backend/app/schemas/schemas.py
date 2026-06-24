@@ -12,13 +12,11 @@ from pydantic import BaseModel
 class LoginRequest(BaseModel):
     team_id: str
     passcode: str
-    hackathon_id: int | None = None
 
 
 class LoginResponse(BaseModel):
     team_id: str
     role: str
-    hackathon_id: int | None
 
 
 class OIDCLoginInitResponse(BaseModel):
@@ -31,38 +29,15 @@ class OIDCCallbackRequest(BaseModel):
     state: str
 
 
-class TenantInfo(BaseModel):
-    hackathon_id: int
-    hackathon_name: str
-    team_id: str
-    team_name: str | None = None
-    role: str
-
-
 class OIDCCallbackResponse(BaseModel):
-    status: str  # "success" or "select_tenant"
+    status: str  # "success" or "failed"
     team_id: str | None = None
     role: str | None = None
-    hackathon_id: int | None = None
-    tenants: list[TenantInfo] | None = None
-    temp_token: str | None = None
-
-
-class OIDCTenantSelectRequest(BaseModel):
-    temp_token: str
-    hackathon_id: int
-    team_id: str
-
-
-class TenantSelectRequest(BaseModel):
-    hackathon_id: int
-    team_id: str
 
 
 class UserInfo(BaseModel):
     team_id: str
     role: str
-    hackathon_id: int | None
     product_name: str | None = None
     team_name: str | None = None
     one_liner: str | None = None
@@ -72,26 +47,10 @@ class UserInfo(BaseModel):
 
 
 # ──────────────────────────────────────────────
-# Hackathon
+# Project
 # ──────────────────────────────────────────────
 
-class HackathonCreate(BaseModel):
-    name: str
-    admin_id: str
-    admin_pass: str
-    template_id: str | None = None
-
-
-class HackathonResponse(BaseModel):
-    id: int
-    name: str
-    template_id: str | None
-    admin_id: str | None = None
-    team_count: int = 0
-    created_at: str | None = None
-
-
-class HackathonInitialize(BaseModel):
+class ProjectInitialize(BaseModel):
     template_id: str
     custom_template_data: dict | None = None
 
