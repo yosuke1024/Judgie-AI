@@ -34,6 +34,9 @@ COPY litestream.yml ./
 # Copy backend app source code
 COPY backend/app/ ./app
 
+# Copy assets required for custom avatars
+COPY assets/ ./assets
+
 # Copy global templates required by templates.py
 COPY templates/ ./templates
 
