@@ -214,17 +214,19 @@ export default function LoginPage() {
           </form>
         )}
 
-        <div className="login-footer">
-          <button
-            className="btn btn-ghost"
-            onClick={() => {
-              setIsLocalAdmin(!isLocalAdmin);
-              setTeamId('');
-            }}
-          >
-            {isLocalAdmin ? '← Back' : t('login.super_admin_login')}
-          </button>
-        </div>
+        {oidcEnabled && (
+          <div className="login-footer">
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                setIsLocalAdmin(!isLocalAdmin);
+                setTeamId('');
+              }}
+            >
+              {isLocalAdmin ? '← Back' : t('login.super_admin_login')}
+            </button>
+          </div>
+        )}
 
         <div className="login-credits" style={{
           marginTop: '24px',
