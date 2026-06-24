@@ -146,6 +146,17 @@ export default function AdminCenter() {
     max_consultations: 3,
     video_upload_enabled: true,
   });
+  const [oidcConfig, setOidcConfig] = useState({
+    oidc_enabled: false,
+    oidc_issuer: 'https://accounts.google.com',
+    oidc_client_id: '',
+    oidc_client_secret: '',
+    oidc_redirect_uri: '',
+    oidc_allowed_domains: '',
+    oidc_allowed_emails: '',
+    has_client_secret: false,
+  });
+  const [savingOidc, setSavingOidc] = useState(false);
   const [newAdminPass, setNewAdminPass] = useState('');
   const [confirmAdminPass, setConfirmAdminPass] = useState('');
 
@@ -233,6 +244,8 @@ export default function AdminCenter() {
     try {
       const gemini = await settingsApi.getGemini() as { has_api_key?: boolean; model?: string; api_tier?: string; available_models?: string[] };
       const project = await settingsApi.getProject();
+      const oidc = await settingsApi.getOidc() as any;
+
       setGeminiConfig({
         api_key: '',
         model: gemini.model || '',
@@ -246,10 +259,52 @@ export default function AdminCenter() {
         max_consultations: Number(project.max_consultations) || 3,
         video_upload_enabled: project.video_upload_enabled !== false,
       });
+      setOidcConfig({
+        oidc_enabled: !!oidc.oidc_enabled,
+        oidc_issuer: oidc.oidc_issuer || 'https://accounts.google.com',
+        oidc_client_id: oidc.oidc_client_id || '',
+        oidc_client_secret: '',
+        oidc_redirect_uri: oidc.oidc_redirect_uri || '',
+        oidc_allowed_domains: oidc.oidc_allowed_domains || '',
+        oidc_allowed_emails: oidc.oidc_allowed_emails || '',
+        has_client_secret: !!oidc.has_client_secret,
+      });
     } catch (err: any) {
       console.error(err);
     }
   }, []);
+
+  const handleSaveOidc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingOidc(true);
+    setError('');
+    try {
+      const payload: any = {
+        oidc_enabled: oidcConfig.oidc_enabled,
+        oidc_issuer: oidcConfig.oidc_issuer,
+        oidc_client_id: oidcConfig.oidc_client_id,
+        oidc_redirect_uri: oidcConfig.oidc_redirect_uri || null,
+        oidc_allowed_domains: oidcConfig.oidc_allowed_domains || '',
+        oidc_allowed_emails: oidcConfig.oidc_allowed_emails || '',
+      };
+      if (oidcConfig.oidc_client_secret.trim()) {
+        payload.oidc_client_secret = oidcConfig.oidc_client_secret;
+      }
+      await settingsApi.updateOidc(payload);
+      showSuccess('OIDC settings updated successfully!');
+      
+      const oidc = await settingsApi.getOidc() as any;
+      setOidcConfig(prev => ({
+        ...prev,
+        oidc_client_secret: '',
+        has_client_secret: !!oidc.has_client_secret,
+      }));
+    } catch (err: any) {
+      setError(err.message || 'Failed to update OIDC settings.');
+    } finally {
+      setSavingOidc(false);
+    }
+  };
 
   // Fetch initial tab data on mount or tab change
   useEffect(() => {
@@ -1610,6 +1665,103 @@ export default function AdminCenter() {
                     <Save size={16} /> Save Configurations
                   </button>
                 </div>
+              </div>
+
+              {/* OIDC Authentication Settings */}
+              <div className="card">
+                <h4>OIDC Authentication Settings (SSO)</h4>
+                <p className="dim-text text-sm">
+                  Configure Single Sign-On (SSO) for participants and admins. When enabled, local passcode login is disabled for teams (Initial admins can still log in using the passcode screen).
+                </p>
+                <form onSubmit={handleSaveOidc} className="vertical-form mt-4">
+                  <div className="form-checkbox">
+                    <input
+                      type="checkbox"
+                      id="oidc-enabled-chk"
+                      checked={oidcConfig.oidc_enabled}
+                      onChange={(e) =>
+                        setOidcConfig({
+                          ...oidcConfig,
+                          oidc_enabled: e.target.checked,
+                        })
+                      }
+                      disabled={isObserver}
+                    />
+                    <label htmlFor="oidc-enabled-chk">Enable OIDC (SSO) Authentication</label>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Issuer URL</label>
+                    <input
+                      type="url"
+                      value={oidcConfig.oidc_issuer}
+                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_issuer: e.target.value })}
+                      placeholder="https://accounts.google.com"
+                      disabled={isObserver}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Client ID</label>
+                    <input
+                      type="text"
+                      value={oidcConfig.oidc_client_id}
+                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_client_id: e.target.value })}
+                      placeholder="Enter OIDC Client ID"
+                      disabled={isObserver}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Client Secret</label>
+                    <input
+                      type="password"
+                      value={oidcConfig.oidc_client_secret}
+                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_client_secret: e.target.value })}
+                      placeholder={oidcConfig.has_client_secret ? "•••••••• (Saved. Enter new secret to change)" : "Enter OIDC Client Secret"}
+                      disabled={isObserver}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Redirect URI (Callback)</label>
+                    <input
+                      type="text"
+                      value={oidcConfig.oidc_redirect_uri}
+                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_redirect_uri: e.target.value })}
+                      placeholder="Leave blank to use default (e.g. http://localhost:5173/login/callback)"
+                      disabled={isObserver}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Allowed Email Domains (Comma-separated)</label>
+                    <input
+                      type="text"
+                      value={oidcConfig.oidc_allowed_domains}
+                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_allowed_domains: e.target.value })}
+                      placeholder="e.g. company.com, school.edu"
+                      disabled={isObserver}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Allowed Individual Emails (Comma-separated)</label>
+                    <input
+                      type="text"
+                      value={oidcConfig.oidc_allowed_emails}
+                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_allowed_emails: e.target.value })}
+                      placeholder="e.g. admin@gmail.com, guest@company.com"
+                      disabled={isObserver}
+                    />
+                  </div>
+
+                  <button type="submit" className="btn btn-primary" disabled={isObserver || savingOidc}>
+                    {savingOidc ? 'Saving...' : 'Save OIDC Settings'}
+                  </button>
+                </form>
               </div>
 
               {/* Change Admin Password */}

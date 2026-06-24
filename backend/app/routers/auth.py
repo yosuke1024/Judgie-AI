@@ -9,7 +9,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from app.auth import oidc_handler
 from app.auth.deps import CurrentUser, get_current_user
 from app.auth.jwt_handler import create_access_token
-from app.config import OIDC_ENABLED
+from app.auth.oidc_settings import get_oidc_enabled
 from app.models.db import verify_user
 from app.schemas.schemas import (
     LoginRequest,
@@ -33,7 +33,7 @@ def get_auth_config():
     except Exception:
         supports_video = True
     return {
-        "oidc_enabled": OIDC_ENABLED,
+        "oidc_enabled": get_oidc_enabled(),
         "supports_video": supports_video
     }
 
@@ -41,7 +41,7 @@ def get_auth_config():
 @router.get("/oidc/login", response_model=OIDCLoginInitResponse)
 def oidc_login(response: Response):
     """Initialize OIDC login flow. Generate state and redirect URL."""
-    if not OIDC_ENABLED:
+    if not get_oidc_enabled():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="OIDC authentication is not enabled.",
@@ -71,7 +71,7 @@ def oidc_callback(
     Callback endpoint for OIDC.
     Verifies code and state, queries DB by email, and sets JWT cookie.
     """
-    if not OIDC_ENABLED:
+    if not get_oidc_enabled():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="OIDC authentication is not enabled.",

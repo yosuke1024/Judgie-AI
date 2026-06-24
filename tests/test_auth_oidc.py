@@ -14,14 +14,14 @@ def client():
 
 
 def test_oidc_login_disabled(client):
-    with patch("app.routers.auth.OIDC_ENABLED", False):
+    with patch("app.routers.auth.get_oidc_enabled", return_value=False):
         res = client.get("/api/auth/oidc/login")
         assert res.status_code == 400
         assert "OIDC authentication is not enabled" in res.json()["detail"]
 
 
 def test_oidc_login_enabled(client):
-    with patch("app.routers.auth.OIDC_ENABLED", True), \
+    with patch("app.routers.auth.get_oidc_enabled", return_value=True), \
          patch("app.auth.oidc_handler.get_authorization_url", return_value="https://auth.example.com/oauth2"):
         res = client.get("/api/auth/oidc/login")
         assert res.status_code == 200
@@ -32,7 +32,7 @@ def test_oidc_login_enabled(client):
 
 
 def test_oidc_callback_csrf_fail(client):
-    with patch("app.routers.auth.OIDC_ENABLED", True):
+    with patch("app.routers.auth.get_oidc_enabled", return_value=True):
         res = client.post("/api/auth/oidc/callback", json={"code": "authcode", "state": "badstate"})
         assert res.status_code == 400
         assert "CSRF verification failed" in res.json()["detail"]
@@ -50,7 +50,7 @@ def test_oidc_callback_success(client, db_session_fixture):
     db_session_fixture.commit()
 
     # Initiate state
-    with patch("app.routers.auth.OIDC_ENABLED", True), \
+    with patch("app.routers.auth.get_oidc_enabled", return_value=True), \
          patch("app.auth.oidc_handler.verify_code_and_get_email", return_value="user@example.com"):
 
         state = "valid-state-123"
@@ -66,19 +66,19 @@ def test_oidc_callback_success(client, db_session_fixture):
 
 
 def test_get_auth_config(client):
-    with patch("app.routers.auth.OIDC_ENABLED", True):
+    with patch("app.routers.auth.get_oidc_enabled", return_value=True):
         res = client.get("/api/auth/config")
         assert res.status_code == 200
         assert res.json()["oidc_enabled"] is True
 
-    with patch("app.routers.auth.OIDC_ENABLED", False):
+    with patch("app.routers.auth.get_oidc_enabled", return_value=False):
         res = client.get("/api/auth/config")
         assert res.status_code == 200
         assert res.json()["oidc_enabled"] is False
 
 
 def test_oidc_callback_unregistered(client):
-    with patch("app.routers.auth.OIDC_ENABLED", True), \
+    with patch("app.routers.auth.get_oidc_enabled", return_value=True), \
          patch("app.auth.oidc_handler.verify_code_and_get_email", return_value="unregistered@example.com"):
 
         state = "valid-state-123"
@@ -90,7 +90,7 @@ def test_oidc_callback_unregistered(client):
 
 
 def test_oidc_callback_domain_restricted(client):
-    with patch("app.routers.auth.OIDC_ENABLED", True), \
+    with patch("app.routers.auth.get_oidc_enabled", return_value=True), \
          patch("app.auth.oidc_handler.verify_code_and_get_email", side_effect=ValueError("Email hacker@evil.com is not allowed to access this system")):
 
         state = "valid-state-123"
@@ -99,3 +99,57 @@ def test_oidc_callback_domain_restricted(client):
         res = client.post("/api/auth/oidc/callback", json={"code": "authcode", "state": state})
         assert res.status_code == 403
         assert "not allowed" in res.json()["detail"].lower()
+
+
+def test_oidc_settings_unauthorized(client):
+    res = client.get("/api/settings/oidc")
+    assert res.status_code == 401
+
+    from app.auth.deps import get_current_user
+    from app.schemas.schemas import UserInfo
+    
+    app.dependency_overrides[get_current_user] = lambda: UserInfo(team_id="teamA", role="team")
+    try:
+        res = client.get("/api/settings/oidc")
+        assert res.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_oidc_settings_admin(client):
+    from app.auth.deps import get_current_user
+    from app.schemas.schemas import UserInfo
+    
+    app.dependency_overrides[get_current_user] = lambda: UserInfo(team_id="adminA", role="admin")
+    try:
+        res = client.get("/api/settings/oidc")
+        assert res.status_code == 200
+        data = res.json()
+        assert "oidc_enabled" in data
+        assert "oidc_issuer" in data
+        assert "has_client_secret" in data
+
+        update_data = {
+            "oidc_enabled": True,
+            "oidc_issuer": "https://accounts.google.com",
+            "oidc_client_id": "test-client-id",
+            "oidc_client_secret": "test-secret",
+            "oidc_redirect_uri": "http://localhost/callback",
+            "oidc_allowed_domains": "test.com",
+            "oidc_allowed_emails": "admin@test.com"
+        }
+        res = client.put("/api/settings/oidc", json=update_data)
+        assert res.status_code == 200
+
+        res = client.get("/api/settings/oidc")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["oidc_enabled"] is True
+        assert data["oidc_client_id"] == "test-client-id"
+        assert data["has_client_secret"] is True
+        assert data["oidc_redirect_uri"] == "http://localhost/callback"
+        assert data["oidc_allowed_domains"] == "test.com"
+        assert data["oidc_allowed_emails"] == "admin@test.com"
+    finally:
+        app.dependency_overrides.clear()
+

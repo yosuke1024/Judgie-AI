@@ -161,6 +161,26 @@ class AdminChatResponse(BaseModel):
 # Settings
 # ──────────────────────────────────────────────
 
+class OIDCSettings(BaseModel):
+    oidc_enabled: bool
+    oidc_issuer: str
+    oidc_client_id: str
+    has_client_secret: bool
+    oidc_redirect_uri: str | None = None
+    oidc_allowed_domains: str | None = None
+    oidc_allowed_emails: str | None = None
+
+
+class OIDCSettingsUpdate(BaseModel):
+    oidc_enabled: bool | None = None
+    oidc_issuer: str | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: str | None = None
+    oidc_redirect_uri: str | None = None
+    oidc_allowed_domains: str | None = None
+    oidc_allowed_emails: str | None = None
+
+
 class CriteriaUpdate(BaseModel):
     criteria: list[dict]
 

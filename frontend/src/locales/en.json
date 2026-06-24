@@ -15,7 +15,7 @@
     "demo_subtitle": "Try Judgie-AI immediately without credentials or Gemini API keys. Safe read-only mode.",
     "demo_team": "Try as Team (Participant)",
     "demo_admin": "Try as Admin (Host)",
-    "super_admin_login": "🌍 Super Admin Login",
+    "super_admin_login": "🔐 Admin Login (Passcode)",
     "sso_login_btn": "Sign in with SSO",
     "select_tenant_title": "Select Project",
     "select_tenant_subtitle": "Please select the project and team to access.",

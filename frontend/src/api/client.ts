@@ -237,6 +237,9 @@ export const settingsApi = {
     request('/api/settings/templates/initialize', { method: 'POST', body: data }),
   resetAdminPasscode: (newPasscode: string) =>
     request('/api/settings/admin-passcode', { method: 'PUT', body: { new_passcode: newPasscode } }),
+  getOidc: () => request<Record<string, any>>('/api/settings/oidc'),
+  updateOidc: (data: object) =>
+    request('/api/settings/oidc', { method: 'PUT', body: data }),
 };
 
 // Export

@@ -27,10 +27,21 @@ from app.models.db import (
     set_video_upload_enabled,
     update_admin_passcode,
 )
+from app.auth.oidc_settings import (
+    get_oidc_enabled,
+    get_oidc_issuer,
+    get_oidc_client_id,
+    get_oidc_client_secret,
+    get_oidc_redirect_uri,
+    get_oidc_allowed_domains,
+    get_oidc_allowed_emails,
+)
 from app.schemas.schemas import (
     CriteriaUpdate,
     GeminiConfig,
     LanguageSettings,
+    OIDCSettings,
+    OIDCSettingsUpdate,
     PasscodeChange,
     PasswordChange,
     PersonasUpdate,
@@ -229,3 +240,47 @@ def reset_admin_passcode(
     """Reset the admin passcode."""
     update_admin_passcode(req.new_passcode)
     return {"message": "Admin passcode updated"}
+
+
+# ── OIDC settings ──
+
+@router.get("/oidc", response_model=OIDCSettings)
+def get_oidc_settings_endpoint(user: CurrentUser = Depends(require_role("admin"))):
+    """Get OIDC configuration settings."""
+    allowed_domains = get_oidc_allowed_domains()
+    allowed_emails = get_oidc_allowed_emails()
+    
+    return OIDCSettings(
+        oidc_enabled=get_oidc_enabled(),
+        oidc_issuer=get_oidc_issuer(),
+        oidc_client_id=get_oidc_client_id(),
+        has_client_secret=bool(get_oidc_client_secret()),
+        oidc_redirect_uri=get_oidc_redirect_uri(),
+        oidc_allowed_domains=",".join(allowed_domains) if allowed_domains else "",
+        oidc_allowed_emails=",".join(allowed_emails) if allowed_emails else "",
+    )
+
+
+@router.put("/oidc")
+def update_oidc_settings(
+    req: OIDCSettingsUpdate,
+    user: CurrentUser = Depends(require_role("admin")),
+):
+    """Update OIDC configuration settings."""
+    if req.oidc_enabled is not None:
+        set_setting("oidc_enabled", "true" if req.oidc_enabled else "false")
+    if req.oidc_issuer is not None:
+        set_setting("oidc_issuer", req.oidc_issuer)
+    if req.oidc_client_id is not None:
+        set_setting("oidc_client_id", req.oidc_client_id)
+    if req.oidc_client_secret:  # Only update if not empty/None
+        set_setting("oidc_client_secret", req.oidc_client_secret)
+    if req.oidc_redirect_uri is not None:
+        set_setting("oidc_redirect_uri", req.oidc_redirect_uri)
+    if req.oidc_allowed_domains is not None:
+        set_setting("oidc_allowed_domains", req.oidc_allowed_domains)
+    if req.oidc_allowed_emails is not None:
+        set_setting("oidc_allowed_emails", req.oidc_allowed_emails)
+
+    return {"message": "OIDC settings updated"}
+
