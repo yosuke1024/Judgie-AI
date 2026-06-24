@@ -18,7 +18,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    UniqueConstraint,
     create_engine,
     func,
     text,
@@ -330,7 +329,7 @@ def get_criteria():
     val = get_setting("evaluation_criteria")
     if val:
         return json.loads(val)
-    
+
     template_id = get_setting("template_id")
     if template_id:
         tpl = TEMPLATES.get(template_id)
@@ -432,59 +431,7 @@ def set_max_consultations(max_consultations: int):
     set_setting("max_consultations", str(max_consultations))
 
 
-# --- Hackathon CRUD ---
 
-def create_hackathon(
-    name: str, admin_id: str, admin_pass: str,
-    template_id: str = None, custom_template_data: dict = None,
-) -> int:
-    from app.security import hash_passcode
-    from app.services.templates import TEMPLATES
-
-    with db_session() as db:
-        hackathon = Hackathon(
-            name=name, template_id=template_id,
-            re_evaluation_context_mode="cumulative", max_qa_turns=1, max_consultations=3,
-        )
-        db.add(hackathon)
-        db.flush()
-
-        admin_user = User(
-            hackathon_id=hackathon.id, team_id=admin_id,
-            passcode=hash_passcode(admin_pass), role="admin",
-        )
-        db.add(admin_user)
-        db.flush()
-
-        if template_id:
-            selected_criteria = None
-            selected_personas = None
-            re_eval_mode = "cumulative"
-            max_qa = 1
-            max_cons = 3
-
-            if custom_template_data:
-                selected_criteria = custom_template_data.get("criteria")
-                selected_personas = custom_template_data.get("personas")
-                re_eval_mode = custom_template_data.get("re_evaluation_context_mode", "cumulative")
-                max_qa = custom_template_data.get("max_qa_turns", 1)
-                max_cons = custom_template_data.get("max_consultations", 3)
-            elif template_id in TEMPLATES:
-                tpl = TEMPLATES[template_id]
-                selected_criteria = tpl.get("criteria")
-                selected_personas = tpl.get("personas")
-                re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
-                max_qa = tpl.get("max_qa_turns", 1)
-                max_cons = tpl.get("max_consultations", 3)
-            else:
-                tpl = TEMPLATES.get("hackathon", {})
-                selected_criteria = tpl.get("criteria")
-                selected_personas = tpl.get("personas")
-
-            hackathon.template_id = template_id
-            hackathon.re_evaluation_context_mode = re_eval_mode
-            hackathon.max_qa_turns = max_qa
-            hackathon.max_consultations = max_cons
 
 def initialize_project_template(template_id: str, custom_template_data: dict = None):
     from app.services.templates import TEMPLATES

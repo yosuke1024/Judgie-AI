@@ -3,8 +3,6 @@ import json
 from app.models.db import (
     AdminChat,
     Evaluation,
-    Session,
-    Setting,
     TeamChat,
     User,
     change_my_passcode,
@@ -22,6 +20,7 @@ from app.models.db import (
     get_setting,
     get_team_profile,
     init_db,
+    initialize_project_template,
     is_video_upload_enabled,
     save_admin_chat,
     save_evaluation,
@@ -36,7 +35,6 @@ from app.models.db import (
     update_team_passcode,
     update_team_profile,
     verify_user,
-    initialize_project_template,
 )
 from app.security import hash_passcode, verify_passcode
 

@@ -3,9 +3,7 @@ Authentication router: login, logout, current user.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
 
-import jwt
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 
 from app.auth import oidc_handler

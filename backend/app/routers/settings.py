@@ -31,11 +31,11 @@ from app.schemas.schemas import (
     CriteriaUpdate,
     GeminiConfig,
     LanguageSettings,
-    PasswordChange,
     PasscodeChange,
+    PasswordChange,
     PersonasUpdate,
-    ProjectSettings,
     ProjectInitialize,
+    ProjectSettings,
 )
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])

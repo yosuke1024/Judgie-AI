@@ -1,7 +1,7 @@
 import io
 import zipfile
 
-from app.models.db import User, save_evaluation, set_ai_response_languages, set_setting, init_db
+from app.models.db import User, init_db, save_evaluation, set_ai_response_languages, set_setting
 from app.services.export_service import (
     export_project_to_markdown,
     export_project_to_markdown_zip,

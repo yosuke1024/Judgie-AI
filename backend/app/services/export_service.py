@@ -12,8 +12,8 @@ from app.models.db import (
     User,
     get_ai_response_languages,
     get_criteria,
-    normalize_lang_to_key,
     get_setting,
+    normalize_lang_to_key,
 )
 
 
