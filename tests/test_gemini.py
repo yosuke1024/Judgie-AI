@@ -18,7 +18,7 @@ def test_upload_to_gemini(mocker):
     # Mock Client instance and files.upload
     mock_client = MagicMock()
     mock_client.files.upload.return_value = "mock_file_obj"
-    mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
+    mocker.patch("app.core.llm.gemini.GeminiProvider._get_client", return_value=mock_client)
 
     res = upload_to_gemini("dummy_path.mp4", mime_type="video/mp4")
 
@@ -37,7 +37,7 @@ def test_wait_for_files_active_success(mocker):
 
     mock_client = MagicMock()
     mock_client.files.get.side_effect = [mock_file_processing, mock_file_active]
-    mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
+    mocker.patch("app.core.llm.gemini.GeminiProvider._get_client", return_value=mock_client)
 
     mock_file_input = MagicMock()
     mock_file_input.name = "files/testfile"
@@ -56,7 +56,7 @@ def test_wait_for_files_active_failed(mocker):
 
     mock_client = MagicMock()
     mock_client.files.get.return_value = mock_file_failed
-    mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
+    mocker.patch("app.core.llm.gemini.GeminiProvider._get_client", return_value=mock_client)
 
     mock_file_input = MagicMock()
     mock_file_input.name = "files/testfile"
@@ -86,7 +86,7 @@ def test_analyze_submission(mocker):
     mock_response.text = '{"scores": {"Innovation": 4.5}, "impact_score": 4.5}'
     mock_client = MagicMock()
     mock_client.models.generate_content.return_value = mock_response
-    mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
+    mocker.patch("app.core.llm.gemini.GeminiProvider._get_client", return_value=mock_client)
 
     res = analyze_submission(
         text_content="print('hello')",
@@ -109,7 +109,7 @@ def test_object_to_judges(mocker):
     mock_response.text = '{"qa_summary_en": "Objection rejected", "judges_responses": []}'
     mock_client = MagicMock()
     mock_client.models.generate_content.return_value = mock_response
-    mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
+    mocker.patch("app.core.llm.gemini.GeminiProvider._get_client", return_value=mock_client)
 
     res = object_to_judges(
         text_content="print('hello')",
@@ -135,7 +135,7 @@ def test_admin_chat_about_submission(mocker):
     mock_client = MagicMock()
     mock_client.files.get.return_value = mock_file
     mock_client.models.generate_content.return_value = mock_response
-    mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
+    mocker.patch("app.core.llm.gemini.GeminiProvider._get_client", return_value=mock_client)
 
     res = admin_chat_about_submission(
         source_text="source",
@@ -170,7 +170,7 @@ def test_list_available_gemini_models(mocker):
 
     mock_client = MagicMock()
     mock_client.models.list.return_value = [mock_model_1, mock_model_2, mock_model_3, mock_model_4]
-    mocker.patch("app.services.gemini.get_gemini_client", return_value=mock_client)
+    mocker.patch("app.core.llm.gemini.GeminiProvider._get_client", return_value=mock_client)
 
     res = list_available_gemini_models()
 
