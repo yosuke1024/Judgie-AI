@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { teamsApi, evaluationsApi, submissionsApi, chatApi, settingsApi, pollTaskUntilDone } from '@/api/client';
+import { teamsApi, evaluationsApi, submissionsApi, chatApi, settingsApi, authApi, pollTaskUntilDone } from '@/api/client';
 import {
   Upload,
   FileText,
@@ -105,6 +105,7 @@ export default function TeamDashboard() {
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [supportsVideo, setSupportsVideo] = useState(true);
 
   // Evaluation & History States
   const [evaluations, setEvaluations] = useState<EvaluationItem[]>([]);
@@ -164,6 +165,15 @@ export default function TeamDashboard() {
   useEffect(() => {
     const fetchConfig = async () => {
       if (!user) return;
+      try {
+        const config = await authApi.getConfig();
+        if (config && typeof config.supports_video === 'boolean') {
+          setSupportsVideo(config.supports_video);
+        }
+      } catch (err) {
+        console.error('Failed to fetch auth config:', err);
+      }
+
       try {
         const langData = await settingsApi.getLanguages();
         if (langData && langData.languages) {
@@ -385,6 +395,23 @@ export default function TeamDashboard() {
   }, [isReadOnly, evaluations, user?.consultation_count]);
 
   const isConsultationLimitReached = maxConsultations !== -1 && effectiveConsultationCount >= maxConsultations;
+
+  const hasVideoFile = useMemo(() => {
+    if (supportsVideo) return false;
+    return selectedFiles.some(file => {
+      const name = file.name.toLowerCase();
+      return name.endsWith('.mp4') || name.endsWith('.mov');
+    });
+  }, [selectedFiles, supportsVideo]);
+
+  // Validate selected files for video support
+  useEffect(() => {
+    if (hasVideoFile) {
+      setUploadError(t('team.video_not_supported_error'));
+    } else if (uploadError === t('team.video_not_supported_error')) {
+      setUploadError('');
+    }
+  }, [hasVideoFile, t, uploadError]);
 
   if (!user || !effectiveTeamId) return null;
 
@@ -1197,7 +1224,7 @@ export default function TeamDashboard() {
                   onDrop={handleDrop}
                 >
                   <Upload size={32} />
-                  <p>{t('team.upload_hint')}</p>
+                  <p>{supportsVideo ? t('team.upload_hint') : t('team.upload_hint_no_video')}</p>
                   <input
                     type="file"
                     multiple
@@ -1279,7 +1306,8 @@ export default function TeamDashboard() {
                   disabled={
                     uploading ||
                     selectedFiles.length === 0 ||
-                    (!isFinalUpload && isConsultationLimitReached)
+                    (!isFinalUpload && isConsultationLimitReached) ||
+                    hasVideoFile
                   }
                 >
                   {uploading ? (

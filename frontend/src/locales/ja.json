@@ -57,6 +57,8 @@
     "qa": "審査員とのQ&A",
     "upload_files": "ファイルをアップロード",
     "upload_hint": "ZIP、PDF、MP4、MOVファイルをドラッグ＆ドロップ、またはクリックしてアップロード。",
+    "upload_hint_no_video": "ZIPまたはPDFファイルをドラッグ＆ドロップ、またはクリックしてアップロード（動画は現在サポートされていません）。",
+    "video_not_supported_error": "選択したプロバイダは動画解析に対応していません。動画ファイルを除外してください。",
     "consultation": "AIコンサルテーション提出",
     "final_submission": "最終提出",
     "product_name": "プロダクト名",

@@ -57,6 +57,8 @@
     "qa": "Q&A with Judges",
     "upload_files": "Upload Files",
     "upload_hint": "Drag & drop or click to upload your ZIP, PDF, MP4, or MOV files.",
+    "upload_hint_no_video": "Drag & drop or click to upload your ZIP or PDF files (Video is not supported currently).",
+    "video_not_supported_error": "The selected provider does not support video analysis. Please remove video files.",
     "consultation": "Submit for AI Consultation",
     "final_submission": "Final Submission",
     "product_name": "Product Name",

@@ -106,7 +106,6 @@ export const authApi = {
       team_name?: string;
       one_liner?: string;
     }>('/api/auth/me'),
-  getConfig: () => request<{ oidc_enabled: boolean }>('/api/auth/config'),
   oidcLogin: () => request<{ auth_url: string; state: string }>('/api/auth/oidc/login'),
   oidcCallback: (data: { code: string; state: string }) =>
     request<{
@@ -117,6 +116,11 @@ export const authApi = {
       method: 'POST',
       body: data,
     }),
+  getConfig: () =>
+    request<{
+      oidc_enabled: boolean;
+      supports_video: boolean;
+    }>('/api/auth/config'),
 };
 
 // Teams

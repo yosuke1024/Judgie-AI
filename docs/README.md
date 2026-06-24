@@ -6,6 +6,7 @@
 - [テナント作成時のテンプレート適用仕様書](file:///Users/suzukiyousuke/repo/Judgie/docs/current/tenant_template_spec.md) (Status: implemented)
 - [管理者向けチームダッシュボード表示機能仕様書](file:///Users/suzukiyousuke/repo/Judgie/docs/current/admin_team_dashboard_spec.md) (Status: implemented)
 - [AI Judge, Criteria, 登録チームの有効・無効切り替え機能仕様書](file:///Users/suzukiyousuke/repo/Judgie/docs/current/active_status_toggle_spec.md) (Status: implemented)
+- [複数LLMプロバイダ抽象化と動画サポートUX制限 仕様書](file:///Users/suzukiyousuke/repo/Judgie/docs/current/llm_provider_abstraction_spec.md) (Status: implemented)
 
 
 ## Manuals & Other Docs

@@ -19,3 +19,7 @@ requests>=2.34.2
 
 # Data (used by export service)
 pandas>=2.2.0
+
+# OpenAI and Anthropic SDKs
+openai>=1.0.0
+anthropic>=0.10.0

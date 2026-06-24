@@ -89,6 +89,13 @@ for _ in range(5):
 if not TEMPLATES_DIR:
     TEMPLATES_DIR = os.path.join(os.path.dirname(BASE_DIR), "templates")
 
+# --- LLM Providers ---
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini").lower()
+LLM_MODEL = os.environ.get("LLM_MODEL")
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
 # --- IP Address Restriction ---
 _raw_allowed_ips = os.environ.get("ALLOWED_IPS", "")
 ALLOWED_IPS = []
