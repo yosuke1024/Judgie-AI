@@ -69,4 +69,16 @@ SCORING_WEIGHTS = {
 }
 
 # --- Templates directory ---
-TEMPLATES_DIR = os.path.join(os.path.dirname(BASE_DIR), "templates")
+# Resolve dynamically to support both local dev and Docker context
+_HERE = os.path.abspath(__file__)
+_DIR = _HERE
+TEMPLATES_DIR = None
+for _ in range(5):
+    _DIR = os.path.dirname(_DIR)
+    _potential = os.path.join(_DIR, "templates")
+    if os.path.exists(_potential) and os.path.isdir(_potential):
+        TEMPLATES_DIR = _potential
+        break
+
+if not TEMPLATES_DIR:
+    TEMPLATES_DIR = os.path.join(os.path.dirname(BASE_DIR), "templates")
