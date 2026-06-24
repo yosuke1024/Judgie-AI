@@ -107,7 +107,7 @@ function AppRoutes() {
         <Route
           path="manual"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'observer', 'team', 'superadmin']}>
+            <ProtectedRoute allowedRoles={['admin', 'observer', 'team']}>
               <ManualPage />
             </ProtectedRoute>
           }

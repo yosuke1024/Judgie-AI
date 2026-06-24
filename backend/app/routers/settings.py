@@ -202,7 +202,7 @@ def update_languages(
 @router.post("/change-password")
 def change_password(
     req: PasswordChange,
-    user: CurrentUser = Depends(require_role("admin", "superadmin")),
+    user: CurrentUser = Depends(require_role("admin")),
 ):
     """Change the current user's password."""
     success = change_my_passcode(

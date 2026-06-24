@@ -182,9 +182,9 @@ npm run dev
 Open `http://localhost:5173` in your browser.
 
 Initial Login & Config:
-Upon the first launch, a default `superadmin` account is created automatically.
-- **Team ID**: `superadmin`
-- **Passcode**: `superadmin123`
+Upon the first launch, a default `admin` account is created automatically.
+- **Team ID**: `admin`
+- **Passcode**: `admin123`
 
 Log in using your administrator credentials. **Please change your password immediately after your first login.**
 
@@ -198,11 +198,9 @@ You can deploy Judgie-AI to Railway with a single click. This template automatic
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/judgieai)
 
 During deployment, you will be prompted to set the following environment variables:
-- `DEFAULT_ADMIN_ID`: The login ID for your Project Admin dashboard.
-- `DEFAULT_ADMIN_PASSCODE`: The passcode for your Admin account.
-- `DEFAULT_HACKATHON_NAME`: The name of your evaluation project.
-
-When these environment variables are provided, the platform automatically disables the system-wide SuperAdmin (`superadmin`/`superadmin123`) for security reasons, so you can log in directly as your project's administrator.
+- `DEFAULT_ADMIN_ID`: The login ID for your Admin dashboard. (Default: `admin`)
+- `DEFAULT_ADMIN_PASSCODE`: The passcode for your Admin account. (Default: `admin123`)
+- `DEFAULT_HACKATHON_NAME`: The name of your evaluation project. (Default: `Default Project`)
 
 ### 3. Deploying to Google Cloud Platform (GCP)
 Judgie-AI supports deployment to GCP using **Cloud Build** and **Cloud Run**. Depending on your budget and scaling needs, you can easily toggle between **SQLite with Litestream** (recommended for low-cost deployments) and **PostgreSQL (Cloud SQL)** (recommended for high-concurrency deployments).
@@ -243,12 +241,11 @@ The deployment configuration is defined in [cloudbuild.yaml](file:///Users/suzuk
 ### Roles & Access
 | Role | Example ID | Primary Responsibilities |
 |---|---|---|
-| **🌍 Super Admin** | `superadmin` | Create new evaluation projects, reset admin passwords, manage the system globally. |
-| **👑 Project Admin** | (Issued by Super Admin) | Set evaluation criteria, manage personas, register teams, view the scoreboard. |
+| **👑 Admin** | `admin` | Set evaluation criteria, manage settings/OIDC, manage personas, register teams, view the scoreboard. |
 | **🧑‍💻 Team (Participant)** | (Issued by Admin) | Upload submissions, request AI coaching/evaluations, edit profiles, object/discuss with judges. |
 
 ### User Manuals
-For detailed instructions on how to use the platform as a Team (Participant), Project Admin, or Super Admin, please refer to our bilingual user manuals:
+For detailed instructions on how to use the platform as a Team (Participant) or Admin, please refer to our bilingual user manuals:
 - [📖 English User Manual](docs/user_manual_en.md)
 - [📖 日本語 ユーザーマニュアル](docs/user_manual_ja.md)
 

@@ -50,8 +50,8 @@ The system administrator is responsible for initial setup, configuring OIDC (SSO
 ### 2-1. Initial Login & Security Setup
 1. Click the **"🔐 Admin Login (Passcode)"** link at the bottom of the login page to switch to the passcode login form.
 2. Log in using the default credentials (unless customized via env vars like `DEFAULT_ADMIN_ID`):
-   - **ID:** `superadmin`
-   - **Passcode:** `superadmin123`
+   - **ID:** `admin`
+   - **Passcode:** `admin123`
 3. After logging in, navigate to the **"👑 Command Center"** using the top navigation menu.
 4. > [!CAUTION]
    > For security reasons, please change the default passcode immediately using the **"System Settings"** -> **"Change Admin Passcode"** section.
@@ -66,13 +66,13 @@ You can configure Single Sign-On (SSO) in the **"System Settings"** tab, under t
   - **Redirect URI:** The callback URL (e.g., `http://localhost:5173/login/callback`). Leave blank to use the default value.
   - **Allowed Email Domains / Allowed Individual Emails:** Restrict access to specific email domains or addresses (comma-separated list). Leave blank to allow any authenticated user.
 * **Emergency Login Bypass (Anti-Lockout):**
-  If OIDC is misconfigured, the seed administrator accounts (e.g., `superadmin`) can still log in locally via the **"Admin Login"** link at the bottom, using their passcode. Once logged in, you can update OIDC credentials or turn OIDC off.
+  If OIDC is misconfigured, the seed administrator accounts (e.g., `admin`) can still log in locally via the **"Admin Login"** link at the bottom, using their passcode. Once logged in, you can update OIDC credentials or turn OIDC off.
 
 ---
 
 ## 3. 👑 Project Admin (Organizer) Guide
 
-Project Admins log in using their administrator credentials (`admin` or `superadmin`) to set up the evaluation environment, manage AI judges, register teams, and monitor evaluations.
+Project Admins log in using their administrator credentials (`admin`) to set up the evaluation environment, manage AI judges, register teams, and monitor evaluations.
 
 ### 3-1. Logging in as Project Admin
 1. Navigate to the login page (`http://localhost:5173/login`).

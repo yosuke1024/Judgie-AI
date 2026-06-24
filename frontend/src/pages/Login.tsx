@@ -53,8 +53,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      if (user.role === 'superadmin') navigate('/super-admin');
-      else if (user.role === 'admin') navigate('/admin');
+      if (user.role === 'admin') navigate('/admin');
       else navigate('/dashboard');
     }
   }, [user, navigate]);
@@ -166,7 +165,7 @@ export default function LoginPage() {
                 type="text"
                 value={teamId}
                 onChange={(e) => setTeamId(e.target.value)}
-                placeholder={isLocalAdmin ? 'admin or superadmin' : ''}
+                placeholder={isLocalAdmin ? 'admin' : ''}
                 autoComplete="username"
               />
             </div>

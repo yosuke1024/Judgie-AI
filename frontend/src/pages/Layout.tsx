@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Trophy, Settings, Shield, LogOut, Zap, Globe, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Trophy, Settings, LogOut, Zap, Globe, BookOpen } from 'lucide-react';
 
 const GithubIcon = ({ size = 16 }: { size?: number }) => (
   <svg
@@ -62,12 +62,10 @@ export default function Layout() {
             </NavLink>
           )}
 
-          {user.role !== 'superadmin' && (
-            <NavLink to="/leaderboard" className="nav-link">
-              <Trophy size={18} />
-              <span>{t('nav.leaderboard')}</span>
-            </NavLink>
-          )}
+          <NavLink to="/leaderboard" className="nav-link">
+            <Trophy size={18} />
+            <span>{t('nav.leaderboard')}</span>
+          </NavLink>
 
           {showAdminCenter && (
             <NavLink to="/admin" className="nav-link">
@@ -138,12 +136,7 @@ export default function Layout() {
             </>
           )}
 
-          {user.role === 'superadmin' && (
-            <NavLink to="/super-admin" className="nav-link">
-              <Shield size={18} />
-              <span>{t('nav.super_admin')}</span>
-            </NavLink>
-          )}
+
 
           <NavLink to="/manual" className="nav-link">
             <BookOpen size={18} />

@@ -43,7 +43,7 @@ Please refer to the **Local Development Setup** section in the [README.md](READM
 Briefly:
 1. Start the FastAPI backend server on port 8000.
 2. Start the React frontend client (Vite) on port 5173.
-3. Log in as `superadmin` (passcode: `superadmin123`) at `http://localhost:5173` to create your evaluation project. Then, log in as the newly created project admin and configure your Gemini API Key in the **System Settings** UI.
+3. Log in as `admin` (passcode: `admin123`) at `http://localhost:5173` to access the Admin Command Center. Then, configure your Gemini API Key in the **System Settings** UI.
 
 ## Coding Guidelines
 Please refer to the existing code style. We encourage clear variable names, concise functions, and documenting complex logic ("Why" over "What").

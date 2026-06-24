@@ -45,7 +45,7 @@ def get_current_user(access_token: str | None = Cookie(default=None)) -> Current
 def require_role(*roles: str):
     """
     Returns a FastAPI dependency that enforces role-based access control.
-    Usage: Depends(require_role("admin", "superadmin"))
+    Usage: Depends(require_role("admin"))
     """
 
     def _check(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:

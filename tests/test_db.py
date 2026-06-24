@@ -40,19 +40,19 @@ from app.security import hash_passcode, verify_passcode
 
 
 def test_init_db(db_session_fixture):
-    # Test init_db. Ensure the superadmin user is created by default.
+    # Test init_db. Ensure the admin user is created by default.
     init_db()
-    superadmin = db_session_fixture.query(User).filter(User.role == "superadmin").first()
-    assert superadmin is not None
-    assert superadmin.team_id == "superadmin"
+    admin = db_session_fixture.query(User).filter(User.role == "admin").first()
+    assert admin is not None
+    assert admin.team_id == "admin"
 
 
 def test_verify_user(db_session_fixture):
     init_db()
 
-    # 1. Superadmin authentication
-    assert verify_user("superadmin", "superadmin123") == {"role": "superadmin", "email": None}
-    assert verify_user("superadmin", "wrongpass") is None
+    # 1. Admin authentication
+    assert verify_user("admin", "admin123") == {"role": "admin", "email": None}
+    assert verify_user("admin", "wrongpass") is None
 
     # 2. Team user authentication
     team_user = User(team_id="teamA", passcode=hash_passcode("teampass"), role="team")

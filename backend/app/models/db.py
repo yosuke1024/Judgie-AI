@@ -57,7 +57,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     team_id = Column(String, nullable=False, unique=True)
     passcode = Column(String, nullable=False)
-    role = Column(String, nullable=False)  # 'superadmin', 'admin', 'team', 'observer'
+    role = Column(String, nullable=False)  # 'admin', 'team', 'observer'
     email = Column(String, nullable=True)
     product_name = Column(String)
     team_name = Column(String)
@@ -189,41 +189,31 @@ def init_db():
         except Exception:
             pass
 
-    # Seed SuperAdmin or single-tenant admin
+    # Seed default admin user and settings
     from app.security import hash_passcode
 
     with db_session() as db:
-        default_admin_id = os.environ.get("DEFAULT_ADMIN_ID")
-        default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSCODE")
+        default_admin_id = os.environ.get("DEFAULT_ADMIN_ID", "admin")
+        default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSCODE", "admin123")
 
-        if not default_admin_id:
-            superadmin = db.query(User).filter(User.role == "superadmin").first()
-            if not superadmin:
-                superadmin = User(
-                    team_id="superadmin",
-                    passcode=hash_passcode("superadmin123"),
-                    role="superadmin",
-                )
-                db.add(superadmin)
-        else:
-            # Seed project settings in settings table
-            project_name = os.environ.get("DEFAULT_HACKATHON_NAME", "Default Project")
-            if not get_setting("project_name"):
-                set_setting("project_name", project_name, db=db)
-                set_setting("re_evaluation_context_mode", "cumulative", db=db)
-                set_setting("max_qa_turns", "1", db=db)
-                set_setting("max_consultations", "3", db=db)
-                set_setting("video_upload_enabled", "true", db=db)
+        # Seed project settings in settings table
+        project_name = os.environ.get("DEFAULT_HACKATHON_NAME", "Default Project")
+        if not get_setting("project_name"):
+            set_setting("project_name", project_name, db=db)
+            set_setting("re_evaluation_context_mode", "cumulative", db=db)
+            set_setting("max_qa_turns", "1", db=db)
+            set_setting("max_consultations", "3", db=db)
+            set_setting("video_upload_enabled", "true", db=db)
 
-            admin_user = db.query(User).filter(User.team_id == default_admin_id).first()
-            if not admin_user:
-                admin_user = User(
-                    team_id=default_admin_id,
-                    passcode=hash_passcode(default_admin_pass),
-                    role="admin",
-                )
-                db.add(admin_user)
-                db.flush()
+        admin_user = db.query(User).filter(User.team_id == default_admin_id).first()
+        if not admin_user:
+            admin_user = User(
+                team_id=default_admin_id,
+                passcode=hash_passcode(default_admin_pass),
+                role="admin",
+            )
+            db.add(admin_user)
+            db.flush()
 
 
 # ──────────────────────────────────────────────
@@ -234,9 +224,6 @@ def init_db():
 def verify_user(team_id: str, passcode: str) -> dict | None:
     """Verify user credentials and return role if valid."""
     from app.security import verify_passcode
-
-    if team_id == "superadmin" and os.environ.get("DEFAULT_ADMIN_ID"):
-        return None
 
     with db_session() as db:
         user = db.query(User).filter(User.team_id == team_id, User.is_active).first()
