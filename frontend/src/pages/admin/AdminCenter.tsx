@@ -13,9 +13,7 @@ import {
   Users,
   Sliders,
   Shield,
-  BarChart3,
   Search,
-  Languages,
   Settings as SettingsIcon,
   Download,
   Plus,
@@ -41,15 +39,7 @@ interface TeamItem {
   is_active?: boolean;
 }
 
-interface ScoreboardEntry {
-  team_id: string;
-  product_name: string | null;
-  team_name: string | null;
-  one_liner: string | null;
-  total_score: number;
-  status: string;
-  consults: number;
-}
+
 
 interface EvaluationItem {
   id: number;
@@ -118,8 +108,7 @@ export default function AdminCenter() {
   // --- Tab 3: Personas ---
   const [personas, setPersonas] = useState<any[]>([]);
 
-  // --- Tab 4: Scoreboard ---
-  const [scores, setScores] = useState<ScoreboardEntry[]>([]);
+
 
   // --- Tab 5: Deep Dive ---
   const [diveTeamId, setDiveTeamId] = useState('');
@@ -210,14 +199,7 @@ export default function AdminCenter() {
     }
   }, []);
 
-  const loadScoreboard = useCallback(async () => {
-    try {
-      const data = await evaluationsApi.getScoreboard();
-      setScores(data);
-    } catch (err: any) {
-      console.error(err);
-    }
-  }, []);
+
 
   const loadLanguages = useCallback(async () => {
     try {
@@ -312,14 +294,13 @@ export default function AdminCenter() {
     if (activeTab === 'teams') loadTeams();
     else if (activeTab === 'criteria') loadCriteria();
     else if (activeTab === 'personas') loadPersonas();
-    else if (activeTab === 'scoreboard') loadScoreboard();
     else if (activeTab === 'deep_dive') loadLanguages();
-    else if (activeTab === 'languages') loadLanguages();
     else if (activeTab === 'settings') {
       loadSettings();
       loadTemplates();
+      loadLanguages();
     }
-  }, [activeTab, loadTeams, loadCriteria, loadPersonas, loadScoreboard, loadLanguages, loadSettings, loadTemplates]);
+  }, [activeTab, loadTeams, loadCriteria, loadPersonas, loadLanguages, loadSettings, loadTemplates]);
 
   // --- Handlers: Teams Tab ---
   const handleCreateTeam = async (e: React.FormEvent) => {
@@ -713,25 +694,11 @@ export default function AdminCenter() {
           {t('admin.personas_tab')}
         </button>
         <button
-          className={`tab-btn ${activeTab === 'scoreboard' ? 'active' : ''}`}
-          onClick={() => setActiveTab('scoreboard')}
-        >
-          <BarChart3 size={16} />
-          {t('admin.scoreboard_tab')}
-        </button>
-        <button
           className={`tab-btn ${activeTab === 'deep_dive' ? 'active' : ''}`}
           onClick={() => setActiveTab('deep_dive')}
         >
           <Search size={16} />
           {t('admin.deep_dive_tab')}
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'languages' ? 'active' : ''}`}
-          onClick={() => setActiveTab('languages')}
-        >
-          <Languages size={16} />
-          {t('admin.languages_tab')}
         </button>
         <button
           className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
@@ -1141,70 +1108,7 @@ export default function AdminCenter() {
           </div>
         )}
 
-        {/* ================================================================= */}
-        {/* TAB: SCOREBOARD */}
-        {/* ================================================================= */}
-        {activeTab === 'scoreboard' && (
-          <div className="tab-pane scoreboard-pane">
-            <div className="card">
-              <div className="card-header-flex">
-                <h4>Scoreboard Dashboard</h4>
-                <button onClick={loadScoreboard} className="btn btn-ghost btn-sm">
-                  <RefreshCw size={14} /> Refresh Rankings
-                </button>
-              </div>
 
-              <div className="table-wrapper mt-4">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Rank</th>
-                      <th>Team ID</th>
-                      <th>Product Info</th>
-                      <th>Consultations</th>
-                      <th>Status</th>
-                      <th>Final Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {scores.map((s, idx) => (
-                      <tr key={s.team_id}>
-                        <td><strong>#{idx + 1}</strong></td>
-                        <td><strong>{s.team_id}</strong></td>
-                        <td>
-                          <div>
-                            <strong>{s.product_name || 'No Product Name'}</strong>
-                            {s.team_name && <div className="text-xs dim-text">{s.team_name}</div>}
-                          </div>
-                        </td>
-                        <td>{s.consults}</td>
-                        <td>
-                          <span
-                            className={`status-badge ${
-                              s.status.includes('Final') ? 'status-final' : 'status-progress'
-                            }`}
-                          >
-                            {s.status}
-                          </span>
-                        </td>
-                        <td className="score-cell">
-                          <strong>{s.total_score.toFixed(1)}</strong>
-                        </td>
-                      </tr>
-                    ))}
-                    {scores.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="text-center dim-text">
-                          No team submissions yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ================================================================= */}
         {/* TAB: DEEP DIVE (Admin Private Q&A) */}
@@ -1430,53 +1334,7 @@ export default function AdminCenter() {
           </div>
         )}
 
-        {/* ================================================================= */}
-        {/* TAB: LANGUAGES */}
-        {/* ================================================================= */}
-        {activeTab === 'languages' && (
-          <div className="tab-pane languages-pane">
-            <div className="card">
-              <h4>Configured AI Output Languages</h4>
-              <p className="dim-text text-sm">
-                Add language formats in which the AI judges will respond. English and Japanese are built-in.
-              </p>
 
-              <div className="languages-setup mt-4">
-                <div className="languages-list">
-                  {languages.map((l) => (
-                    <div key={l} className="lang-tag">
-                      <span>{l}</span>
-                      <button onClick={() => handleRemoveLanguage(l)} className="btn-remove" disabled={isObserver}>
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="add-language-form mt-4">
-                  <div className="form-group inline-flex">
-                    <input
-                      type="text"
-                      value={newLang}
-                      onChange={(e) => setNewLang(e.target.value)}
-                      placeholder="e.g. Thai, French, Spanish"
-                      disabled={isObserver}
-                    />
-                    <button onClick={handleAddLanguage} className="btn btn-secondary" disabled={isObserver}>
-                      Add Language
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="panel-actions mt-6">
-                <button onClick={handleSaveLanguages} className="btn btn-primary" disabled={isObserver}>
-                  <Save size={16} /> Save Languages Settings
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ================================================================= */}
         {/* TAB: SETTINGS */}
@@ -1762,6 +1620,48 @@ export default function AdminCenter() {
                     {savingOidc ? 'Saving...' : 'Save OIDC Settings'}
                   </button>
                 </form>
+              </div>
+
+              {/* Configured AI Output Languages */}
+              <div className="card">
+                <h4>Configured AI Output Languages</h4>
+                <p className="dim-text text-sm">
+                  Add language formats in which the AI judges will respond. English and Japanese are built-in.
+                </p>
+
+                <div className="languages-setup mt-4">
+                  <div className="languages-list">
+                    {languages.map((l) => (
+                      <div key={l} className="lang-tag">
+                        <span>{l}</span>
+                        <button onClick={() => handleRemoveLanguage(l)} className="btn-remove" disabled={isObserver}>
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="add-language-form mt-4">
+                    <div className="form-group inline-flex">
+                      <input
+                        type="text"
+                        value={newLang}
+                        onChange={(e) => setNewLang(e.target.value)}
+                        placeholder="e.g. Thai, French, Spanish"
+                        disabled={isObserver}
+                      />
+                      <button onClick={handleAddLanguage} className="btn btn-secondary" disabled={isObserver}>
+                        Add Language
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="panel-actions mt-6">
+                  <button onClick={handleSaveLanguages} className="btn btn-primary" disabled={isObserver}>
+                    <Save size={16} /> Save Languages Settings
+                  </button>
+                </div>
               </div>
 
               {/* Change Admin Password */}
