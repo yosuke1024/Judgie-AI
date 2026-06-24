@@ -21,8 +21,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and install Litestream
-ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.deb /tmp/litestream.deb
-RUN dpkg -i /tmp/litestream.deb && rm /tmp/litestream.deb
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
+        LITESTREAM_ARCH="arm64"; \
+    else \
+        LITESTREAM_ARCH="amd64"; \
+    fi && \
+    curl -sL "https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-${LITESTREAM_ARCH}.deb" -o /tmp/litestream.deb && \
+    dpkg -i /tmp/litestream.deb && \
+    rm /tmp/litestream.deb
 
 # Copy Python requirements and install dependencies
 COPY backend/requirements.txt .
