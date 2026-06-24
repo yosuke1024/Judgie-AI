@@ -39,9 +39,7 @@ def export_project_to_markdown() -> str:
         md.append("")
 
         # Teams
-        users = (
-            db.query(User).filter(User.role == "team").order_by(User.team_id).all()
-        )
+        users = db.query(User).filter(User.role == "team").order_by(User.team_id).all()
 
         if not users:
             md.append("No teams registered in this project.")
@@ -56,10 +54,7 @@ def export_project_to_markdown() -> str:
 
             # Retrieve all evaluations for this team
             evaluations = (
-                db.query(Evaluation)
-                .filter(Evaluation.team_id == u.team_id)
-                .order_by(Evaluation.id.asc())
-                .all()
+                db.query(Evaluation).filter(Evaluation.team_id == u.team_id).order_by(Evaluation.id.asc()).all()
             )
 
             if not evaluations:
@@ -211,12 +206,7 @@ def generate_team_markdown_report(team_id: str) -> str:
         team_display_name = user.team_name or team_id
 
         # Get all evaluations for this team in chronological order
-        evaluations = (
-            db.query(Evaluation)
-            .filter(Evaluation.team_id == team_id)
-            .order_by(Evaluation.id.asc())
-            .all()
-        )
+        evaluations = db.query(Evaluation).filter(Evaluation.team_id == team_id).order_by(Evaluation.id.asc()).all()
 
         md = []
         md.append(f"# Team Evaluation Report: {team_display_name}")
@@ -401,12 +391,7 @@ def export_project_to_markdown_zip() -> bytes:
             zip_file.writestr("00_project_meta.md", "\n".join(meta_md))
 
             # 2. Add team markdowns
-            users = (
-                db.query(User)
-                .filter(User.role == "team")
-                .order_by(User.team_id)
-                .all()
-            )
+            users = db.query(User).filter(User.role == "team").order_by(User.team_id).all()
 
             for u in users:
                 team_md = []
@@ -416,10 +401,7 @@ def export_project_to_markdown_zip() -> bytes:
                 team_md.append("")
 
                 evaluations = (
-                    db.query(Evaluation)
-                    .filter(Evaluation.team_id == u.team_id)
-                    .order_by(Evaluation.id.asc())
-                    .all()
+                    db.query(Evaluation).filter(Evaluation.team_id == u.team_id).order_by(Evaluation.id.asc()).all()
                 )
 
                 if not evaluations:

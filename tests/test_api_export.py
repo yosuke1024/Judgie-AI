@@ -27,9 +27,7 @@ def test_get_team_markdown(client, db_session_fixture):
     db.commit()
 
     # 2. Simulate logged in user (Admin)
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
-        team_id="admin1", role="admin"
-    )
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(team_id="admin1", role="admin")
 
     # Allow access to own team
     res_own = client.get("/api/export/markdown/team_t1")
@@ -51,9 +49,7 @@ def test_export_template_indented_json(client, db_session_fixture):
     db.commit()
 
     # 2. Simulate logged in user (Admin)
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
-        team_id="admin1", role="admin"
-    )
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(team_id="admin1", role="admin")
 
     # 3. Request template export
     res = client.get("/api/export/template")

@@ -127,8 +127,6 @@ def test_process_submission_with_video_disabled(mocker):
     mocker.patch("app.services.submission_service.is_video_upload_enabled", return_value=False)
 
     with pytest.raises(ValueError) as excinfo:
-        process_submission(
-            team_id="teamA", uploaded_files=[mock_media], prev_evaluations_json="{}", is_final=False
-        )
+        process_submission(team_id="teamA", uploaded_files=[mock_media], prev_evaluations_json="{}", is_final=False)
 
     assert "Video uploads" in str(excinfo.value)

@@ -47,6 +47,7 @@ def require_role(*roles: str):
     Returns a FastAPI dependency that enforces role-based access control.
     Usage: Depends(require_role("admin", "superadmin"))
     """
+
     def _check(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
         if user.role not in roles:
             raise HTTPException(
@@ -54,4 +55,5 @@ def require_role(*roles: str):
                 detail=f"Access denied. Required role: {', '.join(roles)}",
             )
         return user
+
     return _check

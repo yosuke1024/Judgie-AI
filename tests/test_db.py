@@ -172,17 +172,11 @@ def test_change_my_passcode(db_session_fixture):
     db_session_fixture.commit()
 
     # 1. Update admin passcode
-    assert (
-        change_my_passcode(team_id="admin1", current_passcode="pass123", new_passcode="changedpass")
-        is True
-    )
+    assert change_my_passcode(team_id="admin1", current_passcode="pass123", new_passcode="changedpass") is True
     assert verify_user("admin1", "changedpass") is not None
 
     # 2. Mismatched passcode error
-    assert (
-        change_my_passcode(team_id="admin1", current_passcode="wrong", new_passcode="another")
-        is False
-    )
+    assert change_my_passcode(team_id="admin1", current_passcode="wrong", new_passcode="another") is False
 
 
 def test_team_profile(db_session_fixture):
@@ -336,11 +330,7 @@ def test_delete_team_cascades(db_session_fixture):
         "judges_feedback": [],
     }
     save_evaluation("team1", result_data, is_final=True, source_text="code", gemini_file_ids=["fileA"])
-    eval_rec = (
-        db_session_fixture.query(Evaluation)
-        .filter(Evaluation.team_id == "team1")
-        .first()
-    )
+    eval_rec = db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "team1").first()
     assert eval_rec is not None
     eval_id = eval_rec.id
 
@@ -356,18 +346,8 @@ def test_delete_team_cascades(db_session_fixture):
     # Verify everything exists before deletion
     assert db_session_fixture.query(User).filter(User.team_id == "team1").first() is not None
     assert db_session_fixture.query(User).filter(User.team_id == "team2").first() is not None
-    assert (
-        db_session_fixture.query(Submission)
-        .filter(Submission.team_id == "team1")
-        .first()
-        is not None
-    )
-    assert (
-        db_session_fixture.query(Evaluation)
-        .filter(Evaluation.team_id == "team1")
-        .first()
-        is not None
-    )
+    assert db_session_fixture.query(Submission).filter(Submission.team_id == "team1").first() is not None
+    assert db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "team1").first() is not None
     assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is not None
     assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).first() is not None
 
@@ -377,18 +357,8 @@ def test_delete_team_cascades(db_session_fixture):
     # Verify team1 data is gone
     db_session_fixture.expire_all()
     assert db_session_fixture.query(User).filter(User.team_id == "team1").first() is None
-    assert (
-        db_session_fixture.query(Submission)
-        .filter(Submission.team_id == "team1")
-        .first()
-        is None
-    )
-    assert (
-        db_session_fixture.query(Evaluation)
-        .filter(Evaluation.team_id == "team1")
-        .first()
-        is None
-    )
+    assert db_session_fixture.query(Submission).filter(Submission.team_id == "team1").first() is None
+    assert db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "team1").first() is None
     assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is None
     assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).first() is None
 
@@ -411,9 +381,7 @@ def test_delete_evaluation_cascades(db_session_fixture):
     save_evaluation("team1", result_data, is_final=False, source_text="code1", gemini_file_ids=[])
     save_evaluation("team1", result_data, is_final=True, source_text="code2", gemini_file_ids=[])
 
-    evals = (
-        db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "team1").all()
-    )
+    evals = db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "team1").all()
     assert len(evals) == 2
     eval1_id = evals[0].id
     eval2_id = evals[1].id
@@ -444,6 +412,7 @@ def test_delete_evaluation_cascades(db_session_fixture):
 
 def test_update_user_active(db_session_fixture):
     from app.models.db import update_user_active
+
     init_db()
 
     # Register a team
@@ -476,6 +445,7 @@ def test_update_user_active(db_session_fixture):
 
 def test_verify_user_inactive(db_session_fixture):
     from app.models.db import update_user_active, verify_user
+
     init_db()
 
     team_user = User(

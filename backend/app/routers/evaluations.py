@@ -31,12 +31,7 @@ def get_team_evaluations(
 
     db = SessionLocal()
     try:
-        evaluations = (
-            db.query(Evaluation)
-            .filter(Evaluation.team_id == team_id)
-            .order_by(Evaluation.id.asc())
-            .all()
-        )
+        evaluations = db.query(Evaluation).filter(Evaluation.team_id == team_id).order_by(Evaluation.id.asc()).all()
         return [
             EvaluationResponse(
                 id=e.id,
@@ -65,12 +60,7 @@ def get_scoreboard(user: CurrentUser = Depends(get_current_user)):
 
     db = SessionLocal()
     try:
-        users = (
-            db.query(User)
-            .filter(User.role == "team", User.is_active)
-            .order_by(User.team_id)
-            .all()
-        )
+        users = db.query(User).filter(User.role == "team", User.is_active).order_by(User.team_id).all()
 
         all_teams = {
             u.team_id: {
@@ -82,11 +72,7 @@ def get_scoreboard(user: CurrentUser = Depends(get_current_user)):
         }
         team_ids = list(all_teams.keys())
 
-        evaluations = (
-            db.query(Evaluation)
-            .filter(Evaluation.team_id.in_(team_ids))
-            .all()
-        ) if team_ids else []
+        evaluations = (db.query(Evaluation).filter(Evaluation.team_id.in_(team_ids)).all()) if team_ids else []
 
         # Build eval dict: latest per team
         eval_dict = {}
@@ -113,8 +99,7 @@ def get_scoreboard(user: CurrentUser = Depends(get_current_user)):
                 ed = eval_dict[tid]
                 scores = json.loads(ed["scores_json"])
                 total_score = sum(
-                    scores.get(c["name"], 0) * 20.0 * (c["weight"] / total_weight)
-                    for c in active_criteria
+                    scores.get(c["name"], 0) * 20.0 * (c["weight"] / total_weight) for c in active_criteria
                 )
                 entry.total_score = round(total_score, 1)
                 entry.consults = ed["consults"]

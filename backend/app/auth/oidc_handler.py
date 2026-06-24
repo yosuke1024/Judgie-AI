@@ -126,4 +126,3 @@ def is_email_allowed(email: str) -> bool:
     if not allowed_emails and not allowed_domains:
         return True
     return False
-

@@ -2,12 +2,12 @@
 Pydantic schemas for request/response validation.
 """
 
-
 from pydantic import BaseModel
 
 # ──────────────────────────────────────────────
 # Auth
 # ──────────────────────────────────────────────
+
 
 class LoginRequest(BaseModel):
     team_id: str
@@ -50,6 +50,7 @@ class UserInfo(BaseModel):
 # Project
 # ──────────────────────────────────────────────
 
+
 class ProjectInitialize(BaseModel):
     template_id: str
     custom_template_data: dict | None = None
@@ -58,6 +59,7 @@ class ProjectInitialize(BaseModel):
 # ──────────────────────────────────────────────
 # Team
 # ──────────────────────────────────────────────
+
 
 class TeamCreate(BaseModel):
     team_id: str
@@ -104,6 +106,7 @@ class TeamResponse(BaseModel):
 # Evaluation
 # ──────────────────────────────────────────────
 
+
 class EvaluationResponse(BaseModel):
     id: int
     team_id: str
@@ -131,6 +134,7 @@ class ScoreboardEntry(BaseModel):
 # ──────────────────────────────────────────────
 # Chat
 # ──────────────────────────────────────────────
+
 
 class TeamObjection(BaseModel):
     objection_text: str
@@ -160,6 +164,7 @@ class AdminChatResponse(BaseModel):
 # ──────────────────────────────────────────────
 # Settings
 # ──────────────────────────────────────────────
+
 
 class OIDCSettings(BaseModel):
     oidc_enabled: bool
@@ -210,6 +215,7 @@ class LanguageSettings(BaseModel):
 # Export / Import
 # ──────────────────────────────────────────────
 
+
 class TemplateImport(BaseModel):
     url: str
 
@@ -222,6 +228,7 @@ class PasswordChange(BaseModel):
 # ──────────────────────────────────────────────
 # Async Tasks
 # ──────────────────────────────────────────────
+
 
 class AsyncTaskResponse(BaseModel):
     task_id: str

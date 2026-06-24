@@ -35,17 +35,11 @@ def get_manual(
             break
 
     if not content_path:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Manual file '{filename}' not found."
-        )
+        raise HTTPException(status_code=404, detail=f"Manual file '{filename}' not found.")
 
     try:
         with open(content_path, "r", encoding="utf-8") as f:
             content = f.read()
         return {"content": content}
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to read manual file: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to read manual file: {str(e)}")

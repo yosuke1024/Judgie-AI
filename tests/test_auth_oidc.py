@@ -21,8 +21,10 @@ def test_oidc_login_disabled(client):
 
 
 def test_oidc_login_enabled(client):
-    with patch("app.routers.auth.get_oidc_enabled", return_value=True), \
-         patch("app.auth.oidc_handler.get_authorization_url", return_value="https://auth.example.com/oauth2"):
+    with (
+        patch("app.routers.auth.get_oidc_enabled", return_value=True),
+        patch("app.auth.oidc_handler.get_authorization_url", return_value="https://auth.example.com/oauth2"),
+    ):
         res = client.get("/api/auth/oidc/login")
         assert res.status_code == 200
         data = res.json()
@@ -40,19 +42,15 @@ def test_oidc_callback_csrf_fail(client):
 
 def test_oidc_callback_success(client, db_session_fixture):
     # Setup registered user
-    user = DBUser(
-        team_id="teamA",
-        passcode="hashedpasscode",
-        role="team",
-        email="user@example.com"
-    )
+    user = DBUser(team_id="teamA", passcode="hashedpasscode", role="team", email="user@example.com")
     db_session_fixture.add(user)
     db_session_fixture.commit()
 
     # Initiate state
-    with patch("app.routers.auth.get_oidc_enabled", return_value=True), \
-         patch("app.auth.oidc_handler.verify_code_and_get_email", return_value="user@example.com"):
-
+    with (
+        patch("app.routers.auth.get_oidc_enabled", return_value=True),
+        patch("app.auth.oidc_handler.verify_code_and_get_email", return_value="user@example.com"),
+    ):
         state = "valid-state-123"
         client.cookies.set("oidc_state", state)
 
@@ -78,9 +76,10 @@ def test_get_auth_config(client):
 
 
 def test_oidc_callback_unregistered(client):
-    with patch("app.routers.auth.get_oidc_enabled", return_value=True), \
-         patch("app.auth.oidc_handler.verify_code_and_get_email", return_value="unregistered@example.com"):
-
+    with (
+        patch("app.routers.auth.get_oidc_enabled", return_value=True),
+        patch("app.auth.oidc_handler.verify_code_and_get_email", return_value="unregistered@example.com"),
+    ):
         state = "valid-state-123"
         client.cookies.set("oidc_state", state)
 
@@ -90,9 +89,13 @@ def test_oidc_callback_unregistered(client):
 
 
 def test_oidc_callback_domain_restricted(client):
-    with patch("app.routers.auth.get_oidc_enabled", return_value=True), \
-         patch("app.auth.oidc_handler.verify_code_and_get_email", side_effect=ValueError("Email hacker@evil.com is not allowed to access this system")):
-
+    with (
+        patch("app.routers.auth.get_oidc_enabled", return_value=True),
+        patch(
+            "app.auth.oidc_handler.verify_code_and_get_email",
+            side_effect=ValueError("Email hacker@evil.com is not allowed to access this system"),
+        ),
+    ):
         state = "valid-state-123"
         client.cookies.set("oidc_state", state)
 
@@ -107,7 +110,7 @@ def test_oidc_settings_unauthorized(client):
 
     from app.auth.deps import get_current_user
     from app.schemas.schemas import UserInfo
-    
+
     app.dependency_overrides[get_current_user] = lambda: UserInfo(team_id="teamA", role="team")
     try:
         res = client.get("/api/settings/oidc")
@@ -119,7 +122,7 @@ def test_oidc_settings_unauthorized(client):
 def test_oidc_settings_admin(client):
     from app.auth.deps import get_current_user
     from app.schemas.schemas import UserInfo
-    
+
     app.dependency_overrides[get_current_user] = lambda: UserInfo(team_id="adminA", role="admin")
     try:
         res = client.get("/api/settings/oidc")
@@ -136,7 +139,7 @@ def test_oidc_settings_admin(client):
             "oidc_client_secret": "test-secret",
             "oidc_redirect_uri": "http://localhost/callback",
             "oidc_allowed_domains": "test.com",
-            "oidc_allowed_emails": "admin@test.com"
+            "oidc_allowed_emails": "admin@test.com",
         }
         res = client.put("/api/settings/oidc", json=update_data)
         assert res.status_code == 200
@@ -152,4 +155,3 @@ def test_oidc_settings_admin(client):
         assert data["oidc_allowed_emails"] == "admin@test.com"
     finally:
         app.dependency_overrides.clear()
-

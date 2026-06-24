@@ -4,14 +4,15 @@ Retrieves settings from database 'settings' table, falling back to environment c
 """
 
 from typing import List
+
 from app.config import (
-    OIDC_ENABLED,
-    OIDC_ISSUER,
-    OIDC_CLIENT_ID,
-    OIDC_CLIENT_SECRET,
-    OIDC_REDIRECT_URI,
     OIDC_ALLOWED_DOMAINS,
     OIDC_ALLOWED_EMAILS,
+    OIDC_CLIENT_ID,
+    OIDC_CLIENT_SECRET,
+    OIDC_ENABLED,
+    OIDC_ISSUER,
+    OIDC_REDIRECT_URI,
 )
 from app.models.db import get_setting
 
