@@ -14,7 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import CORS_ORIGINS
 from app.middleware.ip_filter import IPLimitMiddleware
 from app.models.db import init_db
-from app.routers import auth, chat, evaluations, export, settings, submissions, tasks, teams, manual
+from app.routers import auth, chat, evaluations, export, manual, settings, submissions, tasks, teams
 
 
 @asynccontextmanager

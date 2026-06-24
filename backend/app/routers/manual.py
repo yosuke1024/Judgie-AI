@@ -3,6 +3,7 @@ Manual router: retrieves user manuals (ja/en) from the docs directory.
 """
 
 import os
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth.deps import CurrentUser, require_role
