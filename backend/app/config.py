@@ -3,6 +3,7 @@ Application configuration for FastAPI backend.
 Reads from environment variables with sensible defaults for local development.
 """
 
+import ipaddress
 import os
 
 # 'local' or 'production'
@@ -43,17 +44,22 @@ JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-secret-key-change-in-prod
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "720"))  # 12 hours
 
+# --- App Base URL ---
+APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5173")
+
 # --- OIDC Auth ---
 OIDC_ENABLED = os.environ.get("OIDC_ENABLED", "false").lower() == "true"
 OIDC_ISSUER = os.environ.get("OIDC_ISSUER", "https://accounts.google.com")
 OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "")
 OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "")
-OIDC_REDIRECT_URI = os.environ.get("OIDC_REDIRECT_URI", "http://localhost:5173/login/callback")
+OIDC_REDIRECT_URI = os.environ.get("OIDC_REDIRECT_URI", f"{APP_BASE_URL.rstrip('/')}/login/callback")
 OIDC_ALLOWED_DOMAINS = [d.strip() for d in os.environ.get("OIDC_ALLOWED_DOMAINS", "").split(",") if d.strip()]
 OIDC_ALLOWED_EMAILS = [e.strip() for e in os.environ.get("OIDC_ALLOWED_EMAILS", "").split(",") if e.strip()]
 
 # --- CORS ---
 CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+if APP_BASE_URL not in CORS_ORIGINS:
+    CORS_ORIGINS.append(APP_BASE_URL)
 
 # --- App Settings ---
 MAX_CONSULTATIONS = 3
@@ -89,3 +95,16 @@ LLM_MODEL = os.environ.get("LLM_MODEL")
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+
+# --- IP Address Restriction ---
+_raw_allowed_ips = os.environ.get("ALLOWED_IPS", "")
+ALLOWED_IPS = []
+if _raw_allowed_ips:
+    for _ip_str in _raw_allowed_ips.split(","):
+        _ip_str = _ip_str.strip()
+        if not _ip_str:
+            continue
+        try:
+            ALLOWED_IPS.append(ipaddress.ip_network(_ip_str, strict=False))
+        except ValueError:
+            pass

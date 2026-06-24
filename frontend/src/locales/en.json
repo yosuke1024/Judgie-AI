@@ -20,7 +20,8 @@
     "select_tenant_title": "Select Project",
     "select_tenant_subtitle": "Please select the project and team to access.",
     "access_workspace_btn": "Access Workspace",
-    "csrf_error": "CSRF verification failed. Please try logging in again."
+    "csrf_error": "CSRF verification failed. Please try logging in again.",
+    "sso_required_message": "This instance requires Single Sign-On (SSO) to log in."
   },
   "nav": {
     "dashboard": "Dashboard",

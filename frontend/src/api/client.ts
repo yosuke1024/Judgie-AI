@@ -106,6 +106,7 @@ export const authApi = {
       team_name?: string;
       one_liner?: string;
     }>('/api/auth/me'),
+  getConfig: () => request<{ oidc_enabled: boolean }>('/api/auth/config'),
   oidcLogin: () => request<{ auth_url: string; state: string }>('/api/auth/oidc/login'),
   oidcCallback: (data: { code: string; state: string }) =>
     request<{

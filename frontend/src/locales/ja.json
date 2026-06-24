@@ -20,7 +20,8 @@
     "select_tenant_title": "プロジェクトの選択",
     "select_tenant_subtitle": "アクセスするプロジェクトとチームを選択してください。",
     "access_workspace_btn": "ワークスペースにアクセス",
-    "csrf_error": "CSRF検証に失敗しました。ログインをやり直してください。"
+    "csrf_error": "CSRF検証に失敗しました。ログインをやり直してください。",
+    "sso_required_message": "このインスタンスはシングルサインオン（SSO）によるログインが必要です。"
   },
   "nav": {
     "dashboard": "ダッシュボード",

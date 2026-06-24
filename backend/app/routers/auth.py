@@ -87,9 +87,15 @@ def oidc_callback(
     try:
         email = oidc_handler.verify_code_and_get_email(req.code)
     except ValueError as e:
+        err_msg = str(e)
+        if "not allowed" in err_msg or "restriction" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=err_msg,
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
+            detail=err_msg,
         )
 
     # Query matching user in database
@@ -100,7 +106,7 @@ def oidc_callback(
 
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your email is not registered in this system. Please contact the administrator.",
             )
 
