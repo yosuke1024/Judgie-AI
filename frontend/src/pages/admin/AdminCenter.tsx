@@ -7,6 +7,7 @@ import {
   settingsApi,
   chatApi,
   exportApi,
+  pollTaskUntilDone,
 } from '@/api/client';
 import {
   Users,
@@ -477,8 +478,15 @@ export default function AdminCenter() {
           created_at: new Date().toISOString(),
         },
       ]);
-      await chatApi.submitAdminQuestion(selectedDiveEval.id, q);
-      await fetchAdminChat(selectedDiveEval.id);
+      const { task_id } = await chatApi.submitAdminQuestion(selectedDiveEval.id, q);
+      // Poll until the background LLM call completes
+      const result = await pollTaskUntilDone(task_id);
+      if (result.status === 'FAILED') {
+        setError(result.error_message || 'AI Judge failed to respond.');
+        setAdminChats(previousChats);
+      } else {
+        await fetchAdminChat(selectedDiveEval.id);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to ask AI Judge.');
       setAdminChats(previousChats);

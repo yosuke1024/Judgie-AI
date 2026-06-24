@@ -1,23 +1,33 @@
 """
 Chat router: team Q&A (objections) and admin private queries.
+Both POST endpoints run LLM calls asynchronously via BackgroundTasks.
 """
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import JSONResponse
 
 from app.auth.deps import CurrentUser, get_current_user, require_role
 from app.models.db import (
     Evaluation,
     SessionLocal,
     TeamChat,
+    create_async_task,
     get_admin_chats,
     get_ai_response_languages,
     get_max_qa_turns,
     normalize_lang_to_key,
     save_admin_chat,
+    update_async_task,
 )
-from app.schemas.schemas import AdminChatResponse, AdminQuestion, ChatMessage, TeamObjection
+from app.schemas.schemas import (
+    AdminChatResponse,
+    AdminQuestion,
+    AsyncTaskResponse,
+    ChatMessage,
+    TeamObjection,
+)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -55,13 +65,25 @@ def get_team_chat_history(
         db.close()
 
 
-@router.post("/team/{eval_id}")
+def _run_team_objection(task_id: str, eval_id: int, prev_eval_json: str, objection_text: str):
+    """Background task: process team objection via AI judges panel."""
+    update_async_task(task_id, "PROCESSING")
+    try:
+        from app.services.evaluation_service import submit_team_objection as svc_submit
+        svc_submit(eval_id, prev_eval_json, objection_text)
+        update_async_task(task_id, "SUCCESS")
+    except Exception as e:
+        update_async_task(task_id, "FAILED", error_message=str(e))
+
+
+@router.post("/team/{eval_id}", response_model=AsyncTaskResponse, status_code=202)
 def submit_team_objection(
     eval_id: int,
     req: TeamObjection,
+    background_tasks: BackgroundTasks,
     user: CurrentUser = Depends(get_current_user),
 ):
-    """Submit a team objection/question to the AI judges panel."""
+    """Submit a team objection/question to the AI judges panel (async)."""
     if user.role != "team":
         raise HTTPException(status_code=403, detail="Only teams can submit objections")
 
@@ -93,11 +115,14 @@ def submit_team_objection(
     finally:
         db.close()
 
-    # Use evaluation service
-    from app.services.evaluation_service import submit_team_objection as svc_submit
-    result = svc_submit(eval_id, prev_eval_json, req.objection_text)
+    # Create async task and schedule background work
+    task_id = create_async_task(user.team_id, "objection")
+    background_tasks.add_task(_run_team_objection, task_id, eval_id, prev_eval_json, req.objection_text)
 
-    return result
+    return JSONResponse(
+        status_code=202,
+        content={"task_id": task_id, "status": "PENDING", "result_id": None, "error_message": None},
+    )
 
 
 # ── Admin Private Chat ──
@@ -112,13 +137,53 @@ def get_admin_chat_history(
     return [AdminChatResponse(**c) for c in chats]
 
 
-@router.post("/admin/{eval_id}")
+def _run_admin_chat(task_id: str, eval_id: int, source_text: str, gemini_file_ids: str, prev_json_str: str, question: str):
+    """Background task: process admin private chat question via Gemini."""
+    update_async_task(task_id, "PROCESSING")
+    try:
+        from app.services.gemini import admin_chat_about_submission
+
+        res_json = admin_chat_about_submission(
+            source_text, gemini_file_ids, prev_json_str, question,
+        )
+
+        # Map dynamic keys to static columns for backward compatibility
+        languages = get_ai_response_languages()
+        q_en = question
+        q_ja = question
+        a_en = ""
+        a_ja = ""
+
+        for lang in languages:
+            lang_key = normalize_lang_to_key(lang)
+            if lang_key in ["english", "en", "英語"]:
+                q_en = res_json.get(f"question_{lang_key}", question)
+                a_en = res_json.get(f"answer_{lang_key}", "")
+            elif lang_key in ["japanese", "ja", "日本語"]:
+                q_ja = res_json.get(f"question_{lang_key}", question)
+                a_ja = res_json.get(f"answer_{lang_key}", "")
+
+        save_admin_chat(
+            evaluation_id=eval_id,
+            question_en=q_en, question_ja=q_ja,
+            answer_en=a_en, answer_ja=a_ja,
+            qa_json=res_json,
+        )
+
+        update_async_task(task_id, "SUCCESS")
+
+    except Exception as e:
+        update_async_task(task_id, "FAILED", error_message=str(e))
+
+
+@router.post("/admin/{eval_id}", response_model=AsyncTaskResponse, status_code=202)
 def submit_admin_question(
     eval_id: int,
     req: AdminQuestion,
+    background_tasks: BackgroundTasks,
     user: CurrentUser = Depends(require_role("admin")),
 ):
-    """Submit an admin question about a team's submission."""
+    """Submit an admin question about a team's submission (async)."""
     db = SessionLocal()
     try:
         eval_record = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
@@ -136,33 +201,13 @@ def submit_admin_question(
             detail="No source data available for this submission",
         )
 
-    from app.services.gemini import admin_chat_about_submission
-
-    res_json = admin_chat_about_submission(
-        source_text, gemini_file_ids, prev_json_str, req.question,
+    # Create async task and schedule background work
+    task_id = create_async_task(user.team_id, "admin_chat")
+    background_tasks.add_task(
+        _run_admin_chat, task_id, eval_id, source_text, gemini_file_ids, prev_json_str, req.question,
     )
 
-    # Map dynamic keys to static columns for backward compatibility
-    languages = get_ai_response_languages()
-    q_en = req.question
-    q_ja = req.question
-    a_en = ""
-    a_ja = ""
-
-    for lang in languages:
-        lang_key = normalize_lang_to_key(lang)
-        if lang_key in ["english", "en", "英語"]:
-            q_en = res_json.get(f"question_{lang_key}", req.question)
-            a_en = res_json.get(f"answer_{lang_key}", "")
-        elif lang_key in ["japanese", "ja", "日本語"]:
-            q_ja = res_json.get(f"question_{lang_key}", req.question)
-            a_ja = res_json.get(f"answer_{lang_key}", "")
-
-    save_admin_chat(
-        evaluation_id=eval_id,
-        question_en=q_en, question_ja=q_ja,
-        answer_en=a_en, answer_ja=a_ja,
-        qa_json=res_json,
+    return JSONResponse(
+        status_code=202,
+        content={"task_id": task_id, "status": "PENDING", "result_id": None, "error_message": None},
     )
-
-    return res_json

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { teamsApi, evaluationsApi, submissionsApi, chatApi, settingsApi } from '@/api/client';
+import { teamsApi, evaluationsApi, submissionsApi, chatApi, settingsApi, pollTaskUntilDone } from '@/api/client';
 import {
   Upload,
   FileText,
@@ -447,12 +447,24 @@ export default function TeamDashboard() {
     setUploadSuccess(false);
 
     try {
-      await submissionsApi.upload(selectedFiles, isFinalUpload);
-      setUploadSuccess(true);
-      setSelectedFiles([]);
-      await fetchHistory();
-      await refreshUser();
-      setTimeout(() => setUploadSuccess(false), 5000);
+      const { task_id } = await submissionsApi.upload(selectedFiles, isFinalUpload);
+      // Poll until the background evaluation completes
+      const result = await pollTaskUntilDone(task_id);
+
+      if (result.status === 'FAILED') {
+        const errMsg = result.error_message || 'Evaluation failed.';
+        if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+          setUploadError(t('team.api_limit_error'));
+        } else {
+          setUploadError(errMsg);
+        }
+      } else {
+        setUploadSuccess(true);
+        setSelectedFiles([]);
+        await fetchHistory();
+        await refreshUser();
+        setTimeout(() => setUploadSuccess(false), 5000);
+      }
     } catch (err: any) {
       console.error('Upload failed:', err);
       if (err.status === 429) {
@@ -477,7 +489,13 @@ export default function TeamDashboard() {
     try {
       // Optimistic local update
       setChatMessages((prev) => [...prev, { sender: 'team', message_json: msg, created_at: new Date().toISOString() }]);
-      await chatApi.submitObjection(selectedEval.id, msg);
+      const { task_id } = await chatApi.submitObjection(selectedEval.id, msg);
+      // Poll until the background LLM evaluation completes
+      const result = await pollTaskUntilDone(task_id);
+
+      if (result.status === 'FAILED') {
+        setChatError(result.error_message || 'AI evaluation failed.');
+      }
       await fetchChat(selectedEval.id);
     } catch (err: any) {
       console.error('Failed to submit objection:', err);

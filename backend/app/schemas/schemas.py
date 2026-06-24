@@ -197,3 +197,14 @@ class TemplateImport(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
+
+
+# ──────────────────────────────────────────────
+# Async Tasks
+# ──────────────────────────────────────────────
+
+class AsyncTaskResponse(BaseModel):
+    task_id: str
+    status: str  # PENDING, PROCESSING, SUCCESS, FAILED
+    result_id: int | None = None
+    error_message: str | None = None
