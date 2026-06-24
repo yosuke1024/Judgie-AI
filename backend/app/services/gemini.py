@@ -10,22 +10,22 @@ from app.models.db import get_ai_response_languages, get_criteria, get_personas,
 logger = logging.getLogger(__name__)
 
 
-def get_gemini_client(hackathon_id, api_key_override=None):
+def get_gemini_client(api_key_override=None):
     """Returns an initialized Gemini client using the database or key override."""
-    api_key = api_key_override if api_key_override else get_setting(hackathon_id, "gemini_api_key")
+    api_key = api_key_override if api_key_override else get_setting("gemini_api_key")
     if not api_key:
         raise ValueError("Gemini API Key has not been set by the Admin yet. Please contact the organizer.")
     return genai.Client(api_key=api_key)
 
 
-def list_available_gemini_models(hackathon_id, api_key_override=None):
+def list_available_gemini_models(api_key_override=None):
     """
     Fetches the dynamically available Gemini models from the API,
     filtered to only standard LLMs (flash, pro, flash-lite).
     Optionally overrides the API key (used for validation before saving).
     """
     try:
-        client = get_gemini_client(hackathon_id, api_key_override=api_key_override)
+        client = get_gemini_client(api_key_override=api_key_override)
         models = client.models.list()
         gemini_models = []
         for m in models:
@@ -44,17 +44,17 @@ def list_available_gemini_models(hackathon_id, api_key_override=None):
         raise ValueError(f"Failed to fetch models from Gemini API: {str(e)}")
 
 
-def upload_to_gemini(hackathon_id, file_path, mime_type=None):
+def upload_to_gemini(file_path, mime_type=None):
     """Uploads the given file to Gemini."""
-    client = get_gemini_client(hackathon_id)
+    client = get_gemini_client()
     config = types.UploadFileConfig(mime_type=mime_type) if mime_type else None
     file = client.files.upload(file=file_path, config=config)
     return file
 
 
-def wait_for_files_active(hackathon_id, files):
+def wait_for_files_active(files):
     """Waits for the given files to be active in Gemini."""
-    client = get_gemini_client(hackathon_id)
+    client = get_gemini_client()
     for name in (file.name for file in files):
         file = client.files.get(name=name)
         while file.state.name == "PROCESSING":
@@ -65,18 +65,18 @@ def wait_for_files_active(hackathon_id, files):
 
 
 def analyze_submission(
-    hackathon_id, text_content, gemini_media_files=None, previous_evaluations_json=None, is_final=False
+    text_content, gemini_media_files=None, previous_evaluations_json=None, is_final=False
 ):
     """
     Calls Gemini API with multimodal input and returns structured JSON.
     Uses 'gemini-3.1-pro' to handle large contexts (code + video).
     """
-    client = get_gemini_client(hackathon_id)
+    client = get_gemini_client()
 
-    model_name = get_setting(hackathon_id, "gemini_model") or "gemini-2.5-flash"
+    model_name = get_setting("gemini_model") or "gemini-2.5-flash"
 
-    criteria = [c for c in get_criteria(hackathon_id) if c.get("active", True)]
-    active_personas = [p for p in get_personas(hackathon_id) if p.get("active", True)]
+    criteria = [c for c in get_criteria() if c.get("active", True)]
+    active_personas = [p for p in get_personas() if p.get("active", True)]
 
     criteria_str = "\n".join([f"- {c['name']} (Weight: {c['weight']}%): {c.get('description', '')}" for c in criteria])
     personas_str = "\n".join(
@@ -109,7 +109,7 @@ This team is submitting a revised version. You MUST carefully review the action 
         final_str = "<submission_type>This is a CONSULTATION (work in progress). Provide constructive, coaching-focused feedback to help them improve before the final deadline.</submission_type>"
 
     # Get AI response language settings
-    languages = get_ai_response_languages(hackathon_id)
+    languages = get_ai_response_languages()
 
     # Dynamically build JSON schema instruction sentences
     pu_fields = []
@@ -196,15 +196,15 @@ Output a strictly valid JSON object with the following structure:
     return json.loads(response.text)
 
 
-def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_evaluation_json, chat_history_list):
+def object_to_judges(text_content, gemini_media_files, previous_evaluation_json, chat_history_list):
     """
     Handles a Q&A session turn from the team based on the evaluation and chat history.
     """
-    client = get_gemini_client(hackathon_id)
+    client = get_gemini_client()
 
-    model_name = get_setting(hackathon_id, "gemini_model") or "gemini-2.5-flash"
+    model_name = get_setting("gemini_model") or "gemini-2.5-flash"
 
-    active_personas = [p for p in get_personas(hackathon_id) if p.get("active", True)]
+    active_personas = [p for p in get_personas() if p.get("active", True)]
     personas_str = "\n".join(
         [
             f"Name: {p['name']}\nRole: {p.get('role', 'Expert')}\nPersona Definition: {p['prompt']}\n"
@@ -213,7 +213,7 @@ def object_to_judges(hackathon_id, text_content, gemini_media_files, previous_ev
     )
 
     # Get AI response language settings
-    languages = get_ai_response_languages(hackathon_id)
+    languages = get_ai_response_languages()
 
     qa_summary_fields = []
     response_fields = []
@@ -316,15 +316,15 @@ Output a strictly valid JSON object with the following structure:
 
 
 def admin_chat_about_submission(
-    hackathon_id, source_text, gemini_file_ids_json, previous_evaluation_json, admin_question
+    source_text, gemini_file_ids_json, previous_evaluation_json, admin_question
 ):
     """
     Allows Hackathon Admin to ask a specific question about a team's submission,
     using the originally uploaded source code and media files as context.
     """
-    client = get_gemini_client(hackathon_id)
+    client = get_gemini_client()
 
-    model_name = get_setting(hackathon_id, "gemini_model") or "gemini-2.5-flash"
+    model_name = get_setting("gemini_model") or "gemini-2.5-flash"
 
     # Reconstruct Gemini File objects
     gemini_media_files = []
@@ -341,7 +341,7 @@ def admin_chat_about_submission(
             pass
 
     # Get AI response language settings
-    languages = get_ai_response_languages(hackathon_id)
+    languages = get_ai_response_languages()
 
     question_fields = []
     answer_fields = []
@@ -404,13 +404,13 @@ Output a strictly valid JSON object with the following structure:
     return json.loads(response.text)
 
 
-def translate_text(hackathon_id, text, target_languages):
+def translate_text(text, target_languages):
     """
     Translates the given text into all target languages using Gemini.
     Returns a dict with translated texts, e.g. {"user_objection_english": "...", "user_objection_japanese": "..."}
     """
-    client = get_gemini_client(hackathon_id)
-    model_name = get_setting(hackathon_id, "gemini_model") or "gemini-2.5-flash"
+    client = get_gemini_client()
+    model_name = get_setting("gemini_model") or "gemini-2.5-flash"
 
     fields = []
     for lang in target_languages:

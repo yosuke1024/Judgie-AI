@@ -50,15 +50,15 @@ def get_team_chats(evaluation_id: int) -> list[dict]:
         return chat_list
 
 
-def submit_team_objection(hackathon_id: int, eval_id: int, prev_eval_json: str, objection_text: str) -> dict:
+def submit_team_objection(eval_id: int, prev_eval_json: str, objection_text: str) -> dict:
     """
     Executes a chat session turn with the AI expert panel in response to the team's objection.
     Inserts both user objection and panel's answer as separate records in TeamChat table.
     """
     # 1. Translate the user's objection into all configured languages
-    languages = get_ai_response_languages(hackathon_id)
+    languages = get_ai_response_languages()
     try:
-        translated = translate_text(hackathon_id, objection_text, languages)
+        translated = translate_text(objection_text, languages)
         translated["user_objection"] = objection_text
     except Exception as e:
         logger.warning(f"Translation failed: {e}")
@@ -82,10 +82,10 @@ def submit_team_objection(hackathon_id: int, eval_id: int, prev_eval_json: str, 
             chat_history.append({"sender": c.sender, "message_json": c.message_json})
 
     # 4. Call Gemini with the full Q&A discussion history
-    qa_result = object_to_judges(hackathon_id, "", None, prev_eval_json, chat_history)
+    qa_result = object_to_judges("", None, prev_eval_json, chat_history)
 
     # Defensive programming: sanitize Gemini responses
-    qa_result = sanitize_objection_response(qa_result, hackathon_id)
+    qa_result = sanitize_objection_response(qa_result)
 
     # 5. Insert AI response to TeamChat table
     with db_session() as db:
@@ -96,19 +96,15 @@ def submit_team_objection(hackathon_id: int, eval_id: int, prev_eval_json: str, 
 
 
 
-def sanitize_objection_response(data: dict, hackathon_id: int = None) -> dict:
+def sanitize_objection_response(data: dict) -> dict:
     """
     Sanitizes LLM panel objection debate responses.
     Supports dynamic multilingual keys based on configured languages.
     """
-    if hackathon_id is not None:
-        languages = get_ai_response_languages(hackathon_id)
-        from app.models.db import get_personas
-        personas = get_personas(hackathon_id)
-        persona_map = {p["name"].lower(): p for p in personas}
-    else:
-        languages = ["English", "Japanese"]
-        persona_map = {}
+    languages = get_ai_response_languages()
+    from app.models.db import get_personas
+    personas = get_personas()
+    persona_map = {p["name"].lower(): p for p in personas}
 
     if not isinstance(data, dict):
         data = {}

@@ -6,7 +6,6 @@ import {
   evaluationsApi,
   settingsApi,
   chatApi,
-  hackathonsApi,
   exportApi,
 } from '@/api/client';
 import {
@@ -162,7 +161,7 @@ export default function AdminCenter() {
   // --- Data Loading Functions ---
   const loadTemplates = useCallback(async () => {
     try {
-      const tpls = await hackathonsApi.getTemplates();
+      const tpls = await settingsApi.getTemplates();
       setTemplates(tpls);
     } catch (err: any) {
       console.error('Failed to load templates:', err);
@@ -170,17 +169,16 @@ export default function AdminCenter() {
   }, []);
 
   const loadTeams = useCallback(async () => {
-    if (!user || user.hackathon_id === null) return;
     try {
       setLoading(true);
-      const data = await teamsApi.list(user.hackathon_id);
+      const data = await teamsApi.list();
       setTeams(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load teams.');
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   const loadCriteria = useCallback(async () => {
     try {
@@ -270,10 +268,10 @@ export default function AdminCenter() {
   // --- Handlers: Teams Tab ---
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTeamId || !newTeamPass || user?.hackathon_id === null) return;
+    if (!newTeamId || !newTeamPass) return;
     try {
       setError('');
-      await teamsApi.create(user!.hackathon_id!, {
+      await teamsApi.create({
         team_id: newTeamId,
         passcode: newTeamPass,
         role: newTeamRole,
@@ -289,10 +287,10 @@ export default function AdminCenter() {
 
   const handleBulkCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bulkCsv || user?.hackathon_id === null) return;
+    if (!bulkCsv) return;
     try {
       setError('');
-      const res: any = await teamsApi.bulkCreate(user!.hackathon_id!, bulkCsv);
+      const res: any = await teamsApi.bulkCreate(bulkCsv);
       setBulkCsv('');
       if (res && typeof res.created === 'number') {
         showSuccess(`CSV Bulk import complete! Created: ${res.created}, Skipped: ${res.skipped}`);
@@ -309,7 +307,7 @@ export default function AdminCenter() {
     if (!window.confirm(`Are you sure you want to delete team ${teamId} and all their evaluations?`)) return;
     try {
       setError('');
-      await teamsApi.delete(user!.hackathon_id!, teamId);
+      await teamsApi.delete(teamId);
       showSuccess(`Team ${teamId} deleted.`);
       loadTeams();
     } catch (err: any) {
@@ -319,7 +317,7 @@ export default function AdminCenter() {
 
   const handleUpdateTeamRole = async (teamId: string, role: string) => {
     try {
-      await teamsApi.updateRole(user!.hackathon_id!, teamId, role);
+      await teamsApi.updateRole(teamId, role);
       showSuccess(`Role updated for ${teamId}`);
       loadTeams();
     } catch (err: any) {
@@ -328,10 +326,10 @@ export default function AdminCenter() {
   };
 
   const handleUpdateTeamPasscode = async (teamId: string) => {
-    if (!user || user.hackathon_id === null || !newPassVal.trim()) return;
+    if (!newPassVal.trim()) return;
     try {
       setError('');
-      await teamsApi.updatePasscode(user.hackathon_id, teamId, newPassVal.trim());
+      await teamsApi.updatePasscode(teamId, newPassVal.trim());
       showSuccess(`Passcode reset for team '${teamId}'`);
       setEditingPassTeam(null);
       setNewPassVal('');
@@ -341,10 +339,9 @@ export default function AdminCenter() {
   };
 
   const handleUpdateTeamActive = async (teamId: string, isActive: boolean) => {
-    if (!user || user.hackathon_id === null) return;
     try {
       setError('');
-      await teamsApi.updateActive(user.hackathon_id, teamId, isActive);
+      await teamsApi.updateActive(teamId, isActive);
       showSuccess(`Status updated for team '${teamId}'`);
       loadTeams();
     } catch (err: any) {
@@ -548,7 +545,7 @@ export default function AdminCenter() {
     }
     try {
       setError('');
-      await hackathonsApi.resetAdminPasscode(user!.hackathon_id!, newAdminPass);
+      await settingsApi.resetAdminPasscode(newAdminPass);
       setNewAdminPass('');
       setConfirmAdminPass('');
       showSuccess('Admin passcode changed successfully!');
@@ -575,14 +572,14 @@ export default function AdminCenter() {
   // --- Handlers: Export Tab ---
   const handleApplyPresetTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTemplate || !user || user.hackathon_id === null) return;
+    if (!selectedTemplate) return;
 
     if (!window.confirm(t('admin.import_preset_confirm'))) return;
 
     try {
       setError('');
       setLoading(true);
-      await hackathonsApi.initialize(user.hackathon_id, { template_id: selectedTemplate });
+      await settingsApi.initialize({ template_id: selectedTemplate });
       showSuccess(t('admin.import_preset_success'));
       setSelectedTemplate('');
     } catch (err: any) {

@@ -4,7 +4,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.db import Hackathon as DBHackathon
 from app.models.db import User as DBUser
 
 
@@ -39,14 +38,9 @@ def test_oidc_callback_csrf_fail(client):
         assert "CSRF verification failed" in res.json()["detail"]
 
 
-def test_oidc_callback_success_single_tenant(client, db_session_fixture):
-    # Setup single registered user
-    h1 = DBHackathon(id=1, name="Hackathon 1")
-    db_session_fixture.add(h1)
-    db_session_fixture.flush()
-
+def test_oidc_callback_success(client, db_session_fixture):
+    # Setup registered user
     user = DBUser(
-        hackathon_id=1,
         team_id="teamA",
         passcode="hashedpasscode",
         role="team",
@@ -68,163 +62,4 @@ def test_oidc_callback_success_single_tenant(client, db_session_fixture):
         assert data["status"] == "success"
         assert data["team_id"] == "teamA"
         assert data["role"] == "team"
-        assert data["hackathon_id"] == 1
         assert "access_token" in res.cookies
-
-
-def test_oidc_callback_multiple_tenants(client, db_session_fixture):
-    # Setup multiple tenants with same email
-    h1 = DBHackathon(id=1, name="Hackathon 1")
-    h2 = DBHackathon(id=2, name="Hackathon 2")
-    db_session_fixture.add_all([h1, h2])
-    db_session_fixture.flush()
-
-    user1 = DBUser(
-        hackathon_id=1,
-        team_id="teamA",
-        passcode="hashedpass1",
-        role="team",
-        email="user@example.com"
-    )
-    user2 = DBUser(
-        hackathon_id=2,
-        team_id="teamB",
-        passcode="hashedpass2",
-        role="observer",
-        email="user@example.com"
-    )
-    db_session_fixture.add_all([user1, user2])
-    db_session_fixture.commit()
-
-    with patch("app.routers.auth.OIDC_ENABLED", True), \
-         patch("app.auth.oidc_handler.verify_code_and_get_email", return_value="user@example.com"):
-
-        state = "valid-state-123"
-        client.cookies.set("oidc_state", state)
-
-        res = client.post("/api/auth/oidc/callback", json={"code": "authcode", "state": state})
-        assert res.status_code == 200
-        data = res.json()
-        assert data["status"] == "select_tenant"
-        assert len(data["tenants"]) == 2
-        assert "temp_token" in data
-        assert "access_token" not in res.cookies
-
-        # Test selecting a tenant
-        temp_token = data["temp_token"]
-
-        # Test selection success
-        res_select = client.post(
-            "/api/auth/oidc/select-tenant",
-            json={"temp_token": temp_token, "hackathon_id": 1, "team_id": "teamA"}
-        )
-        assert res_select.status_code == 200
-        data_select = res_select.json()
-        assert data_select["team_id"] == "teamA"
-        assert data_select["role"] == "team"
-        assert data_select["hackathon_id"] == 1
-        assert "access_token" in res_select.cookies
-
-        # Test selection unauthorized (selecting tenant user is not in)
-        res_select_bad = client.post(
-            "/api/auth/oidc/select-tenant",
-            json={"temp_token": temp_token, "hackathon_id": 999, "team_id": "badteam"}
-        )
-        assert res_select_bad.status_code == 403
-
-
-def test_oidc_get_my_tenants(client, db_session_fixture):
-    # Setup multiple tenants with same email
-    h1 = DBHackathon(id=1, name="Hackathon 1")
-    h2 = DBHackathon(id=2, name="Hackathon 2")
-    db_session_fixture.add_all([h1, h2])
-    db_session_fixture.flush()
-
-    user1 = DBUser(
-        hackathon_id=1,
-        team_id="teamA",
-        passcode="hashedpass1",
-        role="team",
-        email="user@example.com"
-    )
-    user2 = DBUser(
-        hackathon_id=2,
-        team_id="teamB",
-        passcode="hashedpass2",
-        role="observer",
-        email="user@example.com"
-    )
-    db_session_fixture.add_all([user1, user2])
-    db_session_fixture.commit()
-
-    # Issue a valid access token first
-    from app.auth.jwt_handler import create_access_token
-    token = create_access_token({
-        "team_id": "teamA",
-        "role": "team",
-        "hackathon_id": 1,
-        "email": "user@example.com"
-    })
-    client.cookies.set("access_token", token)
-
-    res = client.get("/api/auth/my-tenants")
-    assert res.status_code == 200
-    data = res.json()
-    assert len(data) == 2
-    assert data[0]["hackathon_id"] == 1
-    assert data[1]["hackathon_id"] == 2
-
-
-def test_oidc_switch_tenant(client, db_session_fixture):
-    # Setup multiple tenants with same email
-    h1 = DBHackathon(id=1, name="Hackathon 1")
-    h2 = DBHackathon(id=2, name="Hackathon 2")
-    db_session_fixture.add_all([h1, h2])
-    db_session_fixture.flush()
-
-    user1 = DBUser(
-        hackathon_id=1,
-        team_id="teamA",
-        passcode="hashedpass1",
-        role="team",
-        email="user@example.com"
-    )
-    user2 = DBUser(
-        hackathon_id=2,
-        team_id="teamB",
-        passcode="hashedpass2",
-        role="observer",
-        email="user@example.com"
-    )
-    db_session_fixture.add_all([user1, user2])
-    db_session_fixture.commit()
-
-    # Issue a valid access token for first tenant
-    from app.auth.jwt_handler import create_access_token
-    token = create_access_token({
-        "team_id": "teamA",
-        "role": "team",
-        "hackathon_id": 1,
-        "email": "user@example.com"
-    })
-    client.cookies.set("access_token", token)
-
-    # 1. Switch to second tenant (success)
-    res_switch = client.post(
-        "/api/auth/switch-tenant",
-        json={"hackathon_id": 2, "team_id": "teamB"}
-    )
-    assert res_switch.status_code == 200
-    data_switch = res_switch.json()
-    assert data_switch["team_id"] == "teamB"
-    assert data_switch["role"] == "observer"
-    assert data_switch["hackathon_id"] == 2
-    assert "access_token" in res_switch.cookies
-
-    # 2. Try switching to a non-existent tenant (forbidden)
-    res_switch_bad = client.post(
-        "/api/auth/switch-tenant",
-        json={"hackathon_id": 999, "team_id": "badteam"}
-    )
-    assert res_switch_bad.status_code == 403
-

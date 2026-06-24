@@ -28,20 +28,19 @@ from app.schemas.schemas import (
 )
 from app.security import hash_passcode
 
-router = APIRouter(prefix="/api/hackathons/{hackathon_id}/teams", tags=["teams"])
+router = APIRouter(prefix="/api/teams", tags=["teams"])
 
 
 @router.get("", response_model=list[TeamResponse])
 def list_teams(
-    hackathon_id: int,
     user: CurrentUser = Depends(require_role("admin", "observer")),
 ):
-    """List all teams in a hackathon."""
+    """List all teams."""
     db = SessionLocal()
     try:
         users = (
             db.query(User)
-            .filter(User.hackathon_id == hackathon_id, User.role.in_(["team", "observer"]))
+            .filter(User.role.in_(["team", "observer"]))
             .order_by(User.team_id)
             .all()
         )
@@ -62,20 +61,16 @@ def list_teams(
 
 @router.post("", response_model=dict)
 def create_team(
-    hackathon_id: int,
     req: TeamCreate,
     user: CurrentUser = Depends(require_role("admin")),
 ):
-    """Add a single team to a hackathon."""
+    """Add a single team."""
     with db_session() as db:
-        existing = db.query(User).filter(
-            User.hackathon_id == hackathon_id, User.team_id == req.team_id
-        ).first()
+        existing = db.query(User).filter(User.team_id == req.team_id).first()
         if existing:
             raise HTTPException(status_code=409, detail=f"Team ID '{req.team_id}' already exists")
 
         new_user = User(
-            hackathon_id=hackathon_id,
             team_id=req.team_id,
             passcode=hash_passcode(req.passcode),
             role=req.role,
@@ -90,7 +85,6 @@ def create_team(
 
 @router.post("/bulk", response_model=dict)
 def bulk_create_teams(
-    hackathon_id: int,
     req: TeamBulkCreate,
     user: CurrentUser = Depends(require_role("admin")),
 ):
@@ -166,15 +160,12 @@ def bulk_create_teams(
                 import secrets
                 pwd = secrets.token_urlsafe(32)
 
-            existing = db.query(User).filter(
-                User.hackathon_id == hackathon_id, User.team_id == tid
-            ).first()
+            existing = db.query(User).filter(User.team_id == tid).first()
             if existing:
                 skipped += 1
                 continue
 
             db.add(User(
-                hackathon_id=hackathon_id,
                 team_id=tid,
                 passcode=hash_passcode(pwd),
                 role=role_val,
@@ -190,7 +181,6 @@ def bulk_create_teams(
 
 @router.put("/{team_id}/profile")
 def update_profile(
-    hackathon_id: int,
     team_id: str,
     req: TeamProfileUpdate,
     user: CurrentUser = Depends(require_role("admin", "team")),
@@ -200,19 +190,18 @@ def update_profile(
     if user.role == "team" and user.team_id != team_id:
         raise HTTPException(status_code=403, detail="Cannot update another team's profile")
 
-    update_team_profile(hackathon_id, team_id, req.product_name, req.team_name, req.one_liner)
+    update_team_profile(team_id, req.product_name, req.team_name, req.one_liner)
     return {"message": "Profile updated"}
 
 
 @router.put("/{team_id}/passcode")
 def change_passcode(
-    hackathon_id: int,
     team_id: str,
     req: PasscodeChange,
     user: CurrentUser = Depends(require_role("admin")),
 ):
     """Reset a team's passcode (Admin only)."""
-    success = update_team_passcode(hackathon_id, team_id, req.new_passcode)
+    success = update_team_passcode(team_id, req.new_passcode)
     if not success:
         raise HTTPException(status_code=404, detail="Team not found")
     return {"message": "Passcode updated"}
@@ -220,13 +209,12 @@ def change_passcode(
 
 @router.put("/{team_id}/role")
 def change_role(
-    hackathon_id: int,
     team_id: str,
     req: RoleUpdate,
     user: CurrentUser = Depends(require_role("admin")),
 ):
     """Change a team's role (team <-> observer)."""
-    success = update_user_role(hackathon_id, team_id, req.new_role)
+    success = update_user_role(team_id, req.new_role)
     if not success:
         raise HTTPException(status_code=400, detail="Invalid role or team not found")
     return {"message": f"Role changed to {req.new_role}"}
@@ -234,13 +222,12 @@ def change_role(
 
 @router.put("/{team_id}/active")
 def change_active(
-    hackathon_id: int,
     team_id: str,
     req: TeamActiveUpdate,
     user: CurrentUser = Depends(require_role("admin")),
 ):
     """Change a team's active status (Admin only)."""
-    success = update_user_active(hackathon_id, team_id, req.is_active)
+    success = update_user_active(team_id, req.is_active)
     if not success:
         raise HTTPException(status_code=404, detail="Team not found")
     return {"message": "Team active status updated"}
@@ -248,10 +235,9 @@ def change_active(
 
 @router.delete("/{team_id}")
 def remove_team(
-    hackathon_id: int,
     team_id: str,
     user: CurrentUser = Depends(require_role("admin")),
 ):
     """Delete a team and all its data."""
-    delete_team(hackathon_id, team_id)
+    delete_team(team_id)
     return {"message": f"Team '{team_id}' deleted"}

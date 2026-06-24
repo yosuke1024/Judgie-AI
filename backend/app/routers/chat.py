@@ -65,10 +65,8 @@ def submit_team_objection(
     if user.role != "team":
         raise HTTPException(status_code=403, detail="Only teams can submit objections")
 
-    hackathon_id = user.hackathon_id
-
     # Check Q&A turn limit
-    max_turns = get_max_qa_turns(hackathon_id)
+    max_turns = get_max_qa_turns()
     db = SessionLocal()
     try:
         team_turns = (
@@ -97,7 +95,7 @@ def submit_team_objection(
 
     # Use evaluation service
     from app.services.evaluation_service import submit_team_objection as svc_submit
-    result = svc_submit(hackathon_id, eval_id, prev_eval_json, req.objection_text)
+    result = svc_submit(eval_id, prev_eval_json, req.objection_text)
 
     return result
 
@@ -121,8 +119,6 @@ def submit_admin_question(
     user: CurrentUser = Depends(require_role("admin")),
 ):
     """Submit an admin question about a team's submission."""
-    hackathon_id = user.hackathon_id
-
     db = SessionLocal()
     try:
         eval_record = db.query(Evaluation).filter(Evaluation.id == eval_id).first()
@@ -143,11 +139,11 @@ def submit_admin_question(
     from app.services.gemini import admin_chat_about_submission
 
     res_json = admin_chat_about_submission(
-        hackathon_id, source_text, gemini_file_ids, prev_json_str, req.question,
+        source_text, gemini_file_ids, prev_json_str, req.question,
     )
 
     # Map dynamic keys to static columns for backward compatibility
-    languages = get_ai_response_languages(hackathon_id)
+    languages = get_ai_response_languages()
     q_en = req.question
     q_ja = req.question
     a_en = ""

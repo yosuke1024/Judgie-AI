@@ -7,13 +7,13 @@ from app.services.gemini import analyze_submission, upload_to_gemini, wait_for_f
 
 
 def process_submission(
-    hackathon_id: int, team_id: str, uploaded_files: list, prev_evaluations_json: str, is_final: bool
+    team_id: str, uploaded_files: list, prev_evaluations_json: str, is_final: bool
 ) -> dict:
     """
     Handles the entire submission workflow: extraction, Gemini upload, polling, and parsing.
     Includes defensive fallback structures to protect against LLM schema malformations.
     """
-    video_enabled = is_video_upload_enabled(hackathon_id)
+    video_enabled = is_video_upload_enabled()
 
     text_content = ""
     gemini_media_files = []
@@ -27,7 +27,7 @@ def process_submission(
             if ext.lower() in (".mp4", ".mov") and not video_enabled:
                 raise ValueError(
                     "Video uploads (MP4, MOV) are disabled for this project. / "
-                    "このプロジェクトでは動画のアップロードは無効化されています。"
+                    "このプロジェクトでは動画のアップロードは無傷化されています。"
                 )
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
@@ -37,17 +37,16 @@ def process_submission(
             mime_map = {".mp4": "video/mp4", ".mov": "video/quicktime", ".pdf": "application/pdf"}
             mime_type = mime_map.get(ext.lower(), "application/octet-stream")
 
-            g_file = upload_to_gemini(hackathon_id, tmp_path, mime_type=mime_type)
+            g_file = upload_to_gemini(tmp_path, mime_type=mime_type)
             gemini_media_files.append(g_file)
             os.unlink(tmp_path)
 
     # Wait for Gemini file active status if media files exist
     if gemini_media_files:
-        wait_for_files_active(hackathon_id, gemini_media_files)
+        wait_for_files_active(gemini_media_files)
 
     # Analyze via Gemini model
     result_json = analyze_submission(
-        hackathon_id,
         text_content,
         gemini_media_files,
         previous_evaluations_json=prev_evaluations_json,
@@ -57,19 +56,19 @@ def process_submission(
     # Defensive programming: ensure the JSON structure conforms to what UI expects
     from app.models.db import get_ai_response_languages
 
-    languages = get_ai_response_languages(hackathon_id)
-    result_json = sanitize_evaluation_response(result_json, hackathon_id, languages)
+    languages = get_ai_response_languages()
+    result_json = sanitize_evaluation_response(result_json, languages)
 
     # Save the normalized evaluation to database
     g_file_names = [f.name for f in gemini_media_files] if gemini_media_files else []
     save_evaluation(
-        hackathon_id, team_id, result_json, is_final=is_final, source_text=text_content, gemini_file_ids=g_file_names
+        team_id, result_json, is_final=is_final, source_text=text_content, gemini_file_ids=g_file_names
     )
 
     return result_json
 
 
-def sanitize_evaluation_response(data: dict, hackathon_id: int, languages: list[str] = None) -> dict:
+def sanitize_evaluation_response(data: dict, languages: list[str] = None) -> dict:
     """
     Sanitizes LLM response to ensure essential keys and safe fallback structures are present.
     """
@@ -77,7 +76,7 @@ def sanitize_evaluation_response(data: dict, hackathon_id: int, languages: list[
         languages = ["English", "Japanese"]
     from app.models.db import get_personas, normalize_lang_to_key
 
-    personas = get_personas(hackathon_id)
+    personas = get_personas()
     persona_map = {p["name"].lower(): p for p in personas}
 
     if not isinstance(data, dict):

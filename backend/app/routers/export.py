@@ -10,7 +10,6 @@ from fastapi.responses import Response
 
 from app.auth.deps import CurrentUser, require_role
 from app.models.db import (
-    Hackathon,
     SessionLocal,
     User,
     get_criteria,
@@ -18,6 +17,7 @@ from app.models.db import (
     get_max_qa_turns,
     get_personas,
     get_re_evaluation_context_mode,
+    get_setting,
     set_criteria,
     set_max_consultations,
     set_max_qa_turns,
@@ -43,15 +43,15 @@ def get_team_markdown(
     try:
         team_user = (
             db.query(User)
-            .filter(User.hackathon_id == user.hackathon_id, User.team_id == team_id)
+            .filter(User.team_id == team_id)
             .first()
         )
         if not team_user:
-            raise HTTPException(status_code=404, detail="Team not found in this project")
+            raise HTTPException(status_code=404, detail="Team not found")
     finally:
         db.close()
 
-    md = generate_team_markdown_report(user.hackathon_id, team_id)
+    md = generate_team_markdown_report(team_id)
     return Response(
         content=md,
         media_type="text/markdown",
@@ -64,24 +64,24 @@ def get_all_markdown_zip(user: CurrentUser = Depends(require_role("admin"))):
     """Generate Markdown reports for all teams as a ZIP."""
     from app.services.export_service import generate_all_teams_markdown_zip
 
-    zip_bytes = generate_all_teams_markdown_zip(user.hackathon_id)
+    zip_bytes = generate_all_teams_markdown_zip()
     return Response(
         content=zip_bytes,
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename=judgie-reports-{user.hackathon_id}.zip"},
+        headers={"Content-Disposition": "attachment; filename=judgie-reports.zip"},
     )
 
 
 @router.get("/notebooklm-zip")
 def get_notebooklm_zip(user: CurrentUser = Depends(require_role("admin"))):
     """Export all data as Markdown ZIP for NotebookLM."""
-    from app.services.export_service import export_hackathon_to_markdown_zip
+    from app.services.export_service import export_project_to_markdown_zip
 
-    zip_bytes = export_hackathon_to_markdown_zip(user.hackathon_id)
+    zip_bytes = export_project_to_markdown_zip()
     return Response(
         content=zip_bytes,
         media_type="application/zip",
-        headers={"Content-Disposition": f"attachment; filename=judgie-markdown-export-{user.hackathon_id}.zip"},
+        headers={"Content-Disposition": "attachment; filename=judgie-markdown-export.zip"},
     )
 
 
@@ -92,14 +92,8 @@ def export_template(user: CurrentUser = Depends(require_role("admin"))):
     """Export current project settings as a template JSON."""
     import json
 
-    hid = user.hackathon_id
-    db = SessionLocal()
-    try:
-        hackathon = db.query(Hackathon).filter(Hackathon.id == hid).first()
-        h_name = hackathon.name if hackathon else "Unknown"
-        tpl_id = hackathon.template_id if hackathon else None
-    finally:
-        db.close()
+    h_name = get_setting("project_name") or "Unknown"
+    tpl_id = get_setting("template_id")
 
     tpl_desc = ""
     if tpl_id and tpl_id in TEMPLATES:
@@ -108,11 +102,11 @@ def export_template(user: CurrentUser = Depends(require_role("admin"))):
     export_data = {
         "name": h_name,
         "description": tpl_desc,
-        "re_evaluation_context_mode": get_re_evaluation_context_mode(hid),
-        "max_qa_turns": get_max_qa_turns(hid),
-        "max_consultations": get_max_consultations(hid),
-        "criteria": get_criteria(hid),
-        "personas": get_personas(hid),
+        "re_evaluation_context_mode": get_re_evaluation_context_mode(),
+        "max_qa_turns": get_max_qa_turns(),
+        "max_consultations": get_max_consultations(),
+        "criteria": get_criteria(),
+        "personas": get_personas(),
     }
 
     pretty_json = json.dumps(export_data, indent=2, ensure_ascii=False)
@@ -129,7 +123,6 @@ def import_template(
     user: CurrentUser = Depends(require_role("admin")),
 ):
     """Import a template from a GitHub Gist or public Raw JSON URL."""
-    hid = user.hackathon_id
     url_to_fetch = req.url.strip()
 
     parsed = urlparse(url_to_fetch)
@@ -185,17 +178,17 @@ def import_template(
         if not all(k in p for k in ("id", "name", "role", "avatar", "prompt", "active")):
             raise HTTPException(status_code=400, detail=f"Persona at index {idx} missing required fields")
 
-    set_criteria(hid, imported_data["criteria"])
-    set_personas(hid, imported_data["personas"])
+    set_criteria(imported_data["criteria"])
+    set_personas(imported_data["personas"])
 
     if "re_evaluation_context_mode" in imported_data:
         if imported_data["re_evaluation_context_mode"] in ("cumulative", "independent"):
-            set_re_evaluation_context_mode(hid, imported_data["re_evaluation_context_mode"])
+            set_re_evaluation_context_mode(imported_data["re_evaluation_context_mode"])
     if "max_qa_turns" in imported_data:
         if isinstance(imported_data["max_qa_turns"], int):
-            set_max_qa_turns(hid, imported_data["max_qa_turns"])
+            set_max_qa_turns(imported_data["max_qa_turns"])
     if "max_consultations" in imported_data:
         if isinstance(imported_data["max_consultations"], int):
-            set_max_consultations(hid, imported_data["max_consultations"])
+            set_max_consultations(imported_data["max_consultations"])
 
     return {"message": "Template imported successfully"}

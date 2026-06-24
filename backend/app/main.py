@@ -13,7 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import CORS_ORIGINS
 from app.models.db import init_db
-from app.routers import auth, chat, evaluations, export, hackathons, settings, submissions, teams
+from app.routers import auth, chat, evaluations, export, settings, submissions, teams
 
 
 @asynccontextmanager
@@ -42,7 +42,6 @@ app.add_middleware(
 # Register routers
 
 app.include_router(auth.router)
-app.include_router(hackathons.router)
 app.include_router(teams.router)
 app.include_router(evaluations.router)
 app.include_router(submissions.router)

@@ -4,7 +4,6 @@ import { authApi } from '@/api/client';
 interface User {
   team_id: string;
   role: string;
-  hackathon_id: number | null;
   product_name?: string;
   team_name?: string;
   one_liner?: string;
@@ -16,11 +15,9 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (teamId: string, passcode: string, hackathonId?: number) => Promise<void>;
+  login: (teamId: string, passcode: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  oidcSelectTenant: (tempToken: string, hackathonId: number, teamId: string) => Promise<void>;
-  switchTenant: (hackathonId: number, teamId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,11 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser().finally(() => setLoading(false));
   }, []);
 
-  const login = async (teamId: string, passcode: string, hackathonId?: number) => {
+  const login = async (teamId: string, passcode: string) => {
     await authApi.login({
       team_id: teamId,
       passcode,
-      hackathon_id: hackathonId,
     });
     await refreshUser();
   };
@@ -56,25 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const oidcSelectTenant = async (tempToken: string, hackathonId: number, teamId: string) => {
-    await authApi.oidcSelectTenant({
-      temp_token: tempToken,
-      hackathon_id: hackathonId,
-      team_id: teamId,
-    });
-    await refreshUser();
-  };
-
-  const switchTenant = async (hackathonId: number, teamId: string) => {
-    await authApi.switchTenant({
-      hackathon_id: hackathonId,
-      team_id: teamId,
-    });
-    await refreshUser();
-  };
-
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, oidcSelectTenant, switchTenant }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

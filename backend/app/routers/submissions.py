@@ -34,22 +34,18 @@ async def upload_submission(
     if user.role not in ("team",):
         raise HTTPException(status_code=403, detail="Only teams can submit")
 
-    hackathon_id = user.hackathon_id
     team_id = user.team_id
 
-    if not hackathon_id:
-        raise HTTPException(status_code=400, detail="No active hackathon")
-
     # Check consultation limit
-    max_cons = get_max_consultations(hackathon_id)
-    current_count = get_consultation_count(hackathon_id, team_id)
+    max_cons = get_max_consultations()
+    current_count = get_consultation_count(team_id)
     if max_cons != -1 and current_count >= max_cons and not is_final:
         raise HTTPException(
             status_code=429,
             detail=f"Maximum consultations ({max_cons}) reached",
         )
 
-    video_enabled = is_video_upload_enabled(hackathon_id)
+    video_enabled = is_video_upload_enabled()
 
     # Process files
     from app.services.file_handler import extract_text_from_zip
@@ -80,24 +76,24 @@ async def upload_submission(
             mime_map = {".mp4": "video/mp4", ".mov": "video/quicktime", ".pdf": "application/pdf"}
             mime_type = mime_map.get(ext, "application/octet-stream")
 
-            g_file = upload_to_gemini(hackathon_id, tmp_path, mime_type=mime_type)
+            g_file = upload_to_gemini(tmp_path, mime_type=mime_type)
             gemini_media_files.append(g_file)
             os.unlink(tmp_path)
 
     # Wait for Gemini file processing
     if gemini_media_files:
-        wait_for_files_active(hackathon_id, gemini_media_files)
+        wait_for_files_active(gemini_media_files)
 
     # Build previous evaluations context
     prev_evaluations_json = ""
-    context_mode = get_re_evaluation_context_mode(hackathon_id)
+    context_mode = get_re_evaluation_context_mode()
     if context_mode == "cumulative" and current_count > 0:
         from app.models.db import Evaluation, SessionLocal
         db = SessionLocal()
         try:
             prev_evals = (
                 db.query(Evaluation)
-                .filter(Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == team_id)
+                .filter(Evaluation.team_id == team_id)
                 .order_by(Evaluation.id.asc())
                 .all()
             )
@@ -115,7 +111,6 @@ async def upload_submission(
     # Analyze via Gemini
     try:
         result_json = analyze_submission(
-            hackathon_id,
             text_content,
             gemini_media_files,
             previous_evaluations_json=prev_evaluations_json,
@@ -136,13 +131,13 @@ async def upload_submission(
 
     # Sanitize response
     from app.services.submission_service import sanitize_evaluation_response
-    languages = get_ai_response_languages(hackathon_id)
-    result_json = sanitize_evaluation_response(result_json, hackathon_id, languages)
+    languages = get_ai_response_languages()
+    result_json = sanitize_evaluation_response(result_json, languages)
 
     # Save to DB
     g_file_names = [f.name for f in gemini_media_files] if gemini_media_files else []
     save_evaluation(
-        hackathon_id, team_id, result_json,
+        team_id, result_json,
         is_final=is_final, source_text=text_content, gemini_file_ids=g_file_names,
     )
 

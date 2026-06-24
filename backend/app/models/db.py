@@ -18,7 +18,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    UniqueConstraint,
     create_engine,
     func,
     text,
@@ -52,23 +51,10 @@ Base = declarative_base()
 # ORM Models
 # ──────────────────────────────────────────────
 
-class Hackathon(Base):
-    __tablename__ = "hackathons"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    template_id = Column(String, nullable=True)
-    re_evaluation_context_mode = Column(String, default="cumulative", nullable=False)
-    max_qa_turns = Column(Integer, default=1, nullable=False)
-    max_consultations = Column(Integer, default=3, nullable=False)
-    created_at = Column(DateTime, default=func.now())
-
-
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (UniqueConstraint("hackathon_id", "team_id", name="uq_tenant_team"),)
     id = Column(Integer, primary_key=True, index=True)
-    hackathon_id = Column(Integer, ForeignKey("hackathons.id"))
-    team_id = Column(String, nullable=False)
+    team_id = Column(String, nullable=False, unique=True)
     passcode = Column(String, nullable=False)
     role = Column(String, nullable=False)  # 'superadmin', 'admin', 'team', 'observer'
     email = Column(String, nullable=True)
@@ -81,7 +67,6 @@ class User(Base):
 class Submission(Base):
     __tablename__ = "submissions"
     id = Column(Integer, primary_key=True, index=True)
-    hackathon_id = Column(Integer, ForeignKey("hackathons.id"))
     team_id = Column(String, nullable=False)
     files_json = Column(Text, nullable=False)
     uploaded_at = Column(DateTime, default=func.now())
@@ -90,7 +75,6 @@ class Submission(Base):
 class Evaluation(Base):
     __tablename__ = "evaluations"
     id = Column(Integer, primary_key=True, index=True)
-    hackathon_id = Column(Integer, ForeignKey("hackathons.id"))
     team_id = Column(String, nullable=False)
     scores_json = Column(Text, nullable=False)
     impact_score = Column(Float, nullable=False)
@@ -104,7 +88,6 @@ class Evaluation(Base):
 
 class Setting(Base):
     __tablename__ = "settings"
-    hackathon_id = Column(Integer, ForeignKey("hackathons.id"), primary_key=True)
     key = Column(String, primary_key=True)
     value = Column(Text, nullable=False)
 
@@ -114,7 +97,6 @@ class Session(Base):
     session_id = Column(String, primary_key=True)
     team_id = Column(String, nullable=False)
     role = Column(String, nullable=False)
-    hackathon_id = Column(Integer)
     created_at = Column(DateTime, default=func.now())
 
 
@@ -180,10 +162,6 @@ def init_db():
 
     migration_statements = [
         "ALTER TABLE admin_chats ADD COLUMN qa_json TEXT;",
-        "ALTER TABLE hackathons ADD COLUMN template_id TEXT;",
-        "ALTER TABLE hackathons ADD COLUMN re_evaluation_context_mode TEXT DEFAULT 'cumulative';",
-        "ALTER TABLE hackathons ADD COLUMN max_qa_turns INTEGER DEFAULT 1;",
-        "ALTER TABLE hackathons ADD COLUMN max_consultations INTEGER DEFAULT 3;",
         "ALTER TABLE users ADD COLUMN email TEXT;",
         "ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1;",
     ]
@@ -211,21 +189,18 @@ def init_db():
                 )
                 db.add(superadmin)
         else:
-            existing_h = db.query(Hackathon).first()
-            if not existing_h:
-                h_name = os.environ.get("DEFAULT_HACKATHON_NAME", "Default Hackathon")
-                hackathon = Hackathon(
-                    id=1,
-                    name=h_name,
-                    template_id=None,
-                    re_evaluation_context_mode="cumulative",
-                    max_qa_turns=1,
-                    max_consultations=3,
-                )
-                db.add(hackathon)
-                db.flush()
+            # Seed project settings in settings table
+            project_name = os.environ.get("DEFAULT_HACKATHON_NAME", "Default Project")
+            if not get_setting("project_name"):
+                set_setting("project_name", project_name, db=db)
+                set_setting("re_evaluation_context_mode", "cumulative", db=db)
+                set_setting("max_qa_turns", "1", db=db)
+                set_setting("max_consultations", "3", db=db)
+                set_setting("video_upload_enabled", "true", db=db)
+
+            admin_user = db.query(User).filter(User.team_id == default_admin_id).first()
+            if not admin_user:
                 admin_user = User(
-                    hackathon_id=hackathon.id,
                     team_id=default_admin_id,
                     passcode=hash_passcode(default_admin_pass),
                     role="admin",
@@ -238,37 +213,30 @@ def init_db():
 # CRUD Functions
 # ──────────────────────────────────────────────
 
-def verify_user(team_id: str, passcode: str, hackathon_id: int = None) -> dict | None:
-    """Verify user credentials and return role/hackathon_id if valid."""
+def verify_user(team_id: str, passcode: str) -> dict | None:
+    """Verify user credentials and return role if valid."""
     from app.security import verify_passcode
 
     if team_id == "superadmin" and os.environ.get("DEFAULT_ADMIN_ID"):
         return None
 
     with db_session() as db:
-        query = db.query(User).filter(User.team_id == team_id, User.is_active)
-        if team_id == "superadmin":
-            user = query.filter(User.role == "superadmin").first()
-        else:
-            if not hackathon_id:
-                return None
-            user = query.filter(User.hackathon_id == hackathon_id).first()
+        user = db.query(User).filter(User.team_id == team_id, User.is_active).first()
         if user and verify_passcode(passcode, user.passcode):
-            return {"role": user.role, "hackathon_id": user.hackathon_id, "email": user.email}
+            return {"role": user.role, "email": user.email}
         return None
 
 
-def get_consultation_count(hackathon_id: int, team_id: str) -> int:
+def get_consultation_count(team_id: str) -> int:
     with db_session() as db:
         return (
             db.query(Evaluation)
-            .filter(Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == team_id)
+            .filter(Evaluation.team_id == team_id)
             .count()
         )
 
 
 def save_evaluation(
-    hackathon_id: int,
     team_id: str,
     result_json: dict,
     is_final: bool = False,
@@ -291,7 +259,6 @@ def save_evaluation(
         file_ids_json = json.dumps(gemini_file_ids) if gemini_file_ids else None
 
         eval_record = Evaluation(
-            hackathon_id=hackathon_id,
             team_id=team_id,
             scores_json=scores_json,
             impact_score=impact_score,
@@ -312,28 +279,19 @@ def save_objection_qa(evaluation_id: int, qa_json: dict):
 
 # --- Settings CRUD ---
 
-def get_setting(hackathon_id: int, key: str) -> str | None:
-    if hackathon_id is None:
-        return None
+def get_setting(key: str) -> str | None:
     with db_session() as db:
-        setting = db.query(Setting).filter(
-            Setting.hackathon_id == hackathon_id, Setting.key == key
-        ).first()
+        setting = db.query(Setting).filter(Setting.key == key).first()
         return setting.value if setting else None
 
 
-def set_setting(hackathon_id: int, key: str, value: str, db=None):
-    if hackathon_id is None:
-        return
-
+def set_setting(key: str, value: str, db=None):
     def _execute(session):
-        setting = session.query(Setting).filter(
-            Setting.hackathon_id == hackathon_id, Setting.key == key
-        ).first()
+        setting = session.query(Setting).filter(Setting.key == key).first()
         if setting:
             setting.value = value
         else:
-            session.add(Setting(hackathon_id=hackathon_id, key=key, value=value))
+            session.add(Setting(key=key, value=value))
 
     if db is not None:
         _execute(db)
@@ -342,8 +300,8 @@ def set_setting(hackathon_id: int, key: str, value: str, db=None):
             _execute(new_db)
 
 
-def get_ai_response_languages(hackathon_id: int) -> list[str]:
-    val = get_setting(hackathon_id, "ai_response_languages")
+def get_ai_response_languages() -> list[str]:
+    val = get_setting("ai_response_languages")
     if val:
         try:
             return json.loads(val)
@@ -352,60 +310,52 @@ def get_ai_response_languages(hackathon_id: int) -> list[str]:
     return ["English", "Japanese"]
 
 
-def set_ai_response_languages(hackathon_id: int, languages: list[str], db=None):
-    set_setting(hackathon_id, "ai_response_languages", json.dumps(languages), db=db)
+def set_ai_response_languages(languages: list[str], db=None):
+    set_setting("ai_response_languages", json.dumps(languages), db=db)
 
 
-def is_video_upload_enabled(hackathon_id: int) -> bool:
-    val = get_setting(hackathon_id, "video_upload_enabled")
+def is_video_upload_enabled() -> bool:
+    val = get_setting("video_upload_enabled")
     return val != "false"
 
 
-def set_video_upload_enabled(hackathon_id: int, enabled: bool, db=None):
-    set_setting(hackathon_id, "video_upload_enabled", "true" if enabled else "false", db=db)
+def set_video_upload_enabled(enabled: bool, db=None):
+    set_setting("video_upload_enabled", "true" if enabled else "false", db=db)
 
 
-def get_criteria(hackathon_id):
+def get_criteria():
     from app.services.templates import TEMPLATES
 
-    val = get_setting(hackathon_id, "evaluation_criteria")
+    val = get_setting("evaluation_criteria")
     if val:
         return json.loads(val)
-    if hackathon_id is not None:
-        with db_session() as db:
-            h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-            if h:
-                if h.template_id:
-                    tpl = TEMPLATES.get(h.template_id)
-                    if tpl:
-                        return tpl.get("criteria", [])
-                return []
+
+    template_id = get_setting("template_id")
+    if template_id:
+        tpl = TEMPLATES.get(template_id)
+        if tpl:
+            return tpl.get("criteria", [])
     return TEMPLATES.get("hackathon", {}).get("criteria", [])
 
 
-def set_criteria(hackathon_id, criteria_list, db=None):
-    set_setting(hackathon_id, "evaluation_criteria", json.dumps(criteria_list), db=db)
+def set_criteria(criteria_list, db=None):
+    set_setting("evaluation_criteria", json.dumps(criteria_list), db=db)
 
 
-def get_personas(hackathon_id):
+def get_personas():
     from app.services.templates import TEMPLATES
 
-    val = get_setting(hackathon_id, "judges_personas")
+    val = get_setting("judges_personas")
     if val:
         personas = json.loads(val)
     else:
-        if hackathon_id is not None:
-            with db_session() as db:
-                h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-                if h:
-                    if h.template_id:
-                        tpl = TEMPLATES.get(h.template_id)
-                        if tpl:
-                            personas = tpl.get("personas", [])
-                    else:
-                        personas = []
-                else:
-                    personas = TEMPLATES.get("hackathon", {}).get("personas", [])
+        template_id = get_setting("template_id")
+        if template_id:
+            tpl = TEMPLATES.get(template_id)
+            if tpl:
+                personas = tpl.get("personas", [])
+            else:
+                personas = []
         else:
             personas = TEMPLATES.get("hackathon", {}).get("personas", [])
 
@@ -440,130 +390,53 @@ def get_personas(hackathon_id):
     return personas
 
 
-def set_personas(hackathon_id, personas_list, db=None):
-    set_setting(hackathon_id, "judges_personas", json.dumps(personas_list), db=db)
+def set_personas(personas_list, db=None):
+    set_setting("judges_personas", json.dumps(personas_list), db=db)
 
 
-def get_re_evaluation_context_mode(hackathon_id: int) -> str:
-    if hackathon_id is None:
-        return "cumulative"
-    with db_session() as db:
-        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-        return h.re_evaluation_context_mode if h else "cumulative"
+def get_re_evaluation_context_mode() -> str:
+    val = get_setting("re_evaluation_context_mode")
+    return val if val else "cumulative"
 
 
-def set_re_evaluation_context_mode(hackathon_id: int, mode: str):
-    if hackathon_id is None:
-        return
-    with db_session() as db:
-        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-        if h:
-            h.re_evaluation_context_mode = mode
+def set_re_evaluation_context_mode(mode: str):
+    set_setting("re_evaluation_context_mode", mode)
 
 
-def get_max_qa_turns(hackathon_id: int) -> int:
-    if hackathon_id is None:
-        return 1
-    with db_session() as db:
-        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-        return h.max_qa_turns if h else 1
+def get_max_qa_turns() -> int:
+    val = get_setting("max_qa_turns")
+    if val:
+        try:
+            return int(val)
+        except ValueError:
+            pass
+    return 1
 
 
-def set_max_qa_turns(hackathon_id: int, turns: int):
-    if hackathon_id is None:
-        return
-    with db_session() as db:
-        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-        if h:
-            h.max_qa_turns = turns
+def set_max_qa_turns(turns: int):
+    set_setting("max_qa_turns", str(turns))
 
 
-def get_max_consultations(hackathon_id: int) -> int:
-    if hackathon_id is None:
-        return 3
-    with db_session() as db:
-        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-        return h.max_consultations if h and h.max_consultations is not None else 3
+def get_max_consultations() -> int:
+    val = get_setting("max_consultations")
+    if val:
+        try:
+            return int(val)
+        except ValueError:
+            pass
+    return 3
 
 
-def set_max_consultations(hackathon_id: int, max_consultations: int):
-    if hackathon_id is None:
-        return
-    with db_session() as db:
-        h = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-        if h:
-            h.max_consultations = max_consultations
+def set_max_consultations(max_consultations: int):
+    set_setting("max_consultations", str(max_consultations))
 
 
-# --- Hackathon CRUD ---
 
-def create_hackathon(
-    name: str, admin_id: str, admin_pass: str,
-    template_id: str = None, custom_template_data: dict = None,
-) -> int:
-    from app.security import hash_passcode
+
+def initialize_project_template(template_id: str, custom_template_data: dict = None):
     from app.services.templates import TEMPLATES
 
     with db_session() as db:
-        hackathon = Hackathon(
-            name=name, template_id=template_id,
-            re_evaluation_context_mode="cumulative", max_qa_turns=1, max_consultations=3,
-        )
-        db.add(hackathon)
-        db.flush()
-
-        admin_user = User(
-            hackathon_id=hackathon.id, team_id=admin_id,
-            passcode=hash_passcode(admin_pass), role="admin",
-        )
-        db.add(admin_user)
-        db.flush()
-
-        if template_id:
-            selected_criteria = None
-            selected_personas = None
-            re_eval_mode = "cumulative"
-            max_qa = 1
-            max_cons = 3
-
-            if custom_template_data:
-                selected_criteria = custom_template_data.get("criteria")
-                selected_personas = custom_template_data.get("personas")
-                re_eval_mode = custom_template_data.get("re_evaluation_context_mode", "cumulative")
-                max_qa = custom_template_data.get("max_qa_turns", 1)
-                max_cons = custom_template_data.get("max_consultations", 3)
-            elif template_id in TEMPLATES:
-                tpl = TEMPLATES[template_id]
-                selected_criteria = tpl.get("criteria")
-                selected_personas = tpl.get("personas")
-                re_eval_mode = tpl.get("re_evaluation_context_mode", "cumulative")
-                max_qa = tpl.get("max_qa_turns", 1)
-                max_cons = tpl.get("max_consultations", 3)
-            else:
-                tpl = TEMPLATES.get("hackathon", {})
-                selected_criteria = tpl.get("criteria")
-                selected_personas = tpl.get("personas")
-
-            hackathon.template_id = template_id
-            hackathon.re_evaluation_context_mode = re_eval_mode
-            hackathon.max_qa_turns = max_qa
-            hackathon.max_consultations = max_cons
-
-            set_personas(hackathon.id, selected_personas, db=db)
-            set_criteria(hackathon.id, selected_criteria, db=db)
-            set_ai_response_languages(hackathon.id, ["English", "Japanese"], db=db)
-
-        return hackathon.id
-
-
-def initialize_hackathon_template(hackathon_id: int, template_id: str, custom_template_data: dict = None):
-    from app.services.templates import TEMPLATES
-
-    with db_session() as db:
-        hackathon = db.query(Hackathon).filter(Hackathon.id == hackathon_id).first()
-        if not hackathon:
-            raise ValueError(f"Hackathon ID {hackathon_id} not found.")
-
         selected_criteria = None
         selected_personas = None
         re_eval_mode = "cumulative"
@@ -586,37 +459,34 @@ def initialize_hackathon_template(hackathon_id: int, template_id: str, custom_te
         else:
             raise ValueError(f"Invalid template ID: {template_id}")
 
-        hackathon.template_id = template_id
-        hackathon.re_evaluation_context_mode = re_eval_mode
-        hackathon.max_qa_turns = max_qa
-        hackathon.max_consultations = max_cons
+        set_setting("template_id", template_id, db=db)
+        set_setting("re_evaluation_context_mode", re_eval_mode, db=db)
+        set_setting("max_qa_turns", str(max_qa), db=db)
+        set_setting("max_consultations", str(max_cons), db=db)
 
-        set_personas(hackathon_id, selected_personas, db=db)
-        set_criteria(hackathon_id, selected_criteria, db=db)
-        set_ai_response_languages(hackathon_id, ["English", "Japanese"], db=db)
+        set_personas(selected_personas, db=db)
+        set_criteria(selected_criteria, db=db)
+        set_ai_response_languages(["English", "Japanese"], db=db)
 
 
 # --- User / Team CRUD ---
 
-def update_admin_passcode(hackathon_id: int, new_passcode: str):
+def update_admin_passcode(new_passcode: str):
     from app.security import hash_passcode
 
     with db_session() as db:
-        admin_user = db.query(User).filter(
-            User.hackathon_id == hackathon_id, User.role == "admin"
-        ).first()
+        admin_user = db.query(User).filter(User.role == "admin").first()
         if admin_user:
             admin_user.passcode = hash_passcode(new_passcode)
 
 
-def update_team_passcode(hackathon_id: int, team_id: str, new_passcode: str) -> bool:
+def update_team_passcode(team_id: str, new_passcode: str) -> bool:
     from app.security import hash_passcode
 
     with db_session() as db:
         team_user = (
             db.query(User)
             .filter(
-                User.hackathon_id == hackathon_id,
                 User.team_id == team_id,
                 User.role.in_(["team", "observer"]),
             )
@@ -628,14 +498,13 @@ def update_team_passcode(hackathon_id: int, team_id: str, new_passcode: str) -> 
         return False
 
 
-def update_user_role(hackathon_id: int, team_id: str, new_role: str) -> bool:
+def update_user_role(team_id: str, new_role: str) -> bool:
     if new_role not in ["team", "observer"]:
         return False
     with db_session() as db:
         user = (
             db.query(User)
             .filter(
-                User.hackathon_id == hackathon_id,
                 User.team_id == team_id,
                 User.role.in_(["team", "observer"]),
             )
@@ -647,12 +516,11 @@ def update_user_role(hackathon_id: int, team_id: str, new_role: str) -> bool:
         return False
 
 
-def update_user_active(hackathon_id: int, team_id: str, is_active: bool) -> bool:
+def update_user_active(team_id: str, is_active: bool) -> bool:
     with db_session() as db:
         user = (
             db.query(User)
             .filter(
-                User.hackathon_id == hackathon_id,
                 User.team_id == team_id,
                 User.role.in_(["team", "observer"]),
             )
@@ -665,21 +533,14 @@ def update_user_active(hackathon_id: int, team_id: str, is_active: bool) -> bool
 
 
 def change_my_passcode(
-    hackathon_id: int = None, team_id: str = None,
-    current_passcode: str = None, new_passcode: str = None,
+    team_id: str = None,
+    current_passcode: str = None,
+    new_passcode: str = None,
 ) -> bool:
     from app.security import hash_passcode, verify_passcode
 
-    if isinstance(hackathon_id, str):
-        new_passcode = current_passcode
-        current_passcode = team_id
-        team_id = hackathon_id
-        hackathon_id = None
-
     with db_session() as db:
         query = db.query(User).filter(User.team_id == team_id)
-        if team_id != "superadmin" and hackathon_id is not None:
-            query = query.filter(User.hackathon_id == hackathon_id)
         user = query.first()
         if user and verify_passcode(current_passcode, user.passcode):
             user.passcode = hash_passcode(new_passcode)
@@ -687,11 +548,9 @@ def change_my_passcode(
         return False
 
 
-def get_team_profile(hackathon_id: int, team_id: str) -> dict:
+def get_team_profile(team_id: str) -> dict:
     with db_session() as db:
-        user = db.query(User).filter(
-            User.hackathon_id == hackathon_id, User.team_id == team_id
-        ).first()
+        user = db.query(User).filter(User.team_id == team_id).first()
         if user:
             return {
                 "product_name": user.product_name,
@@ -701,11 +560,9 @@ def get_team_profile(hackathon_id: int, team_id: str) -> dict:
         return {"product_name": None, "team_name": None, "one_liner": None}
 
 
-def update_team_profile(hackathon_id: int, team_id: str, product_name: str, team_name: str, one_liner: str):
+def update_team_profile(team_id: str, product_name: str, team_name: str, one_liner: str):
     with db_session() as db:
-        user = db.query(User).filter(
-            User.hackathon_id == hackathon_id, User.team_id == team_id
-        ).first()
+        user = db.query(User).filter(User.team_id == team_id).first()
         if user:
             user.product_name = product_name
             user.team_name = team_name
@@ -714,10 +571,10 @@ def update_team_profile(hackathon_id: int, team_id: str, product_name: str, team
 
 # --- Session CRUD ---
 
-def create_session(team_id: str, role: str, hackathon_id: int) -> str:
+def create_session(team_id: str, role: str) -> str:
     with db_session() as db:
         session_id = str(uuid.uuid4())
-        db.add(Session(session_id=session_id, team_id=team_id, role=role, hackathon_id=hackathon_id))
+        db.add(Session(session_id=session_id, team_id=team_id, role=role))
         return session_id
 
 
@@ -730,7 +587,6 @@ def get_session(session_id: str) -> dict | None:
             return {
                 "team_id": record.team_id,
                 "role": record.role,
-                "hackathon_id": record.hackathon_id,
             }
         return None
 
@@ -802,50 +658,30 @@ def get_admin_chats(evaluation_id: int) -> list[dict]:
 
 # --- Delete Operations ---
 
-def delete_hackathon(hackathon_id: int):
-    with db_session() as db:
-        eval_ids = [e.id for e in db.query(Evaluation).filter(Evaluation.hackathon_id == hackathon_id).all()]
-        if eval_ids:
-            db.query(AdminChat).filter(AdminChat.evaluation_id.in_(eval_ids)).delete(synchronize_session=False)
-            db.query(TeamChat).filter(TeamChat.evaluation_id.in_(eval_ids)).delete(synchronize_session=False)
-        db.query(Evaluation).filter(Evaluation.hackathon_id == hackathon_id).delete(synchronize_session=False)
-        db.query(Submission).filter(Submission.hackathon_id == hackathon_id).delete(synchronize_session=False)
-        db.query(Setting).filter(Setting.hackathon_id == hackathon_id).delete(synchronize_session=False)
-        db.query(Session).filter(Session.hackathon_id == hackathon_id).delete(synchronize_session=False)
-        db.query(User).filter(User.hackathon_id == hackathon_id).delete(synchronize_session=False)
-        db.query(Hackathon).filter(Hackathon.id == hackathon_id).delete(synchronize_session=False)
-
-
-def delete_team(hackathon_id: int, team_id: str):
+def delete_team(team_id: str):
     with db_session() as db:
         eval_ids = [
             e.id for e in db.query(Evaluation)
-            .filter(Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == team_id)
+            .filter(Evaluation.team_id == team_id)
             .all()
         ]
         if eval_ids:
             db.query(AdminChat).filter(AdminChat.evaluation_id.in_(eval_ids)).delete(synchronize_session=False)
             db.query(TeamChat).filter(TeamChat.evaluation_id.in_(eval_ids)).delete(synchronize_session=False)
-        db.query(Evaluation).filter(
-            Evaluation.hackathon_id == hackathon_id, Evaluation.team_id == team_id
-        ).delete(synchronize_session=False)
-        db.query(Submission).filter(
-            Submission.hackathon_id == hackathon_id, Submission.team_id == team_id
-        ).delete(synchronize_session=False)
-        db.query(Session).filter(
-            Session.hackathon_id == hackathon_id, Session.team_id == team_id
-        ).delete(synchronize_session=False)
+        db.query(Evaluation).filter(Evaluation.team_id == team_id).delete(synchronize_session=False)
+        db.query(Submission).filter(Submission.team_id == team_id).delete(synchronize_session=False)
+        db.query(Session).filter(Session.team_id == team_id).delete(synchronize_session=False)
         db.query(User).filter(
-            User.hackathon_id == hackathon_id, User.team_id == team_id,
+            User.team_id == team_id,
             User.role.in_(["team", "observer"]),
         ).delete(synchronize_session=False)
 
 
-def delete_evaluation(hackathon_id: int, evaluation_id: int):
+def delete_evaluation(evaluation_id: int):
     with db_session() as db:
         eval_record = (
             db.query(Evaluation)
-            .filter(Evaluation.id == evaluation_id, Evaluation.hackathon_id == hackathon_id)
+            .filter(Evaluation.id == evaluation_id)
             .first()
         )
         if eval_record:
