@@ -411,7 +411,15 @@ def get_personas(hackathon_id):
 
     # Automatically resolve custom avatar image from assets/avatars/ if not set
     import base64
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = current_dir
+    for _ in range(5):
+        if os.path.exists(os.path.join(base_dir, "assets", "avatars")):
+            break
+        parent = os.path.dirname(base_dir)
+        if parent == base_dir:
+            break
+        base_dir = parent
     avatars_dir = os.path.join(base_dir, "assets", "avatars")
 
     for p in personas:
