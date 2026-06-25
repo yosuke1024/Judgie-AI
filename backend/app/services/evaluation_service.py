@@ -52,7 +52,7 @@ def get_team_chats(evaluation_id: int) -> list[dict]:
 
 def minimize_evaluation_context(strengths_risks_json_str: str) -> dict:
     """
-    Minimizes the evaluation feedback context by removing unnecessary metadata 
+    Minimizes the evaluation feedback context by removing unnecessary metadata
     (like judge personas, roles, emojis, avatar images) to optimize LLM token usage.
     """
     if not strengths_risks_json_str:

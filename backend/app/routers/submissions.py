@@ -73,10 +73,7 @@ def _run_submission_evaluation(
             db = SessionLocal()
             try:
                 last_eval = (
-                    db.query(Evaluation)
-                    .filter(Evaluation.team_id == team_id)
-                    .order_by(Evaluation.id.desc())
-                    .first()
+                    db.query(Evaluation).filter(Evaluation.team_id == team_id).order_by(Evaluation.id.desc()).first()
                 )
                 if last_eval:
                     minimized_fb = minimize_evaluation_context(last_eval.strengths_risks_json)

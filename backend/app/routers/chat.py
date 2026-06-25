@@ -139,8 +139,8 @@ def _run_admin_chat(
     """Background task: process admin private chat question via Gemini."""
     update_async_task(task_id, "PROCESSING")
     try:
-        from app.services.gemini import admin_chat_about_submission
         from app.services.evaluation_service import minimize_evaluation_context
+        from app.services.gemini import admin_chat_about_submission
 
         # Minimize previous evaluation context to protect against token overflow
         minimized_prev = minimize_evaluation_context(prev_json_str)

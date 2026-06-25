@@ -26,7 +26,9 @@ def test_get_llm_config_unauthorized(client):
 
 
 def test_get_llm_config_forbidden_for_team(client):
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=2, email="user@test.com", role="team", team_id="teamA")
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        user_id=2, email="user@test.com", role="team", team_id="teamA"
+    )
     try:
         res = client.get("/api/settings/llm")
         assert res.status_code == 403

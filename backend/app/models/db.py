@@ -243,7 +243,11 @@ def init_db():
 
         if needs_migration and legacy_table:
             # Read legacy data before dropping
-            rows = conn.execute(text(f"SELECT team_id, passcode, role, product_name, team_name, one_liner, is_active FROM {legacy_table}")).fetchall()
+            rows = conn.execute(
+                text(
+                    f"SELECT team_id, passcode, role, product_name, team_name, one_liner, is_active FROM {legacy_table}"
+                )
+            ).fetchall()
 
             # Read legacy team_members if they exist
             legacy_members = []
@@ -268,8 +272,16 @@ def init_db():
                     # Create team profile
                     try:
                         conn.execute(
-                            text("INSERT INTO teams (team_id, product_name, team_name, one_liner, is_active) VALUES (:tid, :pn, :tn, :ol, :ia)"),
-                            {"tid": old_team_id, "pn": product_name, "tn": team_name, "ol": one_liner, "ia": is_active if is_active is not None else True},
+                            text(
+                                "INSERT INTO teams (team_id, product_name, team_name, one_liner, is_active) VALUES (:tid, :pn, :tn, :ol, :ia)"
+                            ),
+                            {
+                                "tid": old_team_id,
+                                "pn": product_name,
+                                "tn": team_name,
+                                "ol": one_liner,
+                                "ia": is_active if is_active is not None else True,
+                            },
                         )
                     except Exception:
                         pass  # Team might already exist
@@ -286,11 +298,15 @@ def init_db():
                             break
 
                     conn.execute(
-                        text("INSERT INTO users (email, password_hash, display_name, role, is_active) VALUES (:email, NULL, NULL, :role, 1)"),
+                        text(
+                            "INSERT INTO users (email, password_hash, display_name, role, is_active) VALUES (:email, NULL, NULL, :role, 1)"
+                        ),
                         {"email": member_email, "role": team_role},
                     )
                     # Get the user id
-                    user_row = conn.execute(text("SELECT id FROM users WHERE email = :email"), {"email": member_email}).fetchone()
+                    user_row = conn.execute(
+                        text("SELECT id FROM users WHERE email = :email"), {"email": member_email}
+                    ).fetchone()
                     if user_row:
                         conn.execute(
                             text("INSERT INTO team_memberships (user_id, team_id) VALUES (:uid, :tid)"),
@@ -318,17 +334,25 @@ def init_db():
         if not _column_exists(conn, "users", "username"):
             try:
                 conn.execute(text("ALTER TABLE users ADD COLUMN username TEXT;"))
-                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users (username) WHERE username IS NOT NULL;"))
+                conn.execute(
+                    text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users (username) WHERE username IS NOT NULL;"
+                    )
+                )
             except Exception:
                 pass
 
     # Seed default admin user and settings
     with db_session() as db:
         # Support both DEFAULT_ADMIN_ID and DEFAULT_ADMIN_EMAIL. Fallback to "admin@example.com".
-        default_admin_id = os.environ.get("DEFAULT_ADMIN_ID") or os.environ.get("DEFAULT_ADMIN_EMAIL") or "admin@example.com"
+        default_admin_id = (
+            os.environ.get("DEFAULT_ADMIN_ID") or os.environ.get("DEFAULT_ADMIN_EMAIL") or "admin@example.com"
+        )
 
         # Support both DEFAULT_ADMIN_PASSCODE and DEFAULT_ADMIN_PASSWORD. Fallback to "admin123".
-        default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSCODE") or os.environ.get("DEFAULT_ADMIN_PASSWORD") or "admin123"
+        default_admin_pass = (
+            os.environ.get("DEFAULT_ADMIN_PASSCODE") or os.environ.get("DEFAULT_ADMIN_PASSWORD") or "admin123"
+        )
 
         # Seed project settings in settings table
         project_name = "Default Project"
@@ -340,9 +364,9 @@ def init_db():
             set_setting("video_upload_enabled", "true", db=db)
 
         # Look up admin by either email or username/ID
-        admin_user = db.query(User).filter(
-            (User.email == default_admin_id) | (User.username == default_admin_id)
-        ).first()
+        admin_user = (
+            db.query(User).filter((User.email == default_admin_id) | (User.username == default_admin_id)).first()
+        )
 
         if not admin_user:
             is_email = "@" in default_admin_id
@@ -367,10 +391,9 @@ def verify_user(identifier: str, password: str) -> dict | None:
     from app.security import verify_passcode
 
     with db_session() as db:
-        user = db.query(User).filter(
-            ((User.email == identifier) | (User.username == identifier)),
-            User.is_active
-        ).first()
+        user = (
+            db.query(User).filter(((User.email == identifier) | (User.username == identifier)), User.is_active).first()
+        )
         if not user or not user.password_hash:
             return None
         if verify_passcode(password, user.password_hash):
