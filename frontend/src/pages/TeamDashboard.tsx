@@ -480,7 +480,7 @@ export default function TeamDashboard() {
 
       if (result.status === 'FAILED') {
         const errMsg = result.error_message || 'Evaluation failed.';
-        if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED')) {
+        if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('rate_limit') || errMsg.includes('RateLimitError') || errMsg.includes('quota')) {
           setUploadError(t('team.api_limit_error'));
         } else {
           setUploadError(errMsg);
