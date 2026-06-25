@@ -118,7 +118,9 @@ def test_oidc_settings_unauthorized(client):
 
     from app.auth.deps import CurrentUser, get_current_user
 
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=1, email="user@test.com", role="team", team_id="teamA")
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        user_id=1, email="user@test.com", role="team", team_id="teamA"
+    )
     try:
         res = client.get("/api/settings/oidc")
         assert res.status_code == 403

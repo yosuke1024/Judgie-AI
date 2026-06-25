@@ -169,6 +169,7 @@ def login(req: LoginRequest, response: Response):
     # Fetch username as well
     from app.models.db import User as DBUser
     from app.models.db import db_session
+
     username = None
     with db_session() as db:
         db_user = db.query(DBUser).filter(DBUser.id == user_info["user_id"]).first()

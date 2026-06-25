@@ -138,3 +138,43 @@ def test_submit_team_objection(mocker, db_session_fixture):
 
     assert chats[1]["sender"] == "judges"
     assert chats[1]["message_json"]["qa_summary_en"] == "Objection accepted"
+
+
+def test_minimize_evaluation_context():
+    from app.services.evaluation_service import minimize_evaluation_context
+
+    raw_json = """{
+        "judges_feedback": [
+            {
+                "judge_name": "Marcus",
+                "judge_role": "Technical Architect",
+                "judge_persona": "Marcus cares about tech stack...",
+                "judge_scores": [{"criteria_name": "Tech", "score": 4.5}],
+                "judge_emoji": "💻",
+                "feedback_en": "Good tech selection",
+                "feedback_ja": "良い技術選定"
+            }
+        ],
+        "summary_ja": "プロダクトサマリー日本語",
+        "summary_en": "Product summary English"
+    }"""
+
+    minimized = minimize_evaluation_context(raw_json)
+
+    assert "judges_feedback" in minimized
+    assert len(minimized["judges_feedback"]) == 1
+
+    j = minimized["judges_feedback"][0]
+    assert j["judge_name"] == "Marcus"
+    assert j["judge_scores"] == [{"criteria_name": "Tech", "score": 4.5}]
+    assert j["feedback_en"] == "Good tech selection"
+    assert j["feedback_ja"] == "良い技術選定"
+
+    # Check that metadata fields are omitted
+    assert "judge_role" not in j
+    assert "judge_persona" not in j
+    assert "judge_emoji" not in j
+
+    # Check summaries are preserved
+    assert minimized["summary_ja"] == "プロダクトサマリー日本語"
+    assert minimized["summary_en"] == "Product summary English"

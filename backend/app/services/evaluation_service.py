@@ -50,6 +50,43 @@ def get_team_chats(evaluation_id: int) -> list[dict]:
         return chat_list
 
 
+def minimize_evaluation_context(strengths_risks_json_str: str) -> dict:
+    """
+    Minimizes the evaluation feedback context by removing unnecessary metadata
+    (like judge personas, roles, emojis, avatar images) to optimize LLM token usage.
+    """
+    if not strengths_risks_json_str:
+        return {}
+    try:
+        raw_feedback = json.loads(strengths_risks_json_str)
+    except Exception:
+        return {}
+
+    judges_feedback = raw_feedback.get("judges_feedback", [])
+    minimized_feedback = []
+
+    for j in judges_feedback:
+        minimized_j = {
+            "judge_name": j.get("judge_name"),
+            "judge_scores": j.get("judge_scores", []),
+        }
+        # Copy only translation feedback keys (e.g., feedback_en, feedback_ja)
+        # Exclude judge_persona, judge_role, judge_emoji, judge_avatar_image
+        for key, val in j.items():
+            if key.startswith("feedback_"):
+                minimized_j[key] = val
+        minimized_feedback.append(minimized_j)
+
+    minimized_context = {"judges_feedback": minimized_feedback}
+
+    # Also carry over product understanding summaries if available
+    for key, val in raw_feedback.items():
+        if key.startswith("summary_"):
+            minimized_context[key] = val
+
+    return minimized_context
+
+
 def submit_team_objection(eval_id: int, prev_eval_json: str, objection_text: str) -> dict:
     """
     Executes a chat session turn with the AI expert panel in response to the team's objection.
@@ -79,8 +116,12 @@ def submit_team_objection(eval_id: int, prev_eval_json: str, objection_text: str
         for c in chats:
             chat_history.append({"sender": c.sender, "message_json": c.message_json})
 
+    # Minimize previous evaluation context to protect against token overflow
+    minimized_prev = minimize_evaluation_context(prev_eval_json)
+    minimized_prev_json = json.dumps(minimized_prev) if minimized_prev else "{}"
+
     # 4. Call Gemini with the full Q&A discussion history
-    qa_result = object_to_judges("", None, prev_eval_json, chat_history)
+    qa_result = object_to_judges("", None, minimized_prev_json, chat_history)
 
     # Defensive programming: sanitize Gemini responses
     qa_result = sanitize_objection_response(qa_result)

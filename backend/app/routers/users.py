@@ -70,7 +70,7 @@ def create_user(
         if not re.match(r"^[a-zA-Z0-9_-]{3,30}$", username_clean):
             raise HTTPException(
                 status_code=400,
-                detail="Username must be 3-30 characters and contain only alphanumeric characters, hyphens, or underscores"
+                detail="Username must be 3-30 characters and contain only alphanumeric characters, hyphens, or underscores",
             )
 
     with db_session() as db:
@@ -138,7 +138,7 @@ def update_user(
                 if not re.match(r"^[a-zA-Z0-9_-]{3,30}$", username_clean):
                     raise HTTPException(
                         status_code=400,
-                        detail="Username must be 3-30 characters and contain only alphanumeric characters, hyphens, or underscores"
+                        detail="Username must be 3-30 characters and contain only alphanumeric characters, hyphens, or underscores",
                     )
                 # Check uniqueness
                 existing = db.query(User).filter(User.username == username_clean, User.id != user_id).first()
@@ -155,15 +155,12 @@ def update_user(
 
         if is_changing_away_from_admin or is_deactivating_admin:
             # Ensure there is at least one other active admin
-            other_active_admins = db.query(User).filter(
-                User.role == "admin",
-                User.id != user_id,
-                User.is_active
-            ).count()
+            other_active_admins = (
+                db.query(User).filter(User.role == "admin", User.id != user_id, User.is_active).count()
+            )
             if other_active_admins == 0:
                 raise HTTPException(
-                    status_code=400,
-                    detail="Cannot deactivate or change the role of the only active administrator"
+                    status_code=400, detail="Cannot deactivate or change the role of the only active administrator"
                 )
 
         target_role = req.role if req.role is not None else user.role
@@ -226,16 +223,11 @@ def delete_user(
             raise HTTPException(status_code=404, detail="User not found")
 
         if user.role == "admin":
-            other_active_admins = db.query(User).filter(
-                User.role == "admin",
-                User.id != user_id,
-                User.is_active
-            ).count()
+            other_active_admins = (
+                db.query(User).filter(User.role == "admin", User.id != user_id, User.is_active).count()
+            )
             if other_active_admins == 0:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Cannot delete the only active administrator"
-                )
+                raise HTTPException(status_code=400, detail="Cannot delete the only active administrator")
 
         db.query(TeamMembership).filter(TeamMembership.user_id == user_id).delete()
         db.delete(user)
@@ -267,7 +259,7 @@ def bulk_create_users(
         raise HTTPException(
             status_code=400,
             detail="CSV must include a header row with at least an 'email' column. "
-                   "Example: email,team_id,role,display_name,password,username"
+            "Example: email,team_id,role,display_name,password,username",
         )
 
     # Normalize header names (strip whitespace, lowercase)
