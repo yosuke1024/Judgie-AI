@@ -50,6 +50,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/callback" element={<LoginPage />} />
       
       {/* Protected Main App Shell */}
       <Route
@@ -107,7 +108,7 @@ function AppRoutes() {
         <Route
           path="manual"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'observer', 'team', 'superadmin']}>
+            <ProtectedRoute allowedRoles={['admin', 'observer', 'team']}>
               <ManualPage />
             </ProtectedRoute>
           }

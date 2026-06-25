@@ -10,13 +10,14 @@ from pydantic import BaseModel
 
 
 class LoginRequest(BaseModel):
-    team_id: str
-    passcode: str
+    email: str
+    password: str
 
 
 class LoginResponse(BaseModel):
-    team_id: str
+    email: str
     role: str
+    team_id: str | None = None
 
 
 class OIDCLoginInitResponse(BaseModel):
@@ -36,8 +37,11 @@ class OIDCCallbackResponse(BaseModel):
 
 
 class UserInfo(BaseModel):
-    team_id: str
+    user_id: int
+    email: str
     role: str
+    team_id: str | None = None
+    display_name: str | None = None
     product_name: str | None = None
     team_name: str | None = None
     one_liner: str | None = None
@@ -57,14 +61,50 @@ class ProjectInitialize(BaseModel):
 
 
 # ──────────────────────────────────────────────
+# User
+# ──────────────────────────────────────────────
+
+
+class UserCreate(BaseModel):
+    email: str
+    password: str | None = None  # NULL = SSO-only user
+    display_name: str | None = None
+    role: str = "team"
+    team_id: str | None = None  # Required when role is 'team'
+
+
+class UserUpdate(BaseModel):
+    display_name: str | None = None
+    role: str | None = None
+    team_id: str | None = None
+    is_active: bool | None = None
+
+
+class UserResponse(BaseModel):
+    user_id: int
+    email: str
+    display_name: str | None = None
+    role: str
+    team_id: str | None = None
+    is_active: bool = True
+    has_password: bool = False
+
+
+class UserBulkCreate(BaseModel):
+    csv_content: str
+
+
+class PasswordReset(BaseModel):
+    new_password: str
+
+
+# ──────────────────────────────────────────────
 # Team
 # ──────────────────────────────────────────────
 
 
 class TeamCreate(BaseModel):
     team_id: str
-    passcode: str
-    role: str = "team"
     product_name: str | None = None
     team_name: str | None = None
     one_liner: str | None = None
@@ -80,26 +120,17 @@ class TeamProfileUpdate(BaseModel):
     one_liner: str | None = None
 
 
-class PasscodeChange(BaseModel):
-    current_passcode: str | None = None
-    new_passcode: str
-
-
-class RoleUpdate(BaseModel):
-    new_role: str
-
-
 class TeamActiveUpdate(BaseModel):
     is_active: bool
 
 
 class TeamResponse(BaseModel):
     team_id: str
-    role: str
     product_name: str | None = None
     team_name: str | None = None
     one_liner: str | None = None
     is_active: bool = True
+    members: list[UserResponse] = []
 
 
 # ──────────────────────────────────────────────
@@ -198,6 +229,25 @@ class GeminiConfig(BaseModel):
     api_key: str | None = None
     model: str | None = None
     api_tier: str | None = None
+
+
+class LLMConfig(BaseModel):
+    llm_provider: str
+    gemini_model: str | None = None
+    openai_model: str | None = None
+    anthropic_model: str | None = None
+    has_gemini_api_key: bool
+    has_openai_api_key: bool
+    has_anthropic_api_key: bool
+    gemini_available_models: list[str] = []
+    openai_available_models: list[str] = []
+    anthropic_available_models: list[str] = []
+
+
+class LLMConfigUpdate(BaseModel):
+    llm_provider: str | None = None
+    api_key: str | None = None
+    model: str | None = None
 
 
 class ProjectSettings(BaseModel):

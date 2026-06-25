@@ -10,7 +10,7 @@ from app.auth.deps import CurrentUser, get_current_user, require_role
 from app.models.db import (
     Evaluation,
     SessionLocal,
-    User,
+    Team,
     delete_evaluation,
     get_criteria,
 )
@@ -60,7 +60,7 @@ def get_scoreboard(user: CurrentUser = Depends(get_current_user)):
 
     db = SessionLocal()
     try:
-        users = db.query(User).filter(User.role == "team", User.is_active).order_by(User.team_id).all()
+        users = db.query(Team).filter(Team.is_active).order_by(Team.team_id).all()
 
         all_teams = {
             u.team_id: {

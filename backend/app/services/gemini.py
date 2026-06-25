@@ -23,13 +23,17 @@ def get_gemini_client(api_key_override=None):
     return provider._get_client(api_key_override=api_key_override)
 
 
-def list_available_gemini_models(api_key_override=None):
+def list_available_llm_models(provider_name: str, api_key_override=None):
     """
-    Fetches available models. If the active provider is Gemini, lists Gemini models.
-    Otherwise, delegates to the active provider's model list.
+    Fetches available models for the specified provider.
     """
-    provider = get_llm_provider()
+    provider = get_llm_provider(provider_name)
     return provider.list_models(api_key_override=api_key_override)
+
+
+def list_available_gemini_models(api_key_override=None):
+    # Maintained for backward compatibility and test mock compatibility
+    return list_available_llm_models("gemini", api_key_override)
 
 
 def upload_to_gemini(file_path, mime_type=None):

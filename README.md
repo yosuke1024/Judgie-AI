@@ -62,9 +62,9 @@ Whether it's auditing software system architectures, screening startup pitches, 
 ## ✨ Core Features
 
 1. **🏢 Role-based Access Control & Administration**
-   - Super Admins can manage global configurations, database state, and system-level setups.
-   - Project Admins can manage team accounts, including bulk import via CSV, passcode resets, and settings.
-   - The entire instance operates in a secure environment with role-based access control (Super Admin, Project Admin, Team, Observer).
+   - Admins can manage global configurations, database state, and system-level setups.
+   - Admins can manage team accounts, including bulk import via CSV, password resets, and settings.
+   - The entire instance operates in a secure environment with role-based access control (Admin, Team, Observer).
 2. **⚖️ Evaluation Template Packs & Custom Imports**
    - Spin up new projects instantly with built-in templates: **Hackathon Evaluation**, **Startup Pitch Review**, **Hiring & Technical Interview**, and **Software Architecture Review**.
    - Create and reuse custom template JSON files directly from GitHub Raw URLs or other Web endpoints to run your own custom rubrics and expert panel.
@@ -128,7 +128,7 @@ The JSON file must conform to the following schema:
 ### Hosting & Importing Templates
 1. Upload your template JSON file to a public web server, GitHub repository, or GitHub Gist.
 2. Get the **Raw URL** of the JSON file (e.g., `https://raw.githubusercontent.com/username/repo/main/my-template.json`).
-3. In the **Super Admin Console**, choose **Custom (Import from URL)** under "Evaluation Template".
+3. In the **Admin Command Center**, choose **Custom (Import from URL)** under "Evaluation Template".
 4. Paste the Raw URL and click **Create Project**. Judgie-AI will fetch the configuration and set up your project automatically.
 
 ---
@@ -156,7 +156,7 @@ You can launch the entire stack (both backend and frontend) using Docker Compose
    ```
 3. **Access the App**:
    Open `http://localhost:8080` in your browser.
-   - Log in as the default admin: **Team ID:** `admin`, **Passcode:** `admin123` (configured in `docker-compose.yml`).
+    - Log in as the default admin: **Email:** `admin@example.com`, **Password:** `admin123` (configured in `docker-compose.yml`).
 
 > [!NOTE]
 > Since this method builds the production assets for the React frontend to serve them through FastAPI, frontend changes will not hot-reload (HMR). If you edit the frontend code, you must rebuild the container using `docker compose up --build`.
@@ -182,9 +182,9 @@ npm run dev
 Open `http://localhost:5173` in your browser.
 
 Initial Login & Config:
-Upon the first launch, a default `superadmin` account is created automatically.
-- **Team ID**: `superadmin`
-- **Passcode**: `superadmin123`
+Upon the first launch, a default `admin` account is created automatically.
+- **Email**: `admin@example.com`
+- **Password**: `admin123`
 
 Log in using your administrator credentials. **Please change your password immediately after your first login.**
 
@@ -198,11 +198,9 @@ You can deploy Judgie-AI to Railway with a single click. This template automatic
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/judgieai)
 
 During deployment, you will be prompted to set the following environment variables:
-- `DEFAULT_ADMIN_ID`: The login ID for your Project Admin dashboard.
-- `DEFAULT_ADMIN_PASSCODE`: The passcode for your Admin account.
-- `DEFAULT_HACKATHON_NAME`: The name of your evaluation project.
-
-When these environment variables are provided, the platform automatically disables the system-wide SuperAdmin (`superadmin`/`superadmin123`) for security reasons, so you can log in directly as your project's administrator.
+- `DEFAULT_ADMIN_ID`: The login ID for your Admin dashboard. (Default: `admin`)
+- `DEFAULT_ADMIN_PASSWORD`: The password for your Admin account. (Default: `admin123`)
+- `DEFAULT_HACKATHON_NAME`: The name of your evaluation project. (Default: `Default Project`)
 
 ### 3. Deploying to Google Cloud Platform (GCP)
 Judgie-AI supports deployment to GCP using **Cloud Build** and **Cloud Run**. Depending on your budget and scaling needs, you can easily toggle between **SQLite with Litestream** (recommended for low-cost deployments) and **PostgreSQL (Cloud SQL)** (recommended for high-concurrency deployments).
@@ -243,12 +241,11 @@ The deployment configuration is defined in [cloudbuild.yaml](file:///Users/suzuk
 ### Roles & Access
 | Role | Example ID | Primary Responsibilities |
 |---|---|---|
-| **🌍 Super Admin** | `superadmin` | Create new evaluation projects, reset admin passwords, manage the system globally. |
-| **👑 Project Admin** | (Issued by Super Admin) | Set evaluation criteria, manage personas, register teams, view the scoreboard. |
+| **👑 Admin** | `admin` | Set evaluation criteria, manage settings/OIDC, manage personas, register teams, view the scoreboard. |
 | **🧑‍💻 Team (Participant)** | (Issued by Admin) | Upload submissions, request AI coaching/evaluations, edit profiles, object/discuss with judges. |
 
 ### User Manuals
-For detailed instructions on how to use the platform as a Team (Participant), Project Admin, or Super Admin, please refer to our bilingual user manuals:
+For detailed instructions on how to use the platform as a Team (Participant) or Admin, please refer to our bilingual user manuals:
 - [📖 English User Manual](docs/user_manual_en.md)
 - [📖 日本語 ユーザーマニュアル](docs/user_manual_ja.md)
 
@@ -259,25 +256,25 @@ For detailed instructions on how to use the platform as a Team (Participant), Pr
 ### Optional OIDC Gateway & Auto-Login Authentication (SSO)
 For private or enterprise deployments, you can configure Judgie-AI to run in Single Sign-On (SSO) mode using OIDC (OpenID Connect / Google OAuth). 
 
-When OIDC is enabled, **passcode-based login is completely disabled**. Users are authenticated via their OIDC identity provider, and are automatically logged into the application using their registered email address.
+When OIDC is enabled, **local password-based login is disabled for teams** (the initial administrator can still log in using local email/password login as a fallback). Users are authenticated via their OIDC identity provider, and are automatically logged into the application using their registered email address.
 
 To enable OIDC authentication, configure the following variables in your `.env` file (or Cloud Run environment variables):
-- `OIDC_ENABLED=true` (Set to `false` or omit to bypass OIDC and use normal passcode login)
+- `OIDC_ENABLED=true` (Set to `false` or omit to bypass OIDC and use normal password login)
 - `OIDC_ISSUER=https://accounts.google.com` (Your OIDC identity provider issuer URL, defaults to Google)
 - `OIDC_CLIENT_ID=your-client-id`
 - `OIDC_CLIENT_SECRET=your-client-secret`
 - `OIDC_REDIRECT_URI=http://localhost:5173/` (Your application's base URL in local development, or your production URL)
 - `OIDC_ALLOWED_DOMAINS=yourcompany.com` (Comma-separated list of allowed email domains. Leave empty to allow any authenticated user)
 - `OIDC_ALLOWED_EMAILS=admin@gmail.com` (Comma-separated list of allowed individual emails)
-- `DEFAULT_ADMIN_EMAIL=organizer@company.com` (Optional: The email address of the initial Project Admin. Used during startup automatic provisioning in single-tenant deployments)
+- `DEFAULT_ADMIN_EMAIL=organizer@company.com` (Optional: The email address of the initial Admin. Used during startup automatic provisioning in single-tenant deployments)
 
 #### How it works:
 1. **SSO Redirect:** When users visit the site, they are redirected to the OIDC provider (e.g., Google Sign-In) to authenticate.
-2. **Auto-Login:** Once authenticated, Judgie-AI verifies the email against the `users` database table. If a match is found, the user is automatically logged in under their corresponding role (`admin`, `team`, `observer`) without any passcode prompts.
-3. **Registration:** Project Admins must register participants' email addresses beforehand in the Admin Command Center (passcodes are generated randomly behind the scenes). For initial setup, the initial admin email can be set via `DEFAULT_ADMIN_EMAIL` or designated during system seeding.
+2. **Auto-Login:** Once authenticated, Judgie-AI verifies the email against the `users` database table. If a match is found, the user is automatically logged in under their corresponding role (`admin`, `team`, `observer`) without any password prompts.
+3. **Registration:** Admins must register participants' email addresses beforehand in the Admin Command Center (passwords are generated randomly behind the scenes). For initial setup, the initial admin email can be set via `DEFAULT_ADMIN_EMAIL` or designated during system seeding.
 4. **Access Denied:** If an authenticated user's email is not registered in the database, access is blocked and an "Account Not Registered" error page is displayed.
 
-* **Passcode Hashing:** Team and admin passcodes are safely hashed using `bcrypt` before being stored in the database.
+* **Password Hashing:** Team and admin passwords are safely hashed using `bcrypt` before being stored in the database.
 * **IP Firewall:** An optional IP-based firewall is supported via the `ALLOWED_IPS` environment variable (comma-separated IP addresses) to restrict platform access.
 
 ---

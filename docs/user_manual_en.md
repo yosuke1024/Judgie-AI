@@ -2,14 +2,14 @@
 
 Judgie-AI is an AI-powered project evaluation platform (single-tenant, hosting one project per instance) leveraging Google Gemini's multimodal capabilities. It automatically analyzes team/candidate submissions (source code ZIPs, demo videos, presentation PDFs, resumes) from various professional angles using customizable AI judge personas, providing teams with score breakdowns and actionable coaching feedback.
 
-This manual explains how to use the platform step-by-step for each role (**Super Admin**, **Project Admin (Organizer)**, **Team / Participant (Candidate)**, and **Observer (Spectator)**).
+This manual explains how to use the platform step-by-step for each role (**Admin (Organizer)**, **Team / Participant (Candidate)**, and **Observer (Spectator)**).
 
 ---
 
 ## 📂 Quick Navigation
 - [1. Initial Launch & Login](#1-initial-launch--login)
 - [2. 🔐 System Setup & Admin Guide](#2-🔐-system-setup--admin-guide)
-- [3. 👑 Project Admin (Organizer) Guide](#3--project-admin-organizer-guide)
+- [3. 👑 Project Operation Guide](#3--project-operation-guide)
 - [4. 🧑‍💻 Team (Participant / Candidate) Guide](#4--team-participant--candidate-guide)
 - [5. 👁️ Observer (Spectator) Guide](#5--observer-spectator-guide)
 - [6. ❓ FAQ & Troubleshooting](#6--faq--troubleshooting)
@@ -26,57 +26,48 @@ You can switch the UI and AI-generated feedback language at any time using the l
 
 ### Authentication Methods
 Depending on the server configuration (environment variables), the login method will adapt:
-1. **Passcode Authentication (Default)**
-   - Enter the "Team ID / Admin ID" and "Passcode" provided by the organizer to log in.
+1. **Password Authentication (Default)**
+   - Log in using your registered "Email Address" and "Password".
 2. **OIDC (Single Sign-On) Authentication**
-   - If `OIDC_ENABLED=true` is set, the passcode input field is hidden for security and user experience. Instead, a **"Sign in with SSO"** button is displayed.
-   - Click the button to authenticate via your identity provider (e.g., Google OAuth). You will be logged in automatically based on your verified email address.
-   - When OIDC is enabled, password-related settings (such as changing passcodes) are hidden throughout the app.
-
-### ✨ Demo Experience Mode
-You can try Judgie-AI immediately without credentials or Gemini API keys.
-Under the "✨ Demo Experience" section on the login page, you can log in with:
-- **Try as Team (Participant)**: User ID `demo_team` / Passcode `demo123`
-- **Try as Admin (Host)**: User ID `demo_admin` / Passcode `demo123`
-- > [!NOTE]
-  > Demo Mode (Project ID: 9999) is a secure **Read-only** mode. Uploading files, triggering evaluations, adding/deleting users, or changing settings are disabled.
+   - If `OIDC_ENABLED=true` is set, the password input field is hidden for security and user experience. Instead, a **"Sign in with SSO"** button is displayed on the login page.
+   - Authenticate via your identity provider (e.g., Google OAuth). You will be logged in automatically based on your verified email address.
+   - When OIDC is enabled, password-related settings (such as changing passwords) are hidden throughout the app.
 
 ---
 
 ## 2. 🔐 System Setup & Admin Guide
 
-The system administrator is responsible for initial setup, configuring OIDC (SSO) authentication, and setting up the Gemini API key.
+The administrator is responsible for initial setup, configuring OIDC (SSO) authentication, and setting up the Gemini API key.
 
 ### 2-1. Initial Login & Security Setup
-1. Click the **"🔐 Admin Login (Passcode)"** link at the bottom of the login page to switch to the passcode login form.
-2. Log in using the default credentials (unless customized via env vars like `DEFAULT_ADMIN_ID`):
-   - **ID:** `superadmin`
-   - **Passcode:** `superadmin123`
-3. After logging in, navigate to the **"👑 Command Center"** using the top navigation menu.
-4. > [!CAUTION]
-   > For security reasons, please change the default passcode immediately using the **"System Settings"** -> **"Change Admin Passcode"** section.
+1. On the login page, enter the default admin email and password:
+   - **Email:** `admin@example.com` (Default. Customizable via `DEFAULT_ADMIN_EMAIL` env var)
+   - **Password:** `admin123` (Default. Customizable via `DEFAULT_ADMIN_PASSWORD` env var)
+2. After logging in, navigate to the **"👑 Command Center"** using the top navigation menu.
+3. > [!CAUTION]
+   > For security reasons, please change the default password immediately using the **"System Settings"** -> **"Change Admin Password"** section.
 
 ### 2-2. Configuring OIDC Authentication (SSO)
 You can configure Single Sign-On (SSO) in the **"System Settings"** tab, under the **"OIDC Authentication Settings (SSO)"** card.
 
 * **Settings Fields:**
-  - **Enable OIDC (SSO) Authentication:** Check this to enable SSO. When active, team passcode login is disabled.
+  - **Enable OIDC (SSO) Authentication:** Check this to enable SSO. When active, local team password login is disabled.
   - **Issuer URL:** The identity provider's issuer URL (e.g., `https://accounts.google.com`).
   - **Client ID / Client Secret:** The credentials issued by your identity provider.
   - **Redirect URI:** The callback URL (e.g., `http://localhost:5173/login/callback`). Leave blank to use the default value.
   - **Allowed Email Domains / Allowed Individual Emails:** Restrict access to specific email domains or addresses (comma-separated list). Leave blank to allow any authenticated user.
 * **Emergency Login Bypass (Anti-Lockout):**
-  If OIDC is misconfigured, the seed administrator accounts (e.g., `superadmin`) can still log in locally via the **"Admin Login"** link at the bottom, using their passcode. Once logged in, you can update OIDC credentials or turn OIDC off.
+  If OIDC is misconfigured, the seed administrator accounts (e.g., `admin@example.com`) can still log in locally via the **"Admin Login (Password)"** link at the bottom, using their password. Once logged in, you can update OIDC credentials or turn OIDC off.
 
 ---
 
-## 3. 👑 Project Admin (Organizer) Guide
+## 3. 👑 Project Operation Guide
 
-Project Admins log in using their administrator credentials (`admin` or `superadmin`) to set up the evaluation environment, manage AI judges, register teams, and monitor evaluations.
+Admins log in using their administrator credentials to set up the evaluation environment, manage AI judges, register teams, and monitor evaluations.
 
-### 3-1. Logging in as Project Admin
+### 3-1. Logging in as Admin
 1. Navigate to the login page (`http://localhost:5173/login`).
-2. Click the **"Admin Login (Passcode)"** link at the bottom, enter your **"Admin ID"** (e.g., `admin`) and **"Passcode"**, then click **"Log In"** (If OIDC is active, you can also log in via SSO).
+2. Log in using your email (e.g., `admin@example.com`) and password, then click **"Log In"** (If OIDC is active, you can also log in via SSO, or bypass it using the **"Admin Login (Password)"** link at the bottom).
 
 ### 3-2. Setting Up the Project
 
@@ -119,11 +110,10 @@ Choose one of the pre-built templates or import a custom one:
 #### Step 5: Register Teams/Participants (Team Management)
 - Go to the **"🏢 Teams"** tab.
 - **Add Individually**:
-  - **Default Mode**: Enter the `User ID`, `Passcode`, and choose a **`Role`**.
-  - **OIDC Mode**: Enter the user's registered email address instead of a passcode.
+  - **Default Mode**: Enter the member's `Email`, `Password`, `Team ID`, and choose a **`Role`**.
+  - **OIDC Mode**: Enter the member's `Email`, `Team ID`, and choose a **`Role`** (passwords are generated randomly).
 - **CSV Bulk Import**: Upload a CSV file to register multiple users at once.
-  - **Default Mode**: CSV must use the `team_id, passcode, role` format.
-  - **OIDC Mode**: CSV must use the `team_id, role, email` format.
+  - CSV Format: Use `email,team_id,role[,display_name][,password]` columns in order.
 - **Active / Inactive Toggle**: Toggle the "Active" switch next to any team. Inactive teams are blocked from logging in and hidden from the scoreboard/submissions list.
 - **Delete Team/User**: Permanently delete teams and all their related submissions/chat history under the "Delete User/Team" section (Cascading deletion; note that administrator accounts cannot be deleted).
 
@@ -153,11 +143,11 @@ Teams upload submissions to receive intermediate feedback (AI Consultations) or 
 
 ### 4-1. Logging In
 1. Navigate to the login page (`http://localhost:5173/login`).
-2. Log in using passcode or OIDC (SSO) depending on the project settings.
+2. Log in using email & password or OIDC (SSO) depending on the project settings.
 
 ### 4-2. Profile & Password Management
 - Update your product name, team name, and one-liner pitch under the **"Team Profile"** section.
-- **🔐 Change Passcode**: Change your passcode (only available in passcode mode; hidden in OIDC mode).
+- **🔐 Change Password**: Change your password (only available in password mode; hidden in OIDC mode).
 
 ### 4-3. Uploading Submissions & AI Consultations
 
@@ -212,7 +202,7 @@ An **"Observer Mode: Read-Only View"** header is displayed, indicating all write
 ## 6. ❓ FAQ & Troubleshooting
 
 #### Q. I got "Account Not Registered" during OIDC login.
-- **A.** Your email address must be pre-registered by the Super Admin or Project Admin in the database. Please ask the organizer to check your registration details.
+- **A.** Your email address must be pre-registered by the Admin in the database. Please ask the organizer to check your registration details.
 
 #### Q. I cannot upload video files and the submit button is locked.
 - **A.** The project is likely configured with OpenAI or Anthropic backend models, which do not support video analysis. Please remove video files and submit ZIP or PDF files only.

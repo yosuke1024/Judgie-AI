@@ -11,7 +11,7 @@ from fastapi.responses import Response
 from app.auth.deps import CurrentUser, require_role
 from app.models.db import (
     SessionLocal,
-    User,
+    Team,
     get_criteria,
     get_max_consultations,
     get_max_qa_turns,
@@ -41,7 +41,7 @@ def get_team_markdown(
 
     db = SessionLocal()
     try:
-        team_user = db.query(User).filter(User.team_id == team_id).first()
+        team_user = db.query(Team).filter(Team.team_id == team_id).first()
         if not team_user:
             raise HTTPException(status_code=404, detail="Team not found")
     finally:

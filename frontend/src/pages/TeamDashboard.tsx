@@ -421,7 +421,7 @@ export default function TeamDashboard() {
     setProfileSaving(true);
     setProfileSuccess(false);
     try {
-      await teamsApi.updateProfile(user.team_id, {
+      await teamsApi.updateProfile(effectiveTeamId, {
         product_name: productName,
         team_name: teamName,
         one_liner: oneLiner,

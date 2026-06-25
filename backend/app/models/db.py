@@ -18,11 +18,12 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     create_engine,
     func,
     text,
 )
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 from app.config import DATABASE_URL
 
@@ -53,16 +54,44 @@ Base = declarative_base()
 
 
 class User(Base):
+    """Individual user account — the identity unit."""
+
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    team_id = Column(String, nullable=False, unique=True)
-    passcode = Column(String, nullable=False)
-    role = Column(String, nullable=False)  # 'superadmin', 'admin', 'team', 'observer'
-    email = Column(String, nullable=True)
-    product_name = Column(String)
-    team_name = Column(String)
-    one_liner = Column(String)
+    email = Column(String, nullable=False, unique=True)
+    password_hash = Column(String, nullable=True)  # NULL = SSO-only user
+    display_name = Column(String, nullable=True)
+    role = Column(String, nullable=False)  # 'admin', 'team', 'observer'
     is_active = Column(Boolean, default=True, nullable=False)
+
+    memberships = relationship("TeamMembership", back_populates="user", cascade="all, delete-orphan")
+
+
+class Team(Base):
+    """Team profile — the unit for submissions and evaluations."""
+
+    __tablename__ = "teams"
+    team_id = Column(String, primary_key=True)
+    product_name = Column(String, nullable=True)
+    team_name = Column(String, nullable=True)
+    one_liner = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    memberships = relationship("TeamMembership", back_populates="team", cascade="all, delete-orphan")
+
+
+class TeamMembership(Base):
+    """Links a user to a team."""
+
+    __tablename__ = "team_memberships"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    team_id = Column(String, ForeignKey("teams.team_id"), nullable=False)
+
+    __table_args__ = (UniqueConstraint("user_id", "team_id", name="uq_user_team"),)
+
+    user = relationship("User", back_populates="memberships")
+    team = relationship("Team", back_populates="memberships")
 
 
 class Submission(Base):
@@ -173,14 +202,108 @@ def get_db():
 # ──────────────────────────────────────────────
 
 
+def _table_exists(conn, table_name: str) -> bool:
+    """Check if a table exists in the database."""
+    result = conn.execute(text(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';"))
+    return result.fetchone() is not None
+
+
+def _column_exists(conn, table_name: str, column_name: str) -> bool:
+    """Check if a column exists in a table."""
+    result = conn.execute(text(f"PRAGMA table_info({table_name});"))
+    columns = [row[1] for row in result.fetchall()]
+    return column_name in columns
+
+
 def init_db():
     """Create tables and run dynamic schema migrations."""
-    Base.metadata.create_all(bind=engine)
+    from app.security import hash_passcode
 
+    # --- Legacy migration: old 'users' or 'teams' table (shared passcode model) ---
+    # We need to handle:
+    # 1. Old 'users' table (pre-rename)
+    # 2. Old 'teams' table (post-rename but still shared-passcode model with passcode/role columns)
+    # In both cases, we migrate data to the new 'users' + 'teams' + 'team_memberships' model.
+
+    with engine.begin() as conn:
+        old_users_exist = _table_exists(conn, "users")
+        old_teams_exist = _table_exists(conn, "teams")
+
+        # Determine if we need migration: check if old teams table has 'passcode' column
+        needs_migration = False
+        legacy_table = None
+
+        if old_teams_exist and _column_exists(conn, "teams", "passcode"):
+            needs_migration = True
+            legacy_table = "teams"
+        elif old_users_exist and _column_exists(conn, "users", "passcode"):
+            needs_migration = True
+            legacy_table = "users"
+
+        if needs_migration and legacy_table:
+            # Read legacy data before dropping
+            rows = conn.execute(text(f"SELECT team_id, passcode, role, product_name, team_name, one_liner, is_active FROM {legacy_table}")).fetchall()
+
+            # Read legacy team_members if they exist
+            legacy_members = []
+            if _table_exists(conn, "team_members"):
+                legacy_members = conn.execute(text("SELECT team_id, email FROM team_members")).fetchall()
+
+            # Drop old tables to recreate with new schema
+            conn.execute(text(f"DROP TABLE IF EXISTS team_members;"))
+            conn.execute(text(f"DROP TABLE IF EXISTS {legacy_table};"))
+
+            # Recreate with new schema
+            Base.metadata.create_all(bind=engine)
+
+            # Migrate data
+            for row in rows:
+                old_team_id, old_passcode, old_role, product_name, team_name, one_liner, is_active = row
+
+                if old_role == "admin":
+                    # Create admin as a User (skip if admin env vars will handle it)
+                    pass
+                else:
+                    # Create team profile
+                    try:
+                        conn.execute(
+                            text("INSERT INTO teams (team_id, product_name, team_name, one_liner, is_active) VALUES (:tid, :pn, :tn, :ol, :ia)"),
+                            {"tid": old_team_id, "pn": product_name, "tn": team_name, "ol": one_liner, "ia": is_active if is_active is not None else True},
+                        )
+                    except Exception:
+                        pass  # Team might already exist
+
+            # Migrate team_members as Users
+            for member_row in legacy_members:
+                member_team_id, member_email = member_row
+                try:
+                    # Find which role this team had
+                    team_role = "team"
+                    for row in rows:
+                        if row[0] == member_team_id:
+                            team_role = row[2] if row[2] in ("team", "observer") else "team"
+                            break
+
+                    conn.execute(
+                        text("INSERT INTO users (email, password_hash, display_name, role, is_active) VALUES (:email, NULL, NULL, :role, 1)"),
+                        {"email": member_email, "role": team_role},
+                    )
+                    # Get the user id
+                    user_row = conn.execute(text("SELECT id FROM users WHERE email = :email"), {"email": member_email}).fetchone()
+                    if user_row:
+                        conn.execute(
+                            text("INSERT INTO team_memberships (user_id, team_id) VALUES (:uid, :tid)"),
+                            {"uid": user_row[0], "tid": member_team_id},
+                        )
+                except Exception:
+                    pass  # Skip duplicate emails
+        else:
+            # No migration needed — just create tables
+            Base.metadata.create_all(bind=engine)
+
+    # Additional column migrations for existing databases
     migration_statements = [
         "ALTER TABLE admin_chats ADD COLUMN qa_json TEXT;",
-        "ALTER TABLE users ADD COLUMN email TEXT;",
-        "ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1;",
     ]
     for stmt in migration_statements:
         try:
@@ -189,41 +312,30 @@ def init_db():
         except Exception:
             pass
 
-    # Seed SuperAdmin or single-tenant admin
-    from app.security import hash_passcode
-
+    # Seed default admin user and settings
     with db_session() as db:
-        default_admin_id = os.environ.get("DEFAULT_ADMIN_ID")
-        default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSCODE")
+        default_admin_email = os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@example.com")
+        default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSWORD", "admin123")
 
-        if not default_admin_id:
-            superadmin = db.query(User).filter(User.role == "superadmin").first()
-            if not superadmin:
-                superadmin = User(
-                    team_id="superadmin",
-                    passcode=hash_passcode("superadmin123"),
-                    role="superadmin",
-                )
-                db.add(superadmin)
-        else:
-            # Seed project settings in settings table
-            project_name = os.environ.get("DEFAULT_HACKATHON_NAME", "Default Project")
-            if not get_setting("project_name"):
-                set_setting("project_name", project_name, db=db)
-                set_setting("re_evaluation_context_mode", "cumulative", db=db)
-                set_setting("max_qa_turns", "1", db=db)
-                set_setting("max_consultations", "3", db=db)
-                set_setting("video_upload_enabled", "true", db=db)
+        # Seed project settings in settings table
+        project_name = os.environ.get("DEFAULT_HACKATHON_NAME", "Default Project")
+        if not get_setting("project_name"):
+            set_setting("project_name", project_name, db=db)
+            set_setting("re_evaluation_context_mode", "cumulative", db=db)
+            set_setting("max_qa_turns", "1", db=db)
+            set_setting("max_consultations", "3", db=db)
+            set_setting("video_upload_enabled", "true", db=db)
 
-            admin_user = db.query(User).filter(User.team_id == default_admin_id).first()
-            if not admin_user:
-                admin_user = User(
-                    team_id=default_admin_id,
-                    passcode=hash_passcode(default_admin_pass),
-                    role="admin",
-                )
-                db.add(admin_user)
-                db.flush()
+        admin_user = db.query(User).filter(User.email == default_admin_email).first()
+        if not admin_user:
+            admin_user = User(
+                email=default_admin_email,
+                password_hash=hash_passcode(default_admin_pass),
+                display_name="Admin",
+                role="admin",
+            )
+            db.add(admin_user)
+            db.flush()
 
 
 # ──────────────────────────────────────────────
@@ -231,18 +343,42 @@ def init_db():
 # ──────────────────────────────────────────────
 
 
-def verify_user(team_id: str, passcode: str) -> dict | None:
-    """Verify user credentials and return role if valid."""
+def verify_user(email: str, password: str) -> dict | None:
+    """Verify user credentials by email + password. Returns user info dict if valid."""
     from app.security import verify_passcode
 
-    if team_id == "superadmin" and os.environ.get("DEFAULT_ADMIN_ID"):
+    with db_session() as db:
+        user = db.query(User).filter(User.email == email, User.is_active).first()
+        if not user or not user.password_hash:
+            return None
+        if verify_passcode(password, user.password_hash):
+            # Look up team membership
+            membership = db.query(TeamMembership).filter(TeamMembership.user_id == user.id).first()
+            return {
+                "user_id": user.id,
+                "email": user.email,
+                "role": user.role,
+                "display_name": user.display_name,
+                "team_id": membership.team_id if membership else None,
+            }
         return None
 
+
+def get_user_by_email(email: str) -> dict | None:
+    """Look up a user by email. Returns user info dict or None."""
     with db_session() as db:
-        user = db.query(User).filter(User.team_id == team_id, User.is_active).first()
-        if user and verify_passcode(passcode, user.passcode):
-            return {"role": user.role, "email": user.email}
-        return None
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            return None
+        membership = db.query(TeamMembership).filter(TeamMembership.user_id == user.id).first()
+        return {
+            "user_id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "display_name": user.display_name,
+            "is_active": user.is_active,
+            "team_id": membership.team_id if membership else None,
+        }
 
 
 def get_consultation_count(team_id: str) -> int:
@@ -483,105 +619,72 @@ def initialize_project_template(template_id: str, custom_template_data: dict = N
         set_ai_response_languages(["English", "Japanese"], db=db)
 
 
-# --- User / Team CRUD ---
+# --- User CRUD ---
 
 
-def update_admin_passcode(new_passcode: str):
+def update_admin_password(new_password: str):
     from app.security import hash_passcode
 
     with db_session() as db:
         admin_user = db.query(User).filter(User.role == "admin").first()
         if admin_user:
-            admin_user.passcode = hash_passcode(new_passcode)
+            admin_user.password_hash = hash_passcode(new_password)
 
 
-def update_team_passcode(team_id: str, new_passcode: str) -> bool:
+def update_user_password(user_id: int, new_password: str) -> bool:
     from app.security import hash_passcode
 
     with db_session() as db:
-        team_user = (
-            db.query(User)
-            .filter(
-                User.team_id == team_id,
-                User.role.in_(["team", "observer"]),
-            )
-            .first()
-        )
-        if team_user:
-            team_user.passcode = hash_passcode(new_passcode)
-            return True
-        return False
-
-
-def update_user_role(team_id: str, new_role: str) -> bool:
-    if new_role not in ["team", "observer"]:
-        return False
-    with db_session() as db:
-        user = (
-            db.query(User)
-            .filter(
-                User.team_id == team_id,
-                User.role.in_(["team", "observer"]),
-            )
-            .first()
-        )
+        user = db.query(User).filter(User.id == user_id).first()
         if user:
-            user.role = new_role
+            user.password_hash = hash_passcode(new_password)
             return True
         return False
 
 
-def update_user_active(team_id: str, is_active: bool) -> bool:
-    with db_session() as db:
-        user = (
-            db.query(User)
-            .filter(
-                User.team_id == team_id,
-                User.role.in_(["team", "observer"]),
-            )
-            .first()
-        )
-        if user:
-            user.is_active = is_active
-            return True
-        return False
-
-
-def change_my_passcode(
-    team_id: str = None,
-    current_passcode: str = None,
-    new_passcode: str = None,
+def change_my_password(
+    email: str = None,
+    current_password: str = None,
+    new_password: str = None,
 ) -> bool:
     from app.security import hash_passcode, verify_passcode
 
     with db_session() as db:
-        query = db.query(User).filter(User.team_id == team_id)
-        user = query.first()
-        if user and verify_passcode(current_passcode, user.passcode):
-            user.passcode = hash_passcode(new_passcode)
+        user = db.query(User).filter(User.email == email).first()
+        if user and user.password_hash and verify_passcode(current_password, user.password_hash):
+            user.password_hash = hash_passcode(new_password)
             return True
         return False
 
 
 def get_team_profile(team_id: str) -> dict:
     with db_session() as db:
-        user = db.query(User).filter(User.team_id == team_id).first()
-        if user:
+        team = db.query(Team).filter(Team.team_id == team_id).first()
+        if team:
             return {
-                "product_name": user.product_name,
-                "team_name": user.team_name,
-                "one_liner": user.one_liner,
+                "product_name": team.product_name,
+                "team_name": team.team_name,
+                "one_liner": team.one_liner,
             }
         return {"product_name": None, "team_name": None, "one_liner": None}
 
 
 def update_team_profile(team_id: str, product_name: str, team_name: str, one_liner: str):
     with db_session() as db:
-        user = db.query(User).filter(User.team_id == team_id).first()
-        if user:
-            user.product_name = product_name
-            user.team_name = team_name
-            user.one_liner = one_liner
+        team = db.query(Team).filter(Team.team_id == team_id).first()
+        if team:
+            team.product_name = product_name
+            team.team_name = team_name
+            team.one_liner = one_liner
+
+
+def update_team_active(team_id: str, is_active: bool) -> bool:
+    with db_session() as db:
+        team = db.query(Team).filter(Team.team_id == team_id).first()
+        if team:
+            team.is_active = is_active
+            return True
+        return False
 
 
 # --- Session CRUD ---
@@ -693,10 +796,9 @@ def delete_team(team_id: str):
         db.query(Evaluation).filter(Evaluation.team_id == team_id).delete(synchronize_session=False)
         db.query(Submission).filter(Submission.team_id == team_id).delete(synchronize_session=False)
         db.query(Session).filter(Session.team_id == team_id).delete(synchronize_session=False)
-        db.query(User).filter(
-            User.team_id == team_id,
-            User.role.in_(["team", "observer"]),
-        ).delete(synchronize_session=False)
+        # Delete team memberships (users themselves are kept)
+        db.query(TeamMembership).filter(TeamMembership.team_id == team_id).delete(synchronize_session=False)
+        db.query(Team).filter(Team.team_id == team_id).delete(synchronize_session=False)
 
 
 def delete_evaluation(evaluation_id: int):

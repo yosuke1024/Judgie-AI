@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/manual", tags=["manual"])
 @router.get("")
 def get_manual(
     lang: str = "ja",
-    user: CurrentUser = Depends(require_role("admin", "observer", "team", "superadmin")),
+    user: CurrentUser = Depends(require_role("admin", "observer", "team")),
 ):
     """Retrieve user manual content based on language."""
     is_ja = lang.lower().startswith("ja")
