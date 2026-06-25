@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTask } from '@/contexts/TaskContext';
 import { useTranslation } from 'react-i18next';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Trophy, Settings, LogOut, Zap, Globe, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Trophy, Settings, LogOut, Zap, Globe, BookOpen, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 const GithubIcon = ({ size = 16 }: { size?: number }) => (
   <svg
@@ -18,9 +19,19 @@ import { teamsApi } from '@/api/client';
 
 export default function Layout() {
   const { user, logout } = useAuth();
+  const { toast, clearToast } = useTask();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [teams, setTeams] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        clearToast();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast, clearToast]);
 
   const showAdminCenter = user?.role === 'admin';
   const showTeamDashboards = user?.role === 'admin' || user?.role === 'observer';
@@ -194,6 +205,57 @@ export default function Layout() {
       <main className="main-content">
         <Outlet />
       </main>
+
+      {toast && (
+        <div className={`toast-notification ${toast.type}`} style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '16px 20px',
+          borderRadius: '8px',
+          background: '#1f2937',
+          color: '#ffffff',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15)',
+          borderLeft: `4px solid ${toast.type === 'success' ? '#10b981' : '#ef4444'}`,
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          {toast.type === 'success' ? (
+            <CheckCircle2 size={20} style={{ color: '#10b981' }} />
+          ) : (
+            <AlertCircle size={20} style={{ color: '#ef4444' }} />
+          )}
+          <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{toast.message}</span>
+          <button 
+            onClick={clearToast}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#9ca3af',
+              cursor: 'pointer',
+              padding: '2px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '4px',
+              transition: 'background-color 0.2s, color 0.2s',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#9ca3af';
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -163,5 +163,11 @@
   "credits": {
     "produced_by": "Produced by PixApps",
     "github": "GitHub"
+  },
+  "toast": {
+    "eval_success": "Evaluation successful! History updated.",
+    "eval_failed": "Evaluation failed: {{error}}",
+    "objection_success": "Response from the AI judges received!",
+    "objection_failed": "Failed to process objection: {{error}}"
   }
 }
