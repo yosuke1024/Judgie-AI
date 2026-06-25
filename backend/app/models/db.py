@@ -324,11 +324,14 @@ def init_db():
 
     # Seed default admin user and settings
     with db_session() as db:
-        default_admin_email = os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@example.com")
-        default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSWORD", "admin123")
+        # Support both DEFAULT_ADMIN_ID and DEFAULT_ADMIN_EMAIL. Fallback to "admin@example.com".
+        default_admin_id = os.environ.get("DEFAULT_ADMIN_ID") or os.environ.get("DEFAULT_ADMIN_EMAIL") or "admin@example.com"
+
+        # Support both DEFAULT_ADMIN_PASSCODE and DEFAULT_ADMIN_PASSWORD. Fallback to "admin123".
+        default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSCODE") or os.environ.get("DEFAULT_ADMIN_PASSWORD") or "admin123"
 
         # Seed project settings in settings table
-        project_name = os.environ.get("DEFAULT_HACKATHON_NAME", "Default Project")
+        project_name = "Default Project"
         if not get_setting("project_name"):
             set_setting("project_name", project_name, db=db)
             set_setting("re_evaluation_context_mode", "cumulative", db=db)
@@ -336,10 +339,16 @@ def init_db():
             set_setting("max_consultations", "3", db=db)
             set_setting("video_upload_enabled", "true", db=db)
 
-        admin_user = db.query(User).filter(User.email == default_admin_email).first()
+        # Look up admin by either email or username/ID
+        admin_user = db.query(User).filter(
+            (User.email == default_admin_id) | (User.username == default_admin_id)
+        ).first()
+
         if not admin_user:
+            is_email = "@" in default_admin_id
             admin_user = User(
-                email=default_admin_email,
+                email=default_admin_id if is_email else f"{default_admin_id}@example.com",
+                username=None if is_email else default_admin_id,
                 password_hash=hash_passcode(default_admin_pass),
                 display_name="Admin",
                 role="admin",
