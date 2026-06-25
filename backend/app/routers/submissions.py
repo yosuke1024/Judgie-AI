@@ -63,26 +63,29 @@ def _run_submission_evaluation(
         if gemini_media_files:
             wait_for_files_active(gemini_media_files)
 
-        # Build previous evaluations context
+        # Build previous evaluations context (optimize to prevent token overflow)
         prev_evaluations_json = ""
         context_mode = get_re_evaluation_context_mode()
         if context_mode == "cumulative" and current_count > 0:
             from app.models.db import Evaluation, SessionLocal
+            from app.services.evaluation_service import minimize_evaluation_context
 
             db = SessionLocal()
             try:
-                prev_evals = (
-                    db.query(Evaluation).filter(Evaluation.team_id == team_id).order_by(Evaluation.id.asc()).all()
+                last_eval = (
+                    db.query(Evaluation)
+                    .filter(Evaluation.team_id == team_id)
+                    .order_by(Evaluation.id.desc())
+                    .first()
                 )
-                if prev_evals:
-                    prev_data = []
-                    for pe in prev_evals:
-                        prev_data.append(
-                            {
-                                "scores": json.loads(pe.scores_json),
-                                "feedback": json.loads(pe.strengths_risks_json),
-                            }
-                        )
+                if last_eval:
+                    minimized_fb = minimize_evaluation_context(last_eval.strengths_risks_json)
+                    prev_data = [
+                        {
+                            "scores": json.loads(last_eval.scores_json),
+                            "feedback": minimized_fb,
+                        }
+                    ]
                     prev_evaluations_json = json.dumps(prev_data)
             finally:
                 db.close()

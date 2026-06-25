@@ -140,11 +140,16 @@ def _run_admin_chat(
     update_async_task(task_id, "PROCESSING")
     try:
         from app.services.gemini import admin_chat_about_submission
+        from app.services.evaluation_service import minimize_evaluation_context
+
+        # Minimize previous evaluation context to protect against token overflow
+        minimized_prev = minimize_evaluation_context(prev_json_str)
+        minimized_prev_json = json.dumps(minimized_prev) if minimized_prev else "{}"
 
         res_json = admin_chat_about_submission(
             source_text,
             gemini_file_ids,
-            prev_json_str,
+            minimized_prev_json,
             question,
         )
 
