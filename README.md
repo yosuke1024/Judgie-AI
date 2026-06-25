@@ -147,8 +147,9 @@ The fastest and easiest way to deploy Judgie-AI is using **Railway**. With zero 
 #### Configuration During Deployment
 You will be prompted to set the following environment variables. The SQLite database or PostgreSQL connection is configured automatically:
 - `DEFAULT_ADMIN_ID`: The login ID for your Admin dashboard. (Default: `admin`)
-- `DEFAULT_ADMIN_PASSWORD`: The password for your Admin account. (Default: `admin123`)
-- `DEFAULT_HACKATHON_NAME`: The name of your evaluation project. (Default: `Default Project`)
+- `DEFAULT_ADMIN_PASSCODE`: The password for your Admin account. (Default: `admin123`)
+- `DEFAULT_PROJECT_NAME`: The name of your evaluation project. (Default: `Default Project`)
+- `ALLOWED_IPS`: (Optional) Comma-separated list of allowed IP addresses or subnets. If empty, IP restriction is disabled.
 
 ---
 
@@ -226,9 +227,8 @@ You can run the container by mapping the ports and passing the required environm
 ```bash
 docker run -d \
   -p 8080:8080 \
-  -e GEMINI_API_KEY="your-gemini-api-key" \
   -e DEFAULT_ADMIN_ID="admin" \
-  -e DEFAULT_ADMIN_PASSWORD="admin123" \
+  -e DEFAULT_ADMIN_PASSCODE="admin123" \
   judgie-ai:latest
 ```
 
