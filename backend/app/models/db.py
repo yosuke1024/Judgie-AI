@@ -251,7 +251,7 @@ def init_db():
                 legacy_members = conn.execute(text("SELECT team_id, email FROM team_members")).fetchall()
 
             # Drop old tables to recreate with new schema
-            conn.execute(text(f"DROP TABLE IF EXISTS team_members;"))
+            conn.execute(text("DROP TABLE IF EXISTS team_members;"))
             conn.execute(text(f"DROP TABLE IF EXISTS {legacy_table};"))
 
             # Recreate with new schema

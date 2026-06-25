@@ -158,7 +158,7 @@ def update_user(
             other_active_admins = db.query(User).filter(
                 User.role == "admin",
                 User.id != user_id,
-                User.is_active == True
+                User.is_active
             ).count()
             if other_active_admins == 0:
                 raise HTTPException(
@@ -180,7 +180,7 @@ def update_user(
         if target_role == "team":
             # team role requires team_id, unless not provided in update but already exists
             existing_membership = db.query(TeamMembership).filter(TeamMembership.user_id == user_id).first()
-            
+
             if req.team_id is not None:
                 db.query(TeamMembership).filter(TeamMembership.user_id == user_id).delete()
                 if req.team_id:
@@ -224,12 +224,12 @@ def delete_user(
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         if user.role == "admin":
             other_active_admins = db.query(User).filter(
                 User.role == "admin",
                 User.id != user_id,
-                User.is_active == True
+                User.is_active
             ).count()
             if other_active_admins == 0:
                 raise HTTPException(
@@ -254,8 +254,8 @@ def bulk_create_users(
     Optional columns: team_id, role, display_name, password, username
     Column order is flexible — determined by header row.
     """
-    import secrets as _secrets
     import re
+    import secrets as _secrets
 
     lines = req.csv_content.strip().splitlines()
     if not lines:

@@ -8,7 +8,6 @@ from app.auth.deps import CurrentUser, require_role
 from app.models.db import (
     SessionLocal,
     Team,
-    TeamMembership,
     User,
     db_session,
     delete_team,
