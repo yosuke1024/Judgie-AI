@@ -163,5 +163,11 @@
   "credits": {
     "produced_by": "Produced by PixApps",
     "github": "GitHub"
+  },
+  "toast": {
+    "eval_success": "評価が完了しました！履歴が更新されました。",
+    "eval_failed": "評価に失敗しました: {{error}}",
+    "objection_success": "審査員からの回答が届きました！",
+    "objection_failed": "異議申し立ての処理に失敗しました: {{error}}"
   }
 }

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { teamsApi, evaluationsApi, submissionsApi, chatApi, settingsApi, authApi, pollTaskUntilDone } from '@/api/client';
+import { teamsApi, evaluationsApi, submissionsApi, chatApi, settingsApi, authApi } from '@/api/client';
+import { useTask } from '@/contexts/TaskContext';
 import {
   Upload,
   FileText,
@@ -90,6 +91,10 @@ export default function TeamDashboard() {
 
   const effectiveTeamId = teamId || user?.team_id;
   const isReadOnly = !!teamId;
+
+  const { startTask, dismissTask, getTaskByType } = useTask();
+  const activeEvalTask = getTaskByType('evaluation');
+  const activeObjectionTask = getTaskByType('objection');
 
   // Profile Form States
   const [productName, setProductName] = useState('');
@@ -308,6 +313,44 @@ export default function TeamDashboard() {
     }
   }, [selectedEval, fetchChat]);
 
+  // Monitor active evaluation task completion
+  useEffect(() => {
+    if (activeEvalTask) {
+      if (activeEvalTask.status === 'SUCCESS') {
+        fetchHistory();
+        refreshUser();
+        setUploadSuccess(true);
+        setTimeout(() => setUploadSuccess(false), 5000);
+        dismissTask(activeEvalTask.taskId);
+      } else if (activeEvalTask.status === 'FAILED') {
+        const errMsg = activeEvalTask.errorMessage || 'Evaluation failed.';
+        if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('rate_limit') || errMsg.includes('RateLimitError') || errMsg.includes('quota')) {
+          setUploadError(t('team.api_limit_error'));
+        } else {
+          setUploadError(errMsg);
+        }
+        dismissTask(activeEvalTask.taskId);
+      }
+    }
+  }, [activeEvalTask, fetchHistory, refreshUser, dismissTask, t]);
+
+  // Monitor active objection (chat) task completion
+  useEffect(() => {
+    if (activeObjectionTask) {
+      if (activeObjectionTask.status === 'SUCCESS') {
+        if (selectedEval && selectedEval.id === activeObjectionTask.evalId) {
+          fetchChat(selectedEval.id);
+        }
+        dismissTask(activeObjectionTask.taskId);
+      } else if (activeObjectionTask.status === 'FAILED') {
+        if (selectedEval && selectedEval.id === activeObjectionTask.evalId) {
+          setChatError(activeObjectionTask.errorMessage || 'AI evaluation failed.');
+        }
+        dismissTask(activeObjectionTask.taskId);
+      }
+    }
+  }, [activeObjectionTask, selectedEval, fetchChat, dismissTask]);
+
   // Calculate 100-point total score considering criteria weights
   const calculateTotalScore = useCallback((evaluation: EvaluationItem) => {
     if (!evaluation) return 0;
@@ -491,23 +534,9 @@ export default function TeamDashboard() {
 
     try {
       const { task_id } = await submissionsApi.upload(selectedFiles, isFinalUpload);
-      // Poll until the background evaluation completes
-      const result = await pollTaskUntilDone(task_id);
-
-      if (result.status === 'FAILED') {
-        const errMsg = result.error_message || 'Evaluation failed.';
-        if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('rate_limit') || errMsg.includes('RateLimitError') || errMsg.includes('quota')) {
-          setUploadError(t('team.api_limit_error'));
-        } else {
-          setUploadError(errMsg);
-        }
-      } else {
-        setUploadSuccess(true);
-        setSelectedFiles([]);
-        await fetchHistory();
-        await refreshUser();
-        setTimeout(() => setUploadSuccess(false), 5000);
-      }
+      // Delegate evaluation polling to global TaskContext
+      startTask({ taskId: task_id, type: 'evaluation', isFinal: isFinalUpload });
+      setSelectedFiles([]);
     } catch (err: any) {
       console.error('Upload failed:', err);
       if (err.status === 429) {
@@ -533,13 +562,9 @@ export default function TeamDashboard() {
       // Optimistic local update
       setChatMessages((prev) => [...prev, { sender: 'team', message_json: msg, created_at: new Date().toISOString() }]);
       const { task_id } = await chatApi.submitObjection(selectedEval.id, msg);
-      // Poll until the background LLM evaluation completes
-      const result = await pollTaskUntilDone(task_id);
-
-      if (result.status === 'FAILED') {
-        setChatError(result.error_message || 'AI evaluation failed.');
-      }
-      await fetchChat(selectedEval.id);
+      
+      // Delegate objection polling to global TaskContext
+      startTask({ taskId: task_id, type: 'objection', evalId: selectedEval.id });
     } catch (err: any) {
       console.error('Failed to submit objection:', err);
       setChatError(err.message || 'Failed to submit message to the AI judges.');
@@ -1073,10 +1098,10 @@ export default function TeamDashboard() {
                     );
                   }
                 })}
-                {chatLoading && (
+                {(chatLoading || activeObjectionTask) && (
                   <div className="chat-message-bubble msg-judges chat-typing">
                     <Loader2 size={16} className="animate-spin" />
-                    <span>Jury panel is discussing...</span>
+                    <span>{isJa ? '審査員パネルが検討中...' : 'Jury panel is discussing...'}</span>
                   </div>
                 )}
               </div>
@@ -1104,9 +1129,9 @@ export default function TeamDashboard() {
                       ? (isJa ? 'Q&A対話の回数制限に達しました。' : 'Maximum Q&A discussion turns reached.')
                       : (isJa ? '審査員に質問や反論を送信...' : 'Type your question or objection here...')
                   }
-                  disabled={chatLoading || isQaLimitReached}
+                  disabled={chatLoading || !!activeObjectionTask || isQaLimitReached}
                 />
-                <button type="submit" className="btn btn-primary" disabled={chatLoading || isQaLimitReached || !newQuestion.trim()}>
+                <button type="submit" className="btn btn-primary" disabled={chatLoading || !!activeObjectionTask || isQaLimitReached || !newQuestion.trim()}>
                   <Send size={16} />
                 </button>
               </form>
@@ -1322,12 +1347,13 @@ export default function TeamDashboard() {
                   className="btn btn-primary w-full"
                   disabled={
                     uploading ||
+                    !!activeEvalTask ||
                     selectedFiles.length === 0 ||
                     (!isFinalUpload && isConsultationLimitReached) ||
                     !!localUploadError
                   }
                 >
-                  {uploading ? (
+                  {uploading || activeEvalTask ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
                       {isFinalUpload ? 'Submitting Final...' : 'Evaluating Project...'}

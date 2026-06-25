@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { TaskProvider } from '@/contexts/TaskContext';
 import Layout from '@/pages/Layout';
 import LoginPage from '@/pages/Login';
 import Leaderboard from '@/pages/Leaderboard';
@@ -133,7 +134,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <TaskProvider>
+          <AppRoutes />
+        </TaskProvider>
       </AuthProvider>
     </BrowserRouter>
   );
