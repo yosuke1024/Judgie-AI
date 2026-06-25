@@ -148,7 +148,7 @@ The fastest and easiest way to deploy Judgie-AI is using **Railway**. With zero 
 You will be prompted to set the following environment variables. The SQLite database or PostgreSQL connection is configured automatically:
 - `DEFAULT_ADMIN_ID`: The login ID for your Admin dashboard. (Default: `admin`)
 - `DEFAULT_ADMIN_PASSCODE`: The password for your Admin account. (Default: `admin123`)
-- `DEFAULT_PROJECT_NAME`: The name of your evaluation project. (Default: `Default Project`)
+- `DEFAULT_HACKATHON_NAME`: The name of your evaluation project. (Default: `Default Project`)
 - `ALLOWED_IPS`: (Optional) Comma-separated list of allowed IP addresses or subnets. If empty, IP restriction is disabled.
 
 ---

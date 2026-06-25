@@ -266,7 +266,7 @@ def test_single_project_seeding(db_session_fixture, monkeypatch):
     # Mock environment variables using the new standardized variables
     monkeypatch.setenv("DEFAULT_ADMIN_ID", "railway_admin@test.com")
     monkeypatch.setenv("DEFAULT_ADMIN_PASSCODE", "railway_pass123")
-    monkeypatch.setenv("DEFAULT_PROJECT_NAME", "Railway Project")
+    monkeypatch.setenv("DEFAULT_HACKATHON_NAME", "Railway Project")
 
     # Run init_db
     init_db()
