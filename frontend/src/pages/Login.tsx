@@ -21,7 +21,7 @@ export default function LoginPage() {
   const { login, user, refreshUser } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -98,14 +98,14 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    if (!email || !password) {
+    if (!identifier || !password) {
       setError(t('login.all_fields_required'));
       return;
     }
 
     setLoading(true);
     try {
-      await login(email, password);
+      await login(identifier, password);
     } catch (err: any) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -162,11 +162,11 @@ export default function LoginPage() {
             <div className="form-group">
               <label>{t('login.email')}</label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={isLocalAdmin ? 'admin@example.com' : ''}
-                autoComplete="email"
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder={isLocalAdmin ? 'admin / admin@example.com' : ''}
+                autoComplete="username"
               />
             </div>
 
@@ -219,8 +219,8 @@ export default function LoginPage() {
             <button
               className="btn btn-ghost"
               onClick={() => {
-              setIsLocalAdmin(!isLocalAdmin);
-                setEmail('');
+                setIsLocalAdmin(!isLocalAdmin);
+                setIdentifier('');
               }}
             >
               {isLocalAdmin ? '← Back' : t('login.super_admin_login')}

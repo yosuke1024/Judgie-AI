@@ -4,6 +4,7 @@ import { authApi } from '@/api/client';
 interface User {
   user_id: number;
   email: string;
+  username?: string;
   role: string;
   team_id?: string;
   display_name?: string;
@@ -18,7 +19,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -42,9 +43,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser().finally(() => setLoading(false));
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (identifier: string, password: string) => {
     await authApi.login({
-      email,
+      identifier,
       password,
     });
     await refreshUser();

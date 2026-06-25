@@ -38,9 +38,8 @@ from app.models.db import (
 )
 from app.schemas.schemas import (
     CriteriaUpdate,
-    GeminiConfig,
-    LLMConfigUpdate,
     LanguageSettings,
+    LLMConfigUpdate,
     OIDCSettings,
     OIDCSettingsUpdate,
     PasswordChange,

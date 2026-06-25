@@ -134,8 +134,15 @@ def oidc_callback(req: OIDCCallbackRequest, response: Response, oidc_state: str 
 
 @router.post("/login", response_model=LoginResponse)
 def login(req: LoginRequest, response: Response):
-    """Authenticate user with email + password and set JWT HTTPOnly cookie."""
-    user_info = verify_user(req.email, req.password)
+    """Authenticate user with email/username + password and set JWT HTTPOnly cookie."""
+    identifier = req.identifier or req.email
+    if not identifier:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email or username is required",
+        )
+
+    user_info = verify_user(identifier, req.password)
     if not user_info:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -159,8 +166,18 @@ def login(req: LoginRequest, response: Response):
         max_age=60 * 60 * 12,  # 12 hours
     )
 
+    # Fetch username as well
+    from app.models.db import User as DBUser
+    from app.models.db import db_session
+    username = None
+    with db_session() as db:
+        db_user = db.query(DBUser).filter(DBUser.id == user_info["user_id"]).first()
+        if db_user:
+            username = db_user.username
+
     return LoginResponse(
         email=user_info["email"],
+        username=username,
         role=user_info["role"],
         team_id=user_info.get("team_id"),
     )
@@ -189,7 +206,8 @@ def get_me(user: CurrentUser = Depends(get_current_user)):
         max_qa_turns = get_max_qa_turns()
 
     # Get display name from DB
-    from app.models.db import User as DBUser, db_session
+    from app.models.db import User as DBUser
+    from app.models.db import db_session
 
     display_name = None
     with db_session() as db:

@@ -63,7 +63,8 @@ Whether it's auditing software system architectures, screening startup pitches, 
 
 1. **🏢 Role-based Access Control & Administration**
    - Admins can manage global configurations, database state, and system-level setups.
-   - Admins can manage team accounts, including bulk import via CSV, password resets, and settings.
+   - A dedicated **Members Management Panel** allows admins to view all users, search, reset passwords, change roles (admin/team/observer), and assign teams dynamically.
+   - Admins can manage accounts, including bulk import via CSV (supporting username column), password resets, and settings.
    - The entire instance operates in a secure environment with role-based access control (Admin, Team, Observer).
 2. **⚖️ Evaluation Template Packs & Custom Imports**
    - Spin up new projects instantly with built-in templates: **Hackathon Evaluation**, **Startup Pitch Review**, **Hiring & Technical Interview**, and **Software Architecture Review**.
@@ -82,6 +83,8 @@ Whether it's auditing software system architectures, screening startup pitches, 
    - Project admins can directly chat with the AI panel about a submission (e.g., "What libraries are they using?", "Identify potential security issues").
 7. **🌐 Bilingual UI**
    - Seamless English/Japanese switching. AI feedback and summaries are generated in both languages simultaneously.
+8. **👤 Username Login Support**
+   - Log in using either email or username, improving usability and flexibility for offline or local password authentication.
 
 ## 🚀 Tech Stack
 

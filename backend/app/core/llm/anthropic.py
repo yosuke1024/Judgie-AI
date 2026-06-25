@@ -33,7 +33,7 @@ class AnthropicProvider(BaseLLMProvider):
 
     def list_models(self, api_key_override: Optional[str] = None) -> List[str]:
         if api_key_override:
-            client = self._get_client(api_key_override)
+            self._get_client(api_key_override)
             if not api_key_override.startswith("sk-ant-"):
                 raise ValueError("Invalid Anthropic API key format. Must start with 'sk-ant-'.")
         return ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
