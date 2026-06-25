@@ -12,6 +12,8 @@ import {
 } from '@/api/client';
 import {
   Users,
+  User as UserIcon,
+  Key,
   Sliders,
   Shield,
   Search,
@@ -33,6 +35,7 @@ import {
 interface MemberItem {
   user_id: number;
   email: string;
+  username: string | null;
   display_name: string | null;
   role: string;
   team_id: string | null;
@@ -106,7 +109,18 @@ export default function AdminCenter() {
   // --- Tab 1: Teams ---
   const [teams, setTeams] = useState<TeamItem[]>([]);
   const [newTeamId, setNewTeamId] = useState('');
-  const [bulkCsv, setBulkCsv] = useState('');
+
+  // --- Tab: Members (New) ---
+  const [members, setMembers] = useState<MemberItem[]>([]);
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberUsername, setNewMemberUsername] = useState('');
+  const [newMemberDisplayName, setNewMemberDisplayName] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState('team');
+  const [newMemberTeamId, setNewMemberTeamId] = useState('');
+  const [newMemberPassword, setNewMemberPassword] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberRoleFilter, setMemberRoleFilter] = useState('all');
+  const [memberBulkCsv, setMemberBulkCsv] = useState('');
 
   // --- Tab 2: Criteria ---
   const [criteriaList, setCriteriaList] = useState<any[]>([]);
@@ -190,6 +204,18 @@ export default function AdminCenter() {
       setTeams(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load teams.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadMembers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await usersApi.list();
+      setMembers(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load members.');
     } finally {
       setLoading(false);
     }
@@ -311,6 +337,10 @@ export default function AdminCenter() {
   useEffect(() => {
     setError('');
     if (activeTab === 'teams') loadTeams();
+    else if (activeTab === 'members') {
+      loadMembers();
+      loadTeams();
+    }
     else if (activeTab === 'criteria') loadCriteria();
     else if (activeTab === 'personas') loadPersonas();
     else if (activeTab === 'deep_dive') loadLanguages();
@@ -319,7 +349,123 @@ export default function AdminCenter() {
       loadTemplates();
       loadLanguages();
     }
-  }, [activeTab, loadTeams, loadCriteria, loadPersonas, loadLanguages, loadSettings, loadTemplates]);
+  }, [activeTab, loadTeams, loadMembers, loadCriteria, loadPersonas, loadLanguages, loadSettings, loadTemplates]);
+
+  // --- Handlers: Members Tab ---
+  const handleCreateMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemberEmail) return;
+
+    try {
+      setError('');
+      setLoading(true);
+      await usersApi.create({
+        email: newMemberEmail,
+        username: newMemberUsername || undefined,
+        display_name: newMemberDisplayName || undefined,
+        role: newMemberRole,
+        team_id: newMemberRole === 'team' ? newMemberTeamId : undefined,
+        password: newMemberPassword || undefined,
+      });
+      showSuccess(t('admin.members.update_success'));
+      setNewMemberEmail('');
+      setNewMemberUsername('');
+      setNewMemberDisplayName('');
+      setNewMemberRole('team');
+      setNewMemberTeamId('');
+      setNewMemberPassword('');
+      loadMembers();
+    } catch (err: any) {
+      setError(err.message || 'Failed to create member.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateMemberRole = async (userId: number, role: string) => {
+    try {
+      setError('');
+      const payload: any = { role };
+      if (role === 'team') {
+        const firstTeam = teams[0]?.team_id || '';
+        payload.team_id = firstTeam;
+      } else {
+        payload.team_id = '';
+      }
+      await usersApi.update(userId, payload);
+      showSuccess(t('admin.members.update_success'));
+      loadMembers();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update user role.');
+    }
+  };
+
+  const handleUpdateMemberTeam = async (userId: number, teamId: string) => {
+    try {
+      setError('');
+      await usersApi.update(userId, { team_id: teamId });
+      showSuccess(t('admin.members.update_success'));
+      loadMembers();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update user team.');
+    }
+  };
+
+  const handleToggleMemberActive = async (userId: number, isActive: boolean) => {
+    try {
+      setError('');
+      await usersApi.update(userId, { is_active: isActive });
+      showSuccess(t('admin.members.update_success'));
+      loadMembers();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update active state.');
+    }
+  };
+
+  const handleResetMemberPassword = async (userId: number) => {
+    const newPass = prompt('Enter new password:');
+    if (newPass === null) return;
+    if (!newPass.trim()) {
+      alert('Password cannot be empty.');
+      return;
+    }
+    try {
+      setError('');
+      await usersApi.resetPassword(userId, newPass.trim());
+      showSuccess(t('admin.members.reset_password_success'));
+    } catch (err: any) {
+      setError(err.message || 'Failed to reset password.');
+    }
+  };
+
+  const handleDeleteMember = async (userId: number) => {
+    if (!confirm(t('admin.members.delete_confirm'))) return;
+    try {
+      setError('');
+      await usersApi.delete(userId);
+      showSuccess(t('admin.members.delete_success'));
+      loadMembers();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete member.');
+    }
+  };
+
+  const handleMemberBulkImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!memberBulkCsv) return;
+    try {
+      setError('');
+      setLoading(true);
+      const res = await usersApi.bulkCreate(memberBulkCsv);
+      showSuccess(t('admin.members.import_success', { created: res.created, skipped: res.skipped }));
+      setMemberBulkCsv('');
+      loadMembers();
+    } catch (err: any) {
+      setError(err.message || 'Failed to import members.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- Handlers: Teams Tab ---
   const handleCreateTeam = async (e: React.FormEvent) => {
@@ -339,23 +485,7 @@ export default function AdminCenter() {
     }
   };
 
-  const handleBulkCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!bulkCsv) return;
-    try {
-      setError('');
-      const res: any = await usersApi.bulkCreate(bulkCsv);
-      setBulkCsv('');
-      if (res && typeof res.created === 'number') {
-        showSuccess(`CSV Bulk import complete! Created: ${res.created}, Skipped: ${res.skipped}`);
-      } else {
-        showSuccess('CSV Bulk import complete!');
-      }
-      loadTeams();
-    } catch (err: any) {
-      setError(err.message || 'Bulk creation failed.');
-    }
-  };
+
 
   const handleDeleteTeam = async (teamId: string) => {
     if (!window.confirm(`Are you sure you want to delete team ${teamId} and all their evaluations?`)) return;
@@ -707,6 +837,13 @@ export default function AdminCenter() {
           {t('admin.teams_tab')}
         </button>
         <button
+          className={`tab-btn ${activeTab === 'members' ? 'active' : ''}`}
+          onClick={() => setActiveTab('members')}
+        >
+          <UserIcon size={16} />
+          {t('admin.members_tab')}
+        </button>
+        <button
           className={`tab-btn ${activeTab === 'criteria' ? 'active' : ''}`}
           onClick={() => setActiveTab('criteria')}
         >
@@ -770,34 +907,6 @@ export default function AdminCenter() {
                     </button>
                   </form>
                 </div>
-
-                <div className="card mt-4">
-                  <h4>Bulk Import (CSV)</h4>
-                  <form onSubmit={handleBulkCreate} className="vertical-form">
-                    <div className="form-group">
-                      <label>
-                        {oidcConfig.oidc_enabled
-                          ? 'CSV Content (team_id,email,role) or (team_id,role,email)'
-                          : 'CSV Content (email,team_id,role)'}
-                      </label>
-                      <textarea
-                        value={bulkCsv}
-                        onChange={(e) => setBulkCsv(e.target.value)}
-                        placeholder={
-                          oidcConfig.oidc_enabled
-                            ? 'team-01,user1@example.com,team\nteam-02,observer,user2@example.com'
-                            : 'team-01,secret123,team\nteam-02,abc456,observer'
-                        }
-                        rows={6}
-                        disabled={isObserver}
-                        required
-                      />
-                    </div>
-                    <button type="submit" className="btn btn-primary" disabled={isObserver}>
-                      <Upload size={16} /> Import Teams
-                    </button>
-                  </form>
-                </div>
               </div>
 
               {/* Team List Table */}
@@ -827,20 +936,9 @@ export default function AdminCenter() {
                             <td><strong>{t.team_id}</strong></td>
                             <td>{t.product_name || <span className="dim-text">—</span>}</td>
                             <td>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                {t.members.length > 0 ? (
-                                  t.members.map((m) => (
-                                    <div key={m.user_id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                      <span style={{ fontSize: '0.85em' }}>{m.email}</span>
-                                      <span style={{ fontSize: '0.7em', color: 'var(--text-muted)' }}>
-                                        ({m.role})
-                                      </span>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <span className="dim-text">—</span>
-                                )}
-                              </div>
+                              <span style={{ fontSize: '0.9em', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--bg-accent)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                                {t.members ? t.members.length : 0}
+                              </span>
                             </td>
                             <td>
                               <input
@@ -865,7 +963,7 @@ export default function AdminCenter() {
                         ))}
                         {teams.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="text-center dim-text">
+                            <td colSpan={5} className="text-center dim-text">
                               {loading ? (
                                 <div className="inline-flex items-center gap-2" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                                   <Loader2 size={16} className="animate-spin" />
@@ -874,6 +972,270 @@ export default function AdminCenter() {
                               ) : (
                                 'No teams registered yet.'
                               )}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================= */}
+        {/* TAB: MEMBERS */}
+        {/* ================================================================= */}
+        {activeTab === 'members' && (
+          <div className="tab-pane members-pane">
+            <div className="members-grid" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px', alignItems: 'start' }}>
+              {/* Member Registration Forms */}
+              <div className="pane-form-column" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="card">
+                  <h4>{t('admin.members.add_member')}</h4>
+                  <form onSubmit={handleCreateMember} className="vertical-form">
+                    <div className="form-group">
+                      <label>Email *</label>
+                      <input
+                        type="email"
+                        value={newMemberEmail}
+                        onChange={(e) => setNewMemberEmail(e.target.value)}
+                        placeholder={t('admin.members.email_placeholder')}
+                        required
+                        disabled={isObserver}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>{t('admin.members.username')}</label>
+                      <input
+                        type="text"
+                        value={newMemberUsername}
+                        onChange={(e) => setNewMemberUsername(e.target.value)}
+                        placeholder={t('admin.members.username_placeholder')}
+                        disabled={isObserver}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>{t('admin.members.display_name')}</label>
+                      <input
+                        type="text"
+                        value={newMemberDisplayName}
+                        onChange={(e) => setNewMemberDisplayName(e.target.value)}
+                        placeholder={t('admin.members.display_name_placeholder')}
+                        disabled={isObserver}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>{t('admin.members.password')}</label>
+                      <input
+                        type="password"
+                        value={newMemberPassword}
+                        onChange={(e) => setNewMemberPassword(e.target.value)}
+                        placeholder={t('admin.members.password_placeholder')}
+                        disabled={isObserver}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>{t('admin.members.role')}</label>
+                      <select
+                        value={newMemberRole}
+                        onChange={(e) => setNewMemberRole(e.target.value)}
+                        disabled={isObserver}
+                      >
+                        <option value="team">Team Member</option>
+                        <option value="observer">Observer</option>
+                        <option value="admin">Administrator</option>
+                      </select>
+                    </div>
+                    {newMemberRole === 'team' && (
+                      <div className="form-group">
+                        <label>{t('admin.members.team')} *</label>
+                        <select
+                          value={newMemberTeamId}
+                          onChange={(e) => setNewMemberTeamId(e.target.value)}
+                          required
+                          disabled={isObserver}
+                        >
+                          <option value="">— Select Team —</option>
+                          {teams.map((t) => (
+                            <option key={t.team_id} value={t.team_id}>
+                              {t.team_id}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <button type="submit" className="btn btn-primary" disabled={isObserver || (newMemberRole === 'team' && !newMemberTeamId)}>
+                      <Plus size={16} /> {t('admin.members.add_member')}
+                    </button>
+                  </form>
+                </div>
+
+                <div className="card">
+                  <h4>{t('admin.members.bulk_import')}</h4>
+                  <form onSubmit={handleMemberBulkImport} className="vertical-form">
+                    <div className="form-group">
+                      <label>{t('admin.members.csv_content_label')}</label>
+                      <span style={{ fontSize: '0.75em', color: 'var(--text-muted)', display: 'block', marginBottom: '8px', lineHeight: '1.4' }}>
+                        {t('admin.members.csv_help')}
+                      </span>
+                      <textarea
+                        value={memberBulkCsv}
+                        onChange={(e) => setMemberBulkCsv(e.target.value)}
+                        placeholder="user1@example.com,team-alpha,team,User One,pass123,user_one"
+                        rows={6}
+                        disabled={isObserver}
+                        required
+                      />
+                    </div>
+                    <button type="submit" className="btn btn-primary" disabled={isObserver}>
+                      <Upload size={16} /> {t('admin.members.import_btn')}
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              {/* Members Table */}
+              <div className="pane-table-column">
+                <div className="card h-full">
+                  <div className="card-header-flex" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', gap: '16px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      <h4>{t('admin.members.title')} ({members.length})</h4>
+                      <p className="dim-text" style={{ fontSize: '0.85em', marginTop: '4px' }}>
+                        {t('admin.members.subtitle')}
+                      </p>
+                    </div>
+                    <button onClick={loadMembers} className="btn btn-ghost btn-sm">
+                      <RefreshCw size={14} /> Refresh
+                    </button>
+                  </div>
+
+                  {/* Filters */}
+                  <div className="filters-bar" style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder={t('admin.members.search_placeholder')}
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      style={{ flex: 1, minWidth: '200px', height: '36px', padding: '0 12px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}
+                    />
+                    <select
+                      className="form-control"
+                      value={memberRoleFilter}
+                      onChange={(e) => setMemberRoleFilter(e.target.value)}
+                      style={{ width: '160px', height: '36px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-card)' }}
+                    >
+                      <option value="all">All Roles</option>
+                      <option value="team">Team Members</option>
+                      <option value="observer">Observers</option>
+                      <option value="admin">Administrators</option>
+                    </select>
+                  </div>
+
+                  <div className="table-wrapper">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Email</th>
+                          <th>{t('admin.members.username')}</th>
+                          <th>{t('admin.members.display_name')}</th>
+                          <th>{t('admin.members.role')}</th>
+                          <th>{t('admin.members.team')}</th>
+                          <th>{t('admin.members.active')}</th>
+                          <th>{t('admin.members.actions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {members
+                          .filter((m) => {
+                            const matchSearch =
+                              m.email.toLowerCase().includes(memberSearch.toLowerCase()) ||
+                              (m.username || '').toLowerCase().includes(memberSearch.toLowerCase()) ||
+                              (m.display_name || '').toLowerCase().includes(memberSearch.toLowerCase());
+                            const matchRole =
+                              memberRoleFilter === 'all' || m.role === memberRoleFilter;
+                            return matchSearch && matchRole;
+                          })
+                          .map((m) => (
+                            <tr key={m.user_id}>
+                              <td style={{ fontSize: '0.9em' }}>
+                                <strong>{m.email}</strong>
+                              </td>
+                              <td style={{ fontSize: '0.9em' }}>
+                                {m.username || <span className="dim-text">—</span>}
+                              </td>
+                              <td style={{ fontSize: '0.9em' }}>
+                                {m.display_name || <span className="dim-text">—</span>}
+                              </td>
+                              <td>
+                                <select
+                                  value={m.role}
+                                  onChange={(e) => handleUpdateMemberRole(m.user_id, e.target.value)}
+                                  disabled={isObserver}
+                                  style={{ fontSize: '0.9em', padding: '2px 4px', borderRadius: '4px' }}
+                                >
+                                  <option value="team">team</option>
+                                  <option value="observer">observer</option>
+                                  <option value="admin">admin</option>
+                                </select>
+                              </td>
+                              <td>
+                                {m.role === 'team' ? (
+                                  <select
+                                    value={m.team_id || ''}
+                                    onChange={(e) => handleUpdateMemberTeam(m.user_id, e.target.value)}
+                                    disabled={isObserver}
+                                    style={{ fontSize: '0.9em', padding: '2px 4px', borderRadius: '4px', maxWidth: '120px' }}
+                                  >
+                                    <option value="">{t('admin.members.no_team')}</option>
+                                    {teams.map((t) => (
+                                      <option key={t.team_id} value={t.team_id}>
+                                        {t.team_id}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <span className="dim-text">—</span>
+                                )}
+                              </td>
+                              <td>
+                                <input
+                                  type="checkbox"
+                                  checked={m.is_active !== false}
+                                  onChange={(e) => handleToggleMemberActive(m.user_id, e.target.checked)}
+                                  disabled={isObserver}
+                                  className="table-checkbox"
+                                />
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <button
+                                    onClick={() => handleResetMemberPassword(m.user_id)}
+                                    className="btn btn-ghost btn-xs"
+                                    title={t('admin.members.reset_password')}
+                                    disabled={isObserver}
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}
+                                  >
+                                    <Key size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMember(m.user_id)}
+                                    className="btn btn-danger btn-xs"
+                                    disabled={isObserver}
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        {members.length === 0 && (
+                          <tr>
+                            <td colSpan={7} style={{ textAlign: 'center', padding: '24px' }} className="dim-text">
+                              No members found.
                             </td>
                           </tr>
                         )}

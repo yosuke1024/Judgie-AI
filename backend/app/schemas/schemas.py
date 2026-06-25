@@ -10,12 +10,14 @@ from pydantic import BaseModel
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: str | None = None
+    identifier: str | None = None
     password: str
 
 
 class LoginResponse(BaseModel):
     email: str
+    username: str | None = None
     role: str
     team_id: str | None = None
 
@@ -67,6 +69,7 @@ class ProjectInitialize(BaseModel):
 
 class UserCreate(BaseModel):
     email: str
+    username: str | None = None
     password: str | None = None  # NULL = SSO-only user
     display_name: str | None = None
     role: str = "team"
@@ -75,6 +78,7 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     display_name: str | None = None
+    username: str | None = None
     role: str | None = None
     team_id: str | None = None
     is_active: bool | None = None
@@ -83,6 +87,7 @@ class UserUpdate(BaseModel):
 class UserResponse(BaseModel):
     user_id: int
     email: str
+    username: str | None = None
     display_name: str | None = None
     role: str
     team_id: str | None = None

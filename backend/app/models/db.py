@@ -59,6 +59,7 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, nullable=False, unique=True)
+    username = Column(String, nullable=True, unique=True)
     password_hash = Column(String, nullable=True)  # NULL = SSO-only user
     display_name = Column(String, nullable=True)
     role = Column(String, nullable=False)  # 'admin', 'team', 'observer'
@@ -312,6 +313,15 @@ def init_db():
         except Exception:
             pass
 
+    # Migrate username column
+    with engine.begin() as conn:
+        if not _column_exists(conn, "users", "username"):
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN username TEXT;"))
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_username ON users (username) WHERE username IS NOT NULL;"))
+            except Exception:
+                pass
+
     # Seed default admin user and settings
     with db_session() as db:
         default_admin_email = os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@example.com")
@@ -343,12 +353,15 @@ def init_db():
 # ──────────────────────────────────────────────
 
 
-def verify_user(email: str, password: str) -> dict | None:
-    """Verify user credentials by email + password. Returns user info dict if valid."""
+def verify_user(identifier: str, password: str) -> dict | None:
+    """Verify user credentials by email or username + password. Returns user info dict if valid."""
     from app.security import verify_passcode
 
     with db_session() as db:
-        user = db.query(User).filter(User.email == email, User.is_active).first()
+        user = db.query(User).filter(
+            ((User.email == identifier) | (User.username == identifier)),
+            User.is_active
+        ).first()
         if not user or not user.password_hash:
             return None
         if verify_passcode(password, user.password_hash):
@@ -364,21 +377,27 @@ def verify_user(email: str, password: str) -> dict | None:
         return None
 
 
-def get_user_by_email(email: str) -> dict | None:
-    """Look up a user by email. Returns user info dict or None."""
+def get_user_by_identifier(identifier: str) -> dict | None:
+    """Look up a user by email or username. Returns user info dict or None."""
     with db_session() as db:
-        user = db.query(User).filter(User.email == email).first()
+        user = db.query(User).filter((User.email == identifier) | (User.username == identifier)).first()
         if not user:
             return None
         membership = db.query(TeamMembership).filter(TeamMembership.user_id == user.id).first()
         return {
             "user_id": user.id,
             "email": user.email,
+            "username": user.username,
             "role": user.role,
             "display_name": user.display_name,
             "is_active": user.is_active,
             "team_id": membership.team_id if membership else None,
         }
+
+
+def get_user_by_email(email: str) -> dict | None:
+    """Look up a user by email. Returns user info dict or None."""
+    return get_user_by_identifier(email)
 
 
 def get_consultation_count(team_id: str) -> int:

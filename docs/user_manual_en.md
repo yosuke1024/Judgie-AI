@@ -27,7 +27,7 @@ You can switch the UI and AI-generated feedback language at any time using the l
 ### Authentication Methods
 Depending on the server configuration (environment variables), the login method will adapt:
 1. **Password Authentication (Default)**
-   - Log in using your registered "Email Address" and "Password".
+   - Log in using your registered "Email Address" or "Username" and the corresponding "Password".
 2. **OIDC (Single Sign-On) Authentication**
    - If `OIDC_ENABLED=true` is set, the password input field is hidden for security and user experience. Instead, a **"Sign in with SSO"** button is displayed on the login page.
    - Authenticate via your identity provider (e.g., Google OAuth). You will be logged in automatically based on your verified email address.
@@ -107,15 +107,23 @@ Choose one of the pre-built templates or import a custom one:
 - **Custom Avatar Images**: You can upload a custom avatar image (PNG/JPG, max 500KB) for each judge. If configured, it will be rendered as a circular profile photo in the team dashboard and chat bubble instead of the default emoji.
 - **Active / Inactive Toggle**: Temporarily disable a judge. Inactive judges will not participate in evaluations or Q&A threads.
 
-#### Step 5: Register Teams/Participants (Team Management)
-- Go to the **"🏢 Teams"** tab.
-- **Add Individually**:
-  - **Default Mode**: Enter the member's `Email`, `Password`, `Team ID`, and choose a **`Role`**.
-  - **OIDC Mode**: Enter the member's `Email`, `Team ID`, and choose a **`Role`** (passwords are generated randomly).
-- **CSV Bulk Import**: Upload a CSV file to register multiple users at once.
-  - CSV Format: Use `email,team_id,role[,display_name][,password]` columns in order.
-- **Active / Inactive Toggle**: Toggle the "Active" switch next to any team. Inactive teams are blocked from logging in and hidden from the scoreboard/submissions list.
-- **Delete Team/User**: Permanently delete teams and all their related submissions/chat history under the "Delete User/Team" section (Cascading deletion; note that administrator accounts cannot be deleted).
+#### Step 5: Manage Members and Register Teams (Members / Teams)
+The Admin Command Center contains two tabs for managing users and teams: **"Teams"** and **"Members"**.
+
+* **"Members" Tab**:
+  - Displays all users (administrators, observers, and team members) with search and role filtering capability.
+  - **Add Individually**:
+    - **Default Mode**: Enter the member's `Email`, `Username` (optional, 3-30 chars, alphanumeric, -, _), `Display Name` (optional), `Password` (optional, auto-generated if empty), `Role` (team/observer/admin), and `Team ID` if the role is 'team'.
+    - **OIDC Mode**: Enter the `Email`, `Username`, `Display Name`, and `Role` (passwords are generated randomly).
+  - **Change Roles & Teams**: You can change a user's role directly in the table via a dropdown. If the role is `team`, you can also assign their team via a dropdown. Changing a user's role to something other than `team` automatically cleans up their team membership.
+  - **Password Reset & Delete**: Click the "Key icon" to force reset a member's password, or click the "Trash icon" to delete their account completely (Note: deactivating, changing the role, or deleting the only active administrator is blocked).
+  - **CSV Bulk Import**: Upload a CSV file to register multiple users at once.
+    - CSV Format: Use `email,team_id,role[,display_name][,password][,username]` columns in order.
+    - Header rows containing 'email' are automatically skipped.
+
+* **"Teams" Tab**:
+  - Simplified for registering, deleting, and activating/deactivating hackathon "teams" themselves.
+  - Each team row displays a badge showing the number of active members in that team.
 
 #### Step 6: AI Language Settings
 - Go to the **"AI Languages"** tab. Save up to 5 languages for AI evaluation feedback and chats. Teams can switch between these languages via tabs on their dashboards.

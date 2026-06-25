@@ -92,8 +92,8 @@ export async function pollTaskUntilDone(
 
 // Auth
 export const authApi = {
-  login: (data: { email: string; password: string }) =>
-    request<{ email: string; role: string; team_id?: string }>('/api/auth/login', {
+  login: (data: { email?: string; identifier?: string; password: string }) =>
+    request<{ email: string; username?: string; role: string; team_id?: string }>('/api/auth/login', {
       method: 'POST',
       body: data,
     }),
@@ -139,6 +139,7 @@ export const teamsApi = {
         members: Array<{
           user_id: number;
           email: string;
+          username: string | null;
           display_name: string | null;
           role: string;
           team_id: string | null;
@@ -164,6 +165,7 @@ export const usersApi = {
       Array<{
         user_id: number;
         email: string;
+        username: string | null;
         display_name: string | null;
         role: string;
         team_id: string | null;
@@ -171,7 +173,7 @@ export const usersApi = {
         has_password: boolean;
       }>
     >('/api/users'),
-  create: (data: { email: string; password?: string; display_name?: string; role: string; team_id?: string }) =>
+  create: (data: { email: string; username?: string; password?: string; display_name?: string; role: string; team_id?: string }) =>
     request('/api/users', { method: 'POST', body: data }),
   update: (userId: number, data: object) =>
     request(`/api/users/${userId}`, { method: 'PUT', body: data }),
@@ -180,7 +182,7 @@ export const usersApi = {
   delete: (userId: number) =>
     request(`/api/users/${userId}`, { method: 'DELETE' }),
   bulkCreate: (csvContent: string) =>
-    request('/api/users/bulk', { method: 'POST', body: { csv_content: csvContent } }),
+    request<{ created: number; skipped: number }>('/api/users/bulk', { method: 'POST', body: { csv_content: csvContent } }),
 };
 
 // Evaluations
