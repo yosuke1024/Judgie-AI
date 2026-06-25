@@ -138,7 +138,21 @@ The JSON file must conform to the following schema:
 
 ## 📦 Getting Started & Deployment
 
-### 1. Local Development Setup
+### 1. Deploying to Railway (Recommended - One-Click Deploy)
+
+The fastest and easiest way to deploy Judgie-AI is using **Railway**. With zero configuration needed, it automatically builds the React frontend, provisions the FastAPI backend container, and sets up your choice of PostgreSQL database or SQLite with replication.
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/judgieai)
+
+#### Configuration During Deployment
+You will be prompted to set the following environment variables. The SQLite database or PostgreSQL connection is configured automatically:
+- `DEFAULT_ADMIN_ID`: The login ID for your Admin dashboard. (Default: `admin`)
+- `DEFAULT_ADMIN_PASSWORD`: The password for your Admin account. (Default: `admin123`)
+- `DEFAULT_HACKATHON_NAME`: The name of your evaluation project. (Default: `Default Project`)
+
+---
+
+### 2. Local Development Setup
 Clone the repository:
 ```bash
 git clone https://github.com/yosuke1024/Judgie-AI.git
@@ -159,7 +173,7 @@ You can launch the entire stack (both backend and frontend) using Docker Compose
    ```
 3. **Access the App**:
    Open `http://localhost:8080` in your browser.
-    - Log in as the default admin: **Email:** `admin@example.com`, **Password:** `admin123` (configured in `docker-compose.yml`).
+     - Log in as the default admin: **Email:** `admin@example.com`, **Password:** `admin123` (configured in `docker-compose.yml`).
 
 > [!NOTE]
 > Since this method builds the production assets for the React frontend to serve them through FastAPI, frontend changes will not hot-reload (HMR). If you edit the frontend code, you must rebuild the container using `docker compose up --build`.
@@ -195,47 +209,36 @@ Once logged in:
 1. Go to **⚙️ System Settings** -> **🤖 Gemini Configuration** tab.
 2. Input and save your **Gemini API Key**. This will dynamically fetch and let you select the available Gemini models.
 
-### 2. Deploying to Railway (One-Click)
-You can deploy Judgie-AI to Railway with a single click. This template automatically builds the React frontend and provisions the FastAPI backend container. It can connect to PostgreSQL or run using local SQLite with Litestream replication.
+---
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/judgieai)
+### 3. Self-Hosting on Cloud Providers (GCP, AWS, Azure, etc.)
 
-During deployment, you will be prompted to set the following environment variables:
-- `DEFAULT_ADMIN_ID`: The login ID for your Admin dashboard. (Default: `admin`)
-- `DEFAULT_ADMIN_PASSWORD`: The password for your Admin account. (Default: `admin123`)
-- `DEFAULT_HACKATHON_NAME`: The name of your evaluation project. (Default: `Default Project`)
+For advanced enterprise environments or self-hosting on major cloud providers (AWS, GCP, Azure, etc.), Judgie-AI is fully containerized and can be run using the provided [Dockerfile](file:///Users/suzukiyousuke/repo/Judgie/Dockerfile).
 
-### 3. Deploying to Google Cloud Platform (GCP)
-Judgie-AI supports deployment to GCP using **Cloud Build** and **Cloud Run**. Depending on your budget and scaling needs, you can easily toggle between **SQLite with Litestream** (recommended for low-cost deployments) and **PostgreSQL (Cloud SQL)** (recommended for high-concurrency deployments).
+#### 1. Build the Docker Image
+Run the following command in the root directory to build the production container:
+```bash
+docker build -t judgie-ai:latest .
+```
 
-The deployment configuration is defined in [cloudbuild.yaml](file:///Users/suzukiyousuke/repo/Judgie/cloudbuild.yaml). You can control the database mode using build substitutions.
+#### 2. Run the Container Locally
+You can run the container by mapping the ports and passing the required environment variables:
+```bash
+docker run -d \
+  -p 8080:8080 \
+  -e GEMINI_API_KEY="your-gemini-api-key" \
+  -e DEFAULT_ADMIN_ID="admin" \
+  -e DEFAULT_ADMIN_PASSWORD="admin123" \
+  judgie-ai:latest
+```
 
-#### Database Modes
-* **SQLite with Litestream (Default / Recommended)**
-  This mode runs SQLite inside the Cloud Run container and replicates the database file dynamically to Google Cloud Storage (GCS) using **Litestream**.
-  - **Pros:** Extremely low cost. No need for a running Cloud SQL instance. Ideal for test environments and small-scale projects.
-  - **Cons:** Cloud Run instance is limited to a maximum of 1 instance to avoid replication conflicts. Not suitable for heavy write loads across multiple servers.
-  - **Config Parameters:**
-    - `_DB_TYPE`: `sqlite` (default)
-    - `_LITESTREAM_BUCKET`: The name of the GCS bucket to store replicas (defaults to `<PROJECT_ID>-judgie-litestream` if left empty).
-  - **Auto Optimization:** Under this mode, Cloud Run is automatically configured with `--no-cpu-throttling` (ensures Litestream can upload replicas without interruption) and `--max-instances 1`.
-
-* **PostgreSQL (Cloud SQL)**
-  This mode connects to a managed PostgreSQL database instance via Cloud SQL Connector.
-  - **Pros:** Scales horizontally (supports multiple Cloud Run instances). Highly reliable and suitable for large-scale projects.
-  - **Cons:** Regular running costs for the Cloud SQL instance.
-  - **Config Parameters:**
-    - `_DB_TYPE`: `postgres`
-    - `_DB_INSTANCE`: Your Cloud SQL instance connection name (e.g., `project-id:region:instance-name`).
-    - `_SECRET_NAME`: The name of the secret in Secret Manager storing the `DATABASE_URL` connection string (e.g., `DATABASE_URL`).
-
-#### Deployment Steps
-1. Create a GCS bucket for Litestream replicas if you plan to use SQLite (e.g., `gs://<your-project-id>-judgie-litestream`).
-2. Ensure the Cloud Run service account has `Storage Object Admin` permission for the GCS bucket.
-3. Trigger Cloud Build using `gcloud builds submit` or link your GitHub repository to Cloud Build triggers:
-   ```bash
-   gcloud builds submit --config=cloudbuild.yaml --substitutions=_DB_TYPE=sqlite,_LITESTREAM_BUCKET=your-bucket-name
-   ```
+#### 3. Cloud Deployment
+To host the container on services like **Google Cloud Run**, **AWS ECS (Fargate)**, or **Azure Container Apps**:
+1. Push the built image to your container registry (e.g., Google Artifact Registry, Amazon ECR, Docker Hub).
+2. Deploy the container with:
+   - Port mapped to `8080` (or set the `PORT` environment variable).
+   - The required environment variables configured (`GEMINI_API_KEY`, etc.).
+   - Database Configuration: Specify the `DATABASE_URL` (e.g., `postgresql://...` for managed databases) to point to your persistent database.
 
 ---
 
