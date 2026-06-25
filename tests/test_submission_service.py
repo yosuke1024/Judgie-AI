@@ -130,3 +130,14 @@ def test_process_submission_with_video_disabled(mocker):
         process_submission(team_id="teamA", uploaded_files=[mock_media], prev_evaluations_json="{}", is_final=False)
 
     assert "Video uploads" in str(excinfo.value)
+
+
+def test_process_submission_with_unsupported_file(mocker):
+    # Simulate uploading an unsupported file format
+    mock_file = mocker.MagicMock()
+    mock_file.name = "document.txt"
+
+    with pytest.raises(ValueError) as excinfo:
+        process_submission(team_id="teamA", uploaded_files=[mock_file], prev_evaluations_json="{}", is_final=False)
+
+    assert "Unsupported file format" in str(excinfo.value)

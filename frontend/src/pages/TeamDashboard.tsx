@@ -396,6 +396,17 @@ export default function TeamDashboard() {
 
   const isConsultationLimitReached = maxConsultations !== -1 && effectiveConsultationCount >= maxConsultations;
 
+  const allowedExtensions = useMemo(() => {
+    return supportsVideo ? ['.zip', '.pdf', '.mp4', '.mov'] : ['.zip', '.pdf'];
+  }, [supportsVideo]);
+
+  const hasUnsupportedFile = useMemo(() => {
+    return selectedFiles.some(file => {
+      const name = file.name.toLowerCase();
+      return !allowedExtensions.some(ext => name.endsWith(ext));
+    });
+  }, [selectedFiles, allowedExtensions]);
+
   const hasVideoFile = useMemo(() => {
     if (supportsVideo) return false;
     return selectedFiles.some(file => {
@@ -404,14 +415,15 @@ export default function TeamDashboard() {
     });
   }, [selectedFiles, supportsVideo]);
 
-  // Validate selected files for video support
-  useEffect(() => {
-    if (hasVideoFile) {
-      setUploadError(t('team.video_not_supported_error'));
-    } else if (uploadError === t('team.video_not_supported_error')) {
-      setUploadError('');
+  const localUploadError = useMemo(() => {
+    if (hasUnsupportedFile) {
+      return t('team.unsupported_file_error');
     }
-  }, [hasVideoFile, t, uploadError]);
+    if (hasVideoFile) {
+      return t('team.video_not_supported_error');
+    }
+    return '';
+  }, [hasUnsupportedFile, hasVideoFile, t]);
 
   if (!user || !effectiveTeamId) return null;
 
@@ -468,6 +480,10 @@ export default function TeamDashboard() {
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedFiles.length === 0) return;
+
+    if (localUploadError) {
+      return;
+    }
 
     setUploading(true);
     setUploadError('');
@@ -1225,9 +1241,10 @@ export default function TeamDashboard() {
                 >
                   <Upload size={32} />
                   <p>{supportsVideo ? t('team.upload_hint') : t('team.upload_hint_no_video')}</p>
-                  <input
+                   <input
                     type="file"
                     multiple
+                    accept={supportsVideo ? ".zip,.pdf,.mp4,.mov" : ".zip,.pdf"}
                     onChange={handleFileChange}
                     style={{ display: 'none' }}
                     id="file-upload-input"
@@ -1264,10 +1281,10 @@ export default function TeamDashboard() {
                   </label>
                 </div>
 
-                {uploadError && (
+                {(uploadError || localUploadError) && (
                   <div className="error-box">
                     <AlertTriangle size={16} />
-                    <span>{uploadError}</span>
+                    <span>{uploadError || localUploadError}</span>
                   </div>
                 )}
 
@@ -1307,7 +1324,7 @@ export default function TeamDashboard() {
                     uploading ||
                     selectedFiles.length === 0 ||
                     (!isFinalUpload && isConsultationLimitReached) ||
-                    hasVideoFile
+                    !!localUploadError
                   }
                 >
                   {uploading ? (
