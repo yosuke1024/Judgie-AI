@@ -152,30 +152,31 @@ async def upload_submission(
 
     video_enabled = is_video_upload_enabled()
 
+    # Validate all file extensions first
+    for uf in files:
+        filename = uf.filename or ""
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in (".zip", ".pdf", ".mp4", ".mov"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file format: {ext}. Only ZIP, PDF, MP4, and MOV files are supported.",
+            )
+        if ext in (".mp4", ".mov") and not video_enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Video uploads are disabled for this project",
+            )
+
     # Save uploaded files to temp directory for background processing
     saved_files: list[dict] = []
     for uf in files:
         file_bytes = await uf.read()
         filename = uf.filename or ""
+        ext = os.path.splitext(filename)[1].lower()
 
-        if filename.endswith((".zip", ".mp4", ".mov", ".pdf")):
-            ext = os.path.splitext(filename)[1].lower()
-
-            if ext in (".mp4", ".mov") and not video_enabled:
-                # Clean up already saved files
-                for f in saved_files:
-                    try:
-                        os.unlink(f["path"])
-                    except OSError:
-                        pass
-                raise HTTPException(
-                    status_code=400,
-                    detail="Video uploads are disabled for this project",
-                )
-
-            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-                tmp.write(file_bytes)
-                saved_files.append({"path": tmp.name, "filename": filename})
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            tmp.write(file_bytes)
+            saved_files.append({"path": tmp.name, "filename": filename})
 
     # Create async task
     task_id = create_async_task(team_id, "submission")

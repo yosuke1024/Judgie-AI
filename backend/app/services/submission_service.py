@@ -18,11 +18,17 @@ def process_submission(team_id: str, uploaded_files: list, prev_evaluations_json
 
     # Extract text from ZIP and upload media files to Gemini
     for uf in uploaded_files:
+        ext = os.path.splitext(uf.name)[1].lower()
+        if ext not in (".zip", ".pdf", ".mp4", ".mov"):
+            raise ValueError(
+                f"Unsupported file format: {ext}. Only ZIP, PDF, MP4, and MOV files are supported. / "
+                f"サポートされていないファイル形式です: {ext}。ZIP、PDF、MP4、MOVファイルのみがサポートされています。"
+            )
+
         if uf.name.endswith(".zip"):
             text_content += extract_text_from_zip(uf)
         elif uf.name.endswith((".mp4", ".mov", ".pdf")):
-            ext = os.path.splitext(uf.name)[1]
-            if ext.lower() in (".mp4", ".mov") and not video_enabled:
+            if ext in (".mp4", ".mov") and not video_enabled:
                 raise ValueError(
                     "Video uploads (MP4, MOV) are disabled for this project. / "
                     "このプロジェクトでは動画のアップロードは無傷化されています。"
