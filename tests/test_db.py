@@ -266,13 +266,12 @@ def test_single_project_seeding(db_session_fixture, monkeypatch):
     # Mock environment variables using the new standardized variables
     monkeypatch.setenv("DEFAULT_ADMIN_ID", "railway_admin@test.com")
     monkeypatch.setenv("DEFAULT_ADMIN_PASSCODE", "railway_pass123")
-    monkeypatch.setenv("DEFAULT_HACKATHON_NAME", "Railway Project")
 
     # Run init_db
     init_db()
 
     # Verify default project and admin user are created
-    assert get_setting("project_name") == "Railway Project"
+    assert get_setting("project_name") == "Default Project"
 
     admin_user = db_session_fixture.query(User).filter(User.email == "railway_admin@test.com").first()
     assert admin_user is not None

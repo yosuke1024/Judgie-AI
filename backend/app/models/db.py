@@ -331,7 +331,7 @@ def init_db():
         default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSCODE") or os.environ.get("DEFAULT_ADMIN_PASSWORD") or "admin123"
 
         # Seed project settings in settings table
-        project_name = os.environ.get("DEFAULT_HACKATHON_NAME", "Default Project")
+        project_name = "Default Project"
         if not get_setting("project_name"):
             set_setting("project_name", project_name, db=db)
             set_setting("re_evaluation_context_mode", "cumulative", db=db)
