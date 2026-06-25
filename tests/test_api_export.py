@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.auth.deps import CurrentUser, get_current_user
 from app.main import app
-from app.models.db import User, set_setting
+from app.models.db import Team, set_setting
 
 
 @pytest.fixture
@@ -18,16 +18,12 @@ def test_get_team_markdown(client, db_session_fixture):
     db = db_session_fixture
 
     # 1. Register a team
-    t1 = User(
-        team_id="team_t1",
-        passcode="pass1",
-        role="team",
-    )
+    t1 = Team(team_id="team_t1")
     db.add(t1)
     db.commit()
 
     # 2. Simulate logged in user (Admin)
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(team_id="admin1", role="admin")
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=1, email="admin@test.com", role="admin")
 
     # Allow access to own team
     res_own = client.get("/api/export/markdown/team_t1")
@@ -49,7 +45,7 @@ def test_export_template_indented_json(client, db_session_fixture):
     db.commit()
 
     # 2. Simulate logged in user (Admin)
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(team_id="admin1", role="admin")
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=1, email="admin@test.com", role="admin")
 
     # 3. Request template export
     res = client.get("/api/export/template")

@@ -33,6 +33,9 @@ class OpenAIProvider(BaseLLMProvider):
 
     def list_models(self, api_key_override: Optional[str] = None) -> List[str]:
         # Standard model recommendation for OpenAI
+        if api_key_override:
+            client = self._get_client(api_key_override)
+            client.models.list()
         return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
 
     def upload_file(self, file_path: str, mime_type: Optional[str] = None) -> Any:

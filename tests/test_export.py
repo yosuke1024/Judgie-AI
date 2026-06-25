@@ -1,7 +1,7 @@
 import io
 import zipfile
 
-from app.models.db import User, init_db, save_evaluation, set_ai_response_languages, set_setting
+from app.models.db import Team, init_db, save_evaluation, set_ai_response_languages, set_setting
 from app.services.export_service import (
     export_project_to_markdown,
     export_project_to_markdown_zip,
@@ -20,15 +20,13 @@ def test_export_service_logic(db_session_fixture):
     set_ai_response_languages(["English", "Japanese"])
 
     # 2. Register a team
-    team_user = User(
+    team = Team(
         team_id="team_alpha",
-        passcode="pass123",
-        role="team",
         team_name="Alpha Team",
         product_name="Alpha App",
         one_liner="Best app ever",
     )
-    db.add(team_user)
+    db.add(team)
     db.commit()
 
     # 3. Create a mock evaluation result conforming to the sanitize structure

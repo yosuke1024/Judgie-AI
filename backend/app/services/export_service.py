@@ -9,7 +9,7 @@ from app.models.db import (
     Evaluation,
     SessionLocal,
     TeamChat,
-    User,
+    Team,
     get_ai_response_languages,
     get_criteria,
     get_setting,
@@ -39,7 +39,7 @@ def export_project_to_markdown() -> str:
         md.append("")
 
         # Teams
-        users = db.query(User).filter(User.role == "team").order_by(User.team_id).all()
+        users = db.query(Team).order_by(Team.team_id).all()
 
         if not users:
             md.append("No teams registered in this project.")
@@ -200,7 +200,7 @@ def generate_team_markdown_report(team_id: str) -> str:
     try:
         project_name = get_setting("project_name") or "Judgie Project"
 
-        user = db.query(User).filter(User.team_id == team_id).first()
+        user = db.query(Team).filter(Team.team_id == team_id).first()
         if not user:
             return "# Team Not Found"
         team_display_name = user.team_name or team_id
@@ -348,7 +348,7 @@ def generate_all_teams_markdown_zip() -> bytes:
     """
     db = SessionLocal()
     try:
-        users = db.query(User).filter(User.role == "team").all()
+        users = db.query(Team).all()
         if not users:
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w") as zip_file:
@@ -391,7 +391,7 @@ def export_project_to_markdown_zip() -> bytes:
             zip_file.writestr("00_project_meta.md", "\n".join(meta_md))
 
             # 2. Add team markdowns
-            users = db.query(User).filter(User.role == "team").order_by(User.team_id).all()
+            users = db.query(Team).order_by(Team.team_id).all()
 
             for u in users:
                 team_md = []

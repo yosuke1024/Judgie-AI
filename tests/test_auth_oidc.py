@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.db import User as DBUser
+from app.models.db import Team, TeamMembership, User
 
 
 @pytest.fixture
@@ -41,9 +41,17 @@ def test_oidc_callback_csrf_fail(client):
 
 
 def test_oidc_callback_success(client, db_session_fixture):
-    # Setup registered user
-    user = DBUser(team_id="teamA", passcode="hashedpasscode", role="team", email="user@example.com")
+    # Setup: create team, user, membership
+    team = Team(team_id="teamA")
+    db_session_fixture.add(team)
+    db_session_fixture.flush()
+
+    user = User(email="user@example.com", password_hash=None, role="team")
     db_session_fixture.add(user)
+    db_session_fixture.flush()
+
+    membership = TeamMembership(user_id=user.id, team_id="teamA")
+    db_session_fixture.add(membership)
     db_session_fixture.commit()
 
     # Initiate state
@@ -108,10 +116,9 @@ def test_oidc_settings_unauthorized(client):
     res = client.get("/api/settings/oidc")
     assert res.status_code == 401
 
-    from app.auth.deps import get_current_user
-    from app.schemas.schemas import UserInfo
+    from app.auth.deps import CurrentUser, get_current_user
 
-    app.dependency_overrides[get_current_user] = lambda: UserInfo(team_id="teamA", role="team")
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=1, email="user@test.com", role="team", team_id="teamA")
     try:
         res = client.get("/api/settings/oidc")
         assert res.status_code == 403
@@ -120,10 +127,9 @@ def test_oidc_settings_unauthorized(client):
 
 
 def test_oidc_settings_admin(client):
-    from app.auth.deps import get_current_user
-    from app.schemas.schemas import UserInfo
+    from app.auth.deps import CurrentUser, get_current_user
 
-    app.dependency_overrides[get_current_user] = lambda: UserInfo(team_id="adminA", role="admin")
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=1, email="admin@test.com", role="admin")
     try:
         res = client.get("/api/settings/oidc")
         assert res.status_code == 200

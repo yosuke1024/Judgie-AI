@@ -50,6 +50,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/callback" element={<LoginPage />} />
       
       {/* Protected Main App Shell */}
       <Route

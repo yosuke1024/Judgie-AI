@@ -17,7 +17,7 @@ from app.auth.oidc_settings import (
     get_oidc_redirect_uri,
 )
 from app.models.db import (
-    change_my_passcode,
+    change_my_password,
     get_ai_response_languages,
     get_criteria,
     get_max_consultations,
@@ -34,15 +34,15 @@ from app.models.db import (
     set_re_evaluation_context_mode,
     set_setting,
     set_video_upload_enabled,
-    update_admin_passcode,
+    update_admin_password,
 )
 from app.schemas.schemas import (
     CriteriaUpdate,
     GeminiConfig,
+    LLMConfigUpdate,
     LanguageSettings,
     OIDCSettings,
     OIDCSettingsUpdate,
-    PasscodeChange,
     PasswordChange,
     PersonasUpdate,
     ProjectInitialize,
@@ -93,52 +93,68 @@ def update_personas(
 # ── Gemini Config ──
 
 
-@router.get("/gemini")
-def get_gemini_config(user: CurrentUser = Depends(require_role("admin"))):
-    """Get Gemini API configuration."""
-    api_key = get_setting("gemini_api_key")
-    model = get_setting("gemini_model")
-    api_tier = get_setting("gemini_api_tier") or "Free Tier"
+@router.get("/llm")
+def get_llm_config(user: CurrentUser = Depends(require_role("admin"))):
+    """Get LLM configuration."""
+    llm_provider = get_setting("llm_provider") or "gemini"
 
-    models_val = get_setting("gemini_available_models")
-    available_models = []
-    if models_val:
-        try:
-            available_models = json.loads(models_val)
-        except Exception:
-            pass
+    def _get_models_list(key):
+        val = get_setting(key)
+        if val:
+            try:
+                return json.loads(val)
+            except Exception:
+                pass
+        return []
 
     return {
-        "has_api_key": bool(api_key),
-        "model": model or "gemini-2.5-flash",
-        "api_tier": api_tier,
-        "available_models": available_models,
+        "llm_provider": llm_provider,
+        "gemini_model": get_setting("gemini_model") or "gemini-2.5-flash",
+        "openai_model": get_setting("openai_model") or "gpt-4o-mini",
+        "anthropic_model": get_setting("anthropic_model") or "claude-3-5-sonnet-20241022",
+        "has_gemini_api_key": bool(get_setting("gemini_api_key")),
+        "has_openai_api_key": bool(get_setting("openai_api_key")),
+        "has_anthropic_api_key": bool(get_setting("anthropic_api_key")),
+        "gemini_available_models": _get_models_list("gemini_available_models"),
+        "openai_available_models": _get_models_list("openai_available_models"),
+        "anthropic_available_models": _get_models_list("anthropic_available_models"),
     }
 
 
-@router.put("/gemini")
-def update_gemini_config(
-    req: GeminiConfig,
+@router.put("/llm")
+def update_llm_config(
+    req: LLMConfigUpdate,
     user: CurrentUser = Depends(require_role("admin")),
 ):
-    """Update Gemini API configuration."""
-    if req.api_key:
-        # Validate by listing models
-        from app.services.gemini import list_available_gemini_models
+    """Update LLM configuration."""
+    # 1. Update provider if specified
+    if req.llm_provider:
+        if req.llm_provider not in ["gemini", "openai", "anthropic"]:
+            raise HTTPException(status_code=400, detail=f"Unsupported LLM provider: {req.llm_provider}")
+        set_setting("llm_provider", req.llm_provider)
 
-        models = list_available_gemini_models(api_key_override=req.api_key)
+    active_provider = req.llm_provider or get_setting("llm_provider") or "gemini"
+
+    # 2. Update and verify API key if specified
+    if req.api_key is not None and req.api_key.strip() != "":
+        from app.services.gemini import list_available_llm_models
+
+        try:
+            models = list_available_llm_models(active_provider, api_key_override=req.api_key.strip())
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"API key verification failed: {str(e)}")
+
         if not models:
             raise HTTPException(status_code=400, detail="Invalid API key or no models available")
-        set_setting("gemini_api_key", req.api_key)
-        set_setting("gemini_available_models", json.dumps(models))
 
+        set_setting(f"{active_provider}_api_key", req.api_key.strip())
+        set_setting(f"{active_provider}_available_models", json.dumps(models))
+
+    # 3. Update model if specified
     if req.model:
-        set_setting("gemini_model", req.model)
+        set_setting(f"{active_provider}_model", req.model)
 
-    if req.api_tier:
-        set_setting("gemini_api_tier", req.api_tier)
-
-    return {"message": "Gemini config updated"}
+    return {"message": "LLM config updated"}
 
 
 # ── Project Settings ──
@@ -205,8 +221,8 @@ def change_password(
     user: CurrentUser = Depends(require_role("admin")),
 ):
     """Change the current user's password."""
-    success = change_my_passcode(
-        user.team_id,
+    success = change_my_password(
+        user.email,
         req.current_password,
         req.new_password,
     )
@@ -241,14 +257,14 @@ def initialize_template(
     return {"message": "Project template initialized"}
 
 
-@router.put("/admin-passcode")
-def reset_admin_passcode(
-    req: PasscodeChange,
+@router.put("/admin-password")
+def reset_admin_password(
+    req: PasswordChange,
     user: CurrentUser = Depends(require_role("admin")),
 ):
-    """Reset the admin passcode."""
-    update_admin_passcode(req.new_passcode)
-    return {"message": "Admin passcode updated"}
+    """Reset the admin password."""
+    update_admin_password(req.new_password)
+    return {"message": "Admin password updated"}
 
 
 # ── OIDC settings ──

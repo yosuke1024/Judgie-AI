@@ -29,7 +29,7 @@ export default function Layout() {
     if (showTeamDashboards) {
       teamsApi.list()
         .then((data) => {
-          setTeams(data.filter((t) => t.role === 'team'));
+          setTeams(data);
         })
         .catch((err) => console.error('Failed to load teams for sidebar:', err));
     }

@@ -11,10 +11,11 @@ from app.auth.jwt_handler import verify_token
 class CurrentUser:
     """Represents the authenticated user extracted from JWT."""
 
-    def __init__(self, team_id: str, role: str, email: str | None = None):
-        self.team_id = team_id
-        self.role = role
+    def __init__(self, user_id: int, email: str, role: str, team_id: str | None = None):
+        self.user_id = user_id
         self.email = email
+        self.role = role
+        self.team_id = team_id  # None for admin/observer
 
 
 def get_current_user(access_token: str | None = Cookie(default=None)) -> CurrentUser:
@@ -36,9 +37,10 @@ def get_current_user(access_token: str | None = Cookie(default=None)) -> Current
         )
 
     return CurrentUser(
-        team_id=payload.get("team_id", ""),
+        user_id=payload.get("user_id", 0),
+        email=payload.get("email", ""),
         role=payload.get("role", ""),
-        email=payload.get("email"),
+        team_id=payload.get("team_id"),
     )
 
 

@@ -21,8 +21,8 @@ export default function LoginPage() {
   const { login, user, refreshUser } = useAuth();
   const navigate = useNavigate();
 
-  const [teamId, setTeamId] = useState('');
-  const [passcode, setPasscode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isLocalAdmin, setIsLocalAdmin] = useState(false);
@@ -98,14 +98,14 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
 
-    if (!teamId || !passcode) {
+    if (!email || !password) {
       setError(t('login.all_fields_required'));
       return;
     }
 
     setLoading(true);
     try {
-      await login(teamId, passcode);
+      await login(email, password);
     } catch (err: any) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -160,22 +160,22 @@ export default function LoginPage() {
         ) : (
           <form onSubmit={handleLogin} className="login-form">
             <div className="form-group">
-              <label>{t('login.team_id')}</label>
+              <label>{t('login.email')}</label>
               <input
-                type="text"
-                value={teamId}
-                onChange={(e) => setTeamId(e.target.value)}
-                placeholder={isLocalAdmin ? 'admin' : ''}
-                autoComplete="username"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={isLocalAdmin ? 'admin@example.com' : ''}
+                autoComplete="email"
               />
             </div>
 
             <div className="form-group">
-              <label>{t('login.passcode')}</label>
+              <label>{t('login.password')}</label>
               <input
                 type="password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
               />
             </div>
@@ -219,8 +219,8 @@ export default function LoginPage() {
             <button
               className="btn btn-ghost"
               onClick={() => {
-                setIsLocalAdmin(!isLocalAdmin);
-                setTeamId('');
+              setIsLocalAdmin(!isLocalAdmin);
+                setEmail('');
               }}
             >
               {isLocalAdmin ? '← Back' : t('login.super_admin_login')}

@@ -92,16 +92,19 @@ export async function pollTaskUntilDone(
 
 // Auth
 export const authApi = {
-  login: (data: { team_id: string; passcode: string }) =>
-    request<{ team_id: string; role: string }>('/api/auth/login', {
+  login: (data: { email: string; password: string }) =>
+    request<{ email: string; role: string; team_id?: string }>('/api/auth/login', {
       method: 'POST',
       body: data,
     }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
   me: () =>
     request<{
-      team_id: string;
+      user_id: number;
+      email: string;
       role: string;
+      team_id?: string;
+      display_name?: string;
       product_name?: string;
       team_name?: string;
       one_liner?: string;
@@ -129,27 +132,55 @@ export const teamsApi = {
     request<
       Array<{
         team_id: string;
-        role: string;
         product_name: string | null;
         team_name: string | null;
         one_liner: string | null;
         is_active: boolean;
+        members: Array<{
+          user_id: number;
+          email: string;
+          display_name: string | null;
+          role: string;
+          team_id: string | null;
+          is_active: boolean;
+          has_password: boolean;
+        }>;
       }>
     >('/api/teams'),
-  create: (data: object) =>
+  create: (data: { team_id: string; product_name?: string; team_name?: string; one_liner?: string }) =>
     request('/api/teams', { method: 'POST', body: data }),
-  bulkCreate: (csvContent: string) =>
-    request('/api/teams/bulk', { method: 'POST', body: { csv_content: csvContent } }),
   updateProfile: (teamId: string, data: object) =>
     request(`/api/teams/${teamId}/profile`, { method: 'PUT', body: data }),
-  updatePasscode: (teamId: string, newPasscode: string) =>
-    request(`/api/teams/${teamId}/passcode`, { method: 'PUT', body: { new_passcode: newPasscode } }),
-  updateRole: (teamId: string, newRole: string) =>
-    request(`/api/teams/${teamId}/role`, { method: 'PUT', body: { new_role: newRole } }),
   updateActive: (teamId: string, isActive: boolean) =>
     request(`/api/teams/${teamId}/active`, { method: 'PUT', body: { is_active: isActive } }),
   delete: (teamId: string) =>
     request(`/api/teams/${teamId}`, { method: 'DELETE' }),
+};
+
+// Users
+export const usersApi = {
+  list: () =>
+    request<
+      Array<{
+        user_id: number;
+        email: string;
+        display_name: string | null;
+        role: string;
+        team_id: string | null;
+        is_active: boolean;
+        has_password: boolean;
+      }>
+    >('/api/users'),
+  create: (data: { email: string; password?: string; display_name?: string; role: string; team_id?: string }) =>
+    request('/api/users', { method: 'POST', body: data }),
+  update: (userId: number, data: object) =>
+    request(`/api/users/${userId}`, { method: 'PUT', body: data }),
+  resetPassword: (userId: number, newPassword: string) =>
+    request(`/api/users/${userId}/password`, { method: 'PUT', body: { new_password: newPassword } }),
+  delete: (userId: number) =>
+    request(`/api/users/${userId}`, { method: 'DELETE' }),
+  bulkCreate: (csvContent: string) =>
+    request('/api/users/bulk', { method: 'POST', body: { csv_content: csvContent } }),
 };
 
 // Evaluations
@@ -218,9 +249,9 @@ export const settingsApi = {
   getPersonas: () => request<unknown[]>('/api/settings/personas'),
   updatePersonas: (personas: unknown[]) =>
     request('/api/settings/personas', { method: 'PUT', body: { personas } }),
-  getGemini: () => request<Record<string, unknown>>('/api/settings/gemini'),
-  updateGemini: (data: object) =>
-    request('/api/settings/gemini', { method: 'PUT', body: data }),
+  getLlm: () => request<Record<string, unknown>>('/api/settings/llm'),
+  updateLlm: (data: object) =>
+    request('/api/settings/llm', { method: 'PUT', body: data }),
   getProject: () => request<Record<string, unknown>>('/api/settings/project'),
   updateProject: (data: object) =>
     request('/api/settings/project', { method: 'PUT', body: data }),
@@ -235,8 +266,8 @@ export const settingsApi = {
   getTemplates: () => request<Record<string, { name: string; description: string }>>('/api/settings/templates'),
   initialize: (data: { template_id: string; custom_template_data?: object }) =>
     request('/api/settings/templates/initialize', { method: 'POST', body: data }),
-  resetAdminPasscode: (newPasscode: string) =>
-    request('/api/settings/admin-passcode', { method: 'PUT', body: { new_passcode: newPasscode } }),
+  resetAdminPassword: (newPassword: string) =>
+    request('/api/settings/admin-password', { method: 'PUT', body: { current_password: '', new_password: newPassword } }),
   getOidc: () => request<Record<string, any>>('/api/settings/oidc'),
   updateOidc: (data: object) =>
     request('/api/settings/oidc', { method: 'PUT', body: data }),

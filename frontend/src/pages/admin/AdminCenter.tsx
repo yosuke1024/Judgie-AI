@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   teamsApi,
+  usersApi,
   evaluationsApi,
   settingsApi,
   chatApi,
@@ -18,7 +19,6 @@ import {
   Download,
   Plus,
   Trash2,
-  Lock,
   Save,
   CheckCircle,
   AlertTriangle,
@@ -30,13 +30,23 @@ import {
   Upload,
 } from 'lucide-react';
 
+interface MemberItem {
+  user_id: number;
+  email: string;
+  display_name: string | null;
+  role: string;
+  team_id: string | null;
+  is_active: boolean;
+  has_password: boolean;
+}
+
 interface TeamItem {
   team_id: string;
-  role: string;
   product_name: string | null;
   team_name: string | null;
   one_liner: string | null;
   is_active?: boolean;
+  members: MemberItem[];
 }
 
 
@@ -96,11 +106,7 @@ export default function AdminCenter() {
   // --- Tab 1: Teams ---
   const [teams, setTeams] = useState<TeamItem[]>([]);
   const [newTeamId, setNewTeamId] = useState('');
-  const [newTeamPass, setNewTeamPass] = useState('');
-  const [newTeamRole, setNewTeamRole] = useState('team');
   const [bulkCsv, setBulkCsv] = useState('');
-  const [editingPassTeam, setEditingPassTeam] = useState<string | null>(null);
-  const [newPassVal, setNewPassVal] = useState('');
 
   // --- Tab 2: Criteria ---
   const [criteriaList, setCriteriaList] = useState<any[]>([]);
@@ -125,9 +131,17 @@ export default function AdminCenter() {
   const [newLang, setNewLang] = useState('');
 
   // --- Tab 7: Settings ---
-  const [geminiConfig, setGeminiConfig] = useState({ api_key: '', model: '', api_tier: 'free' });
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [llmProvider, setLlmProvider] = useState<string>('gemini');
+  const [geminiModel, setGeminiModel] = useState<string>('');
+  const [openaiModel, setOpenaiModel] = useState<string>('');
+  const [anthropicModel, setAnthropicModel] = useState<string>('');
+  const [hasGeminiApiKey, setHasGeminiApiKey] = useState(false);
+  const [hasOpenaiApiKey, setHasOpenaiApiKey] = useState(false);
+  const [hasAnthropicApiKey, setHasAnthropicApiKey] = useState(false);
+  const [geminiAvailableModels, setGeminiAvailableModels] = useState<string[]>([]);
+  const [openaiAvailableModels, setOpenaiAvailableModels] = useState<string[]>([]);
+  const [anthropicAvailableModels, setAnthropicAvailableModels] = useState<string[]>([]);
+  const [apiKeyInput, setApiKeyInput] = useState<string>('');
   const [verifyingKey, setVerifyingKey] = useState(false);
   const [projectSettings, setProjectSettings] = useState({
     re_evaluation_context_mode: 'cumulative',
@@ -224,17 +238,22 @@ export default function AdminCenter() {
 
   const loadSettings = useCallback(async () => {
     try {
-      const gemini = await settingsApi.getGemini() as { has_api_key?: boolean; model?: string; api_tier?: string; available_models?: string[] };
+      const llm = await settingsApi.getLlm() as any;
       const project = await settingsApi.getProject();
       const oidc = await settingsApi.getOidc() as any;
 
-      setGeminiConfig({
-        api_key: '',
-        model: gemini.model || '',
-        api_tier: gemini.api_tier || 'free',
-      });
-      setHasApiKey(!!gemini.has_api_key);
-      setAvailableModels(gemini.available_models || []);
+      setLlmProvider(llm.llm_provider || 'gemini');
+      setGeminiModel(llm.gemini_model || '');
+      setOpenaiModel(llm.openai_model || '');
+      setAnthropicModel(llm.anthropic_model || '');
+      setHasGeminiApiKey(!!llm.has_gemini_api_key);
+      setHasOpenaiApiKey(!!llm.has_openai_api_key);
+      setHasAnthropicApiKey(!!llm.has_anthropic_api_key);
+      setGeminiAvailableModels(llm.gemini_available_models || []);
+      setOpenaiAvailableModels(llm.openai_available_models || []);
+      setAnthropicAvailableModels(llm.anthropic_available_models || []);
+      setApiKeyInput('');
+
       setProjectSettings({
         re_evaluation_context_mode: (project.re_evaluation_context_mode as string) || 'cumulative',
         max_qa_turns: Number(project.max_qa_turns) || 1,
@@ -305,16 +324,14 @@ export default function AdminCenter() {
   // --- Handlers: Teams Tab ---
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTeamId || !newTeamPass) return;
+    if (!newTeamId) return;
+
     try {
       setError('');
       await teamsApi.create({
         team_id: newTeamId,
-        passcode: newTeamPass,
-        role: newTeamRole,
       });
       setNewTeamId('');
-      setNewTeamPass('');
       showSuccess(`Team ${newTeamId} created successfully!`);
       loadTeams();
     } catch (err: any) {
@@ -327,7 +344,7 @@ export default function AdminCenter() {
     if (!bulkCsv) return;
     try {
       setError('');
-      const res: any = await teamsApi.bulkCreate(bulkCsv);
+      const res: any = await usersApi.bulkCreate(bulkCsv);
       setBulkCsv('');
       if (res && typeof res.created === 'number') {
         showSuccess(`CSV Bulk import complete! Created: ${res.created}, Skipped: ${res.skipped}`);
@@ -352,28 +369,7 @@ export default function AdminCenter() {
     }
   };
 
-  const handleUpdateTeamRole = async (teamId: string, role: string) => {
-    try {
-      await teamsApi.updateRole(teamId, role);
-      showSuccess(`Role updated for ${teamId}`);
-      loadTeams();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const handleUpdateTeamPasscode = async (teamId: string) => {
-    if (!newPassVal.trim()) return;
-    try {
-      setError('');
-      await teamsApi.updatePasscode(teamId, newPassVal.trim());
-      showSuccess(`Passcode reset for team '${teamId}'`);
-      setEditingPassTeam(null);
-      setNewPassVal('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to reset passcode.');
-    }
-  };
+  // Role management moved to users router
 
   const handleUpdateTeamActive = async (teamId: string, isActive: boolean) => {
     try {
@@ -573,7 +569,6 @@ export default function AdminCenter() {
     try {
       setError('');
       await settingsApi.updateProject(projectSettings);
-      await settingsApi.updateGemini(geminiConfig);
       showSuccess('Project settings updated.');
     } catch (err: any) {
       setError(err.message);
@@ -584,32 +579,64 @@ export default function AdminCenter() {
     e.preventDefault();
     if (!newAdminPass) return;
     if (newAdminPass !== confirmAdminPass) {
-      setError('New passcodes do not match.');
+      setError('New passwords do not match.');
       return;
     }
     try {
       setError('');
-      await settingsApi.resetAdminPasscode(newAdminPass);
+      await settingsApi.resetAdminPassword(newAdminPass);
       setNewAdminPass('');
       setConfirmAdminPass('');
-      showSuccess('Admin passcode changed successfully!');
+      showSuccess('Admin password changed successfully!');
     } catch (err: any) {
       setError(err.message);
     }
   };
 
   const handleVerifyKey = async () => {
-    if (!geminiConfig.api_key.trim()) return;
+    if (!apiKeyInput.trim()) return;
     try {
       setError('');
       setVerifyingKey(true);
-      await settingsApi.updateGemini({ api_key: geminiConfig.api_key.trim() });
-      showSuccess('API key verified & saved successfully.');
+      await settingsApi.updateLlm({
+        llm_provider: llmProvider,
+        api_key: apiKeyInput.trim(),
+      });
+      showSuccess(`${llmProvider.toUpperCase()} API key verified & saved successfully.`);
       await loadSettings();
     } catch (err: any) {
       setError(err.message || 'Invalid API key or failed to verify.');
     } finally {
       setVerifyingKey(false);
+    }
+  };
+
+  const handleProviderChange = async (provider: string) => {
+    setLlmProvider(provider);
+    setApiKeyInput('');
+    try {
+      await settingsApi.updateLlm({ llm_provider: provider });
+      showSuccess(`LLM Provider switched to ${provider.toUpperCase()}`);
+      await loadSettings();
+    } catch (err: any) {
+      setError(err.message || 'Failed to switch LLM provider.');
+    }
+  };
+
+  const handleModelChange = async (model: string) => {
+    if (llmProvider === 'gemini') setGeminiModel(model);
+    else if (llmProvider === 'openai') setOpenaiModel(model);
+    else if (llmProvider === 'anthropic') setAnthropicModel(model);
+
+    try {
+      await settingsApi.updateLlm({
+        llm_provider: llmProvider,
+        model: model,
+      });
+      showSuccess(`${llmProvider.toUpperCase()} model updated to ${model}.`);
+      await loadSettings();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update model.');
     }
   };
 
@@ -736,26 +763,7 @@ export default function AdminCenter() {
                         onChange={(e) => setNewTeamId(e.target.value)}
                         placeholder="e.g. team-alpha"
                         disabled={isObserver}
-                        required
                       />
-                    </div>
-                    <div className="form-group">
-                      <label>Passcode</label>
-                      <input
-                        type="text"
-                        value={newTeamPass}
-                        onChange={(e) => setNewTeamPass(e.target.value)}
-                        placeholder="Secret passcode"
-                        disabled={isObserver}
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Role</label>
-                      <select value={newTeamRole} onChange={(e) => setNewTeamRole(e.target.value)} disabled={isObserver}>
-                        <option value="team">Team (Participant)</option>
-                        <option value="observer">Observer (Read-only)</option>
-                      </select>
                     </div>
                     <button type="submit" className="btn btn-primary" disabled={isObserver}>
                       <Plus size={16} /> Add Team
@@ -767,11 +775,19 @@ export default function AdminCenter() {
                   <h4>Bulk Import (CSV)</h4>
                   <form onSubmit={handleBulkCreate} className="vertical-form">
                     <div className="form-group">
-                      <label>CSV Content (team_id,passcode,role)</label>
+                      <label>
+                        {oidcConfig.oidc_enabled
+                          ? 'CSV Content (team_id,email,role) or (team_id,role,email)'
+                          : 'CSV Content (email,team_id,role)'}
+                      </label>
                       <textarea
                         value={bulkCsv}
                         onChange={(e) => setBulkCsv(e.target.value)}
-                        placeholder="team-01,secret123,team&#10;team-02,abc456,observer"
+                        placeholder={
+                          oidcConfig.oidc_enabled
+                            ? 'team-01,user1@example.com,team\nteam-02,observer,user2@example.com'
+                            : 'team-01,secret123,team\nteam-02,abc456,observer'
+                        }
                         rows={6}
                         disabled={isObserver}
                         required
@@ -799,9 +815,8 @@ export default function AdminCenter() {
                       <thead>
                         <tr>
                           <th>Team ID</th>
-                          <th>Role</th>
                           <th>Product Name</th>
-                          <th>Passcode</th>
+                          <th>Members</th>
                           <th>Active</th>
                           <th>Actions</th>
                         </tr>
@@ -810,53 +825,22 @@ export default function AdminCenter() {
                         {teams.map((t) => (
                           <tr key={t.team_id}>
                             <td><strong>{t.team_id}</strong></td>
-                            <td>
-                              <select
-                                value={t.role}
-                                onChange={(e) => handleUpdateTeamRole(t.team_id, e.target.value)}
-                                className="table-select"
-                                disabled={isObserver}
-                              >
-                                <option value="team">TEAM</option>
-                                <option value="observer">OBSERVER</option>
-                              </select>
-                            </td>
                             <td>{t.product_name || <span className="dim-text">—</span>}</td>
                             <td>
-                              {editingPassTeam === t.team_id ? (
-                                <div className="inline-edit-passcode">
-                                  <input
-                                    type="text"
-                                    value={newPassVal}
-                                    onChange={(e) => setNewPassVal(e.target.value)}
-                                    placeholder="New passcode"
-                                    className="table-input"
-                                  />
-                                  <button
-                                    onClick={() => handleUpdateTeamPasscode(t.team_id)}
-                                    className="btn btn-success btn-xs"
-                                  >
-                                    Save
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingPassTeam(null)}
-                                    className="btn btn-ghost btn-xs"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setEditingPassTeam(t.team_id);
-                                    setNewPassVal('');
-                                  }}
-                                  className="btn btn-ghost btn-xs btn-lock"
-                                  disabled={isObserver}
-                                >
-                                  <Lock size={12} /> Reset Passcode
-                                </button>
-                              )}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {t.members.length > 0 ? (
+                                  t.members.map((m) => (
+                                    <div key={m.user_id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <span style={{ fontSize: '0.85em' }}>{m.email}</span>
+                                      <span style={{ fontSize: '0.7em', color: 'var(--text-muted)' }}>
+                                        ({m.role})
+                                      </span>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <span className="dim-text">—</span>
+                                )}
+                              </div>
                             </td>
                             <td>
                               <input
@@ -1120,7 +1104,7 @@ export default function AdminCenter() {
                 <label>Select Team to Inspect</label>
                 <select value={diveTeamId} onChange={(e) => setDiveTeamId(e.target.value)}>
                   <option value="">— Select Team —</option>
-                  {teams.filter((t) => t.role === 'team').map((t) => (
+                  {teams.map((t) => (
                     <option key={t.team_id} value={t.team_id}>
                       {t.team_id} {t.product_name ? `(${t.product_name})` : ''}
                     </option>
@@ -1341,358 +1325,440 @@ export default function AdminCenter() {
         {/* ================================================================= */}
         {activeTab === 'settings' && (
           <div className="tab-pane settings-pane">
-            <div className="settings-grid">
-              {/* Import Panel */}
-              <div className="card">
-                <h4>{t('admin.import_template_title')}</h4>
-                <p className="dim-text text-sm">{t('admin.import_template_desc')}</p>
-
-                {/* 1. Preset Templates Import */}
-                <form onSubmit={handleApplyPresetTemplate} className="vertical-form mt-4">
-                  <div className="form-group">
-                    <label>{t('admin.preset_template_label')}</label>
-                    <select
-                      value={selectedTemplate}
-                      onChange={(e) => setSelectedTemplate(e.target.value)}
-                      disabled={isObserver}
-                    >
-                      <option value="">{t('admin.select_preset_placeholder')}</option>
-                      {Object.entries(templates).map(([key, tpl]) => (
-                        <option key={key} value={key}>
-                          {tpl.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {selectedTemplate && templates[selectedTemplate] && (
-                    <p className="template-desc dim-text text-xs mt-1">
-                      {templates[selectedTemplate].description}
-                    </p>
-                  )}
-                  <button type="submit" className="btn btn-secondary mt-2" disabled={isObserver || !selectedTemplate}>
-                    {t('admin.apply_preset_btn')}
-                  </button>
-                </form>
-
-                <hr className="my-6" style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--border-color)' }} />
-
-                {/* 2. Custom JSON URL Import */}
-                <form onSubmit={handleImportTemplate} className="vertical-form">
-                  <div className="form-group">
-                    <label>{t('admin.custom_url_label')}</label>
-                    <input
-                      type="url"
-                      value={importUrl}
-                      onChange={(e) => setImportUrl(e.target.value)}
-                      placeholder="https://example.com/judgie-template.json"
-                      disabled={isObserver}
-                      required
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary mt-2" disabled={isObserver}>
-                    {t('admin.import_url_btn')}
-                  </button>
-                </form>
-              </div>
-
-              {/* Project settings */}
-              <div className="card">
-                <h4>Hackathon Rules & Rulesets</h4>
-                <div className="vertical-form mt-4">
-                  <div className="form-group">
-                    <label>Re-Evaluation Context Mode</label>
-                    <select
-                      value={projectSettings.re_evaluation_context_mode}
-                      onChange={(e) =>
-                        setProjectSettings({
-                          ...projectSettings,
-                          re_evaluation_context_mode: e.target.value,
-                        })
-                      }
-                      disabled={isObserver}
-                    >
-                      <option value="cumulative">Cumulative (AI remembers previous uploads)</option>
-                      <option value="single">Single (Each upload is evaluated independently)</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Max Q&A Discussion Turns per Evaluation</label>
-                    <input
-                      type="number"
-                      value={projectSettings.max_qa_turns}
-                      onChange={(e) =>
-                        setProjectSettings({
-                          ...projectSettings,
-                          max_qa_turns: parseInt(e.target.value) || 1,
-                        })
-                      }
-                      disabled={isObserver}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Max Consultations allowed per Team</label>
-                    <input
-                      type="number"
-                      value={projectSettings.max_consultations}
-                      onChange={(e) =>
-                        setProjectSettings({
-                          ...projectSettings,
-                          max_consultations: parseInt(e.target.value) || 3,
-                        })
-                      }
-                      disabled={isObserver}
-                    />
-                  </div>
-
-                  <div className="form-checkbox">
-                    <input
-                      type="checkbox"
-                      id="video-upload-chk"
-                      checked={projectSettings.video_upload_enabled}
-                      onChange={(e) =>
-                        setProjectSettings({
-                          ...projectSettings,
-                          video_upload_enabled: e.target.checked,
-                        })
-                      }
-                      disabled={isObserver}
-                    />
-                    <label htmlFor="video-upload-chk">Enable Video Upload (MP4/MOV)</label>
-                  </div>
-                </div>
-
-                <h4 className="mt-6">Gemini AI Configuration</h4>
-                <div className="vertical-form mt-2">
-                  <div className="form-group">
-                    <label>Gemini API Key (Optional Override)</label>
-                    <div className="api-key-input-row" style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="password"
-                        value={geminiConfig.api_key}
-                        onChange={(e) => setGeminiConfig({ ...geminiConfig, api_key: e.target.value })}
-                        placeholder={isObserver ? "API Key hidden for observers" : (hasApiKey ? "API Key is set (Enter new key to change)" : "Leave blank to use server environment key")}
+            <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', alignItems: 'start' }}>
+              
+              {/* 左カラム (AI System Group) */}
+              <div className="settings-col-left" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                
+                {/* 🤖 AI Jury Engine Configuration */}
+                <div className="card">
+                  <h4>{t('admin.ai_jury_engine_title')}</h4>
+                  <p className="dim-text text-sm">{t('admin.ai_jury_engine_desc')}</p>
+                  
+                  <div className="vertical-form mt-4">
+                    {/* LLM Provider */}
+                    <div className="form-group">
+                      <label>{t('admin.llm_provider_label')}</label>
+                      <select
+                        value={llmProvider}
+                        onChange={(e) => handleProviderChange(e.target.value)}
                         disabled={isObserver}
-                        style={{ flexGrow: 1 }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleVerifyKey}
-                        className="btn btn-secondary"
-                        disabled={isObserver || verifyingKey || !geminiConfig.api_key.trim()}
-                        style={{ whiteSpace: 'nowrap' }}
                       >
-                        {verifyingKey ? (
-                          <>
-                            <Loader2 size={14} className="animate-spin inline" style={{ marginRight: '4px' }} />
-                            Verifying...
-                          </>
-                        ) : 'Verify & Save Key'}
-                      </button>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                      </select>
                     </div>
-                    {hasApiKey && (
-                      <p className="text-xs text-success mt-1" style={{ color: 'var(--success)', marginTop: '4px' }}>
-                        ✓ Gemini API Key is configured.
-                      </p>
-                    )}
-                  </div>
 
-                  <div className="form-group">
-                    <label>Gemini Model</label>
-                    <select
-                      value={geminiConfig.model}
-                      onChange={(e) => setGeminiConfig({ ...geminiConfig, model: e.target.value })}
-                      disabled={isObserver || !hasApiKey || availableModels.length === 0}
-                    >
-                      {availableModels.length === 0 ? (
-                        <option value="">— Verify API Key First —</option>
-                      ) : (
-                        availableModels.map((m) => (
-                          <option key={m} value={m}>
-                            {m}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="panel-actions mt-6">
-                  <button onClick={handleSaveSettings} className="btn btn-primary" disabled={isObserver}>
-                    <Save size={16} /> Save Configurations
-                  </button>
-                </div>
-              </div>
-
-              {/* OIDC Authentication Settings */}
-              <div className="card">
-                <h4>OIDC Authentication Settings (SSO)</h4>
-                <p className="dim-text text-sm">
-                  Configure Single Sign-On (SSO) for participants and admins. When enabled, local passcode login is disabled for teams (Initial admins can still log in using the passcode screen).
-                </p>
-                <form onSubmit={handleSaveOidc} className="vertical-form mt-4">
-                  <div className="form-checkbox">
-                    <input
-                      type="checkbox"
-                      id="oidc-enabled-chk"
-                      checked={oidcConfig.oidc_enabled}
-                      onChange={(e) =>
-                        setOidcConfig({
-                          ...oidcConfig,
-                          oidc_enabled: e.target.checked,
-                        })
-                      }
-                      disabled={isObserver}
-                    />
-                    <label htmlFor="oidc-enabled-chk">Enable OIDC (SSO) Authentication</label>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Issuer URL</label>
-                    <input
-                      type="url"
-                      value={oidcConfig.oidc_issuer}
-                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_issuer: e.target.value })}
-                      placeholder="https://accounts.google.com"
-                      disabled={isObserver}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Client ID</label>
-                    <input
-                      type="text"
-                      value={oidcConfig.oidc_client_id}
-                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_client_id: e.target.value })}
-                      placeholder="Enter OIDC Client ID"
-                      disabled={isObserver}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Client Secret</label>
-                    <input
-                      type="password"
-                      value={oidcConfig.oidc_client_secret}
-                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_client_secret: e.target.value })}
-                      placeholder={oidcConfig.has_client_secret ? "•••••••• (Saved. Enter new secret to change)" : "Enter OIDC Client Secret"}
-                      disabled={isObserver}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Redirect URI (Callback)</label>
-                    <input
-                      type="text"
-                      value={oidcConfig.oidc_redirect_uri}
-                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_redirect_uri: e.target.value })}
-                      placeholder="Leave blank to use default (e.g. http://localhost:5173/login/callback)"
-                      disabled={isObserver}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Allowed Email Domains (Comma-separated)</label>
-                    <input
-                      type="text"
-                      value={oidcConfig.oidc_allowed_domains}
-                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_allowed_domains: e.target.value })}
-                      placeholder="e.g. company.com, school.edu"
-                      disabled={isObserver}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Allowed Individual Emails (Comma-separated)</label>
-                    <input
-                      type="text"
-                      value={oidcConfig.oidc_allowed_emails}
-                      onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_allowed_emails: e.target.value })}
-                      placeholder="e.g. admin@gmail.com, guest@company.com"
-                      disabled={isObserver}
-                    />
-                  </div>
-
-                  <button type="submit" className="btn btn-primary" disabled={isObserver || savingOidc}>
-                    {savingOidc ? 'Saving...' : 'Save OIDC Settings'}
-                  </button>
-                </form>
-              </div>
-
-              {/* Configured AI Output Languages */}
-              <div className="card">
-                <h4>Configured AI Output Languages</h4>
-                <p className="dim-text text-sm">
-                  Add language formats in which the AI judges will respond. English and Japanese are built-in.
-                </p>
-
-                <div className="languages-setup mt-4">
-                  <div className="languages-list">
-                    {languages.map((l) => (
-                      <div key={l} className="lang-tag">
-                        <span>{l}</span>
-                        <button onClick={() => handleRemoveLanguage(l)} className="btn-remove" disabled={isObserver}>
-                          ×
+                    {/* API Key Form */}
+                    <div className="form-group mt-2">
+                      <label>
+                        {t('admin.api_key_label', { provider: llmProvider.toUpperCase() })} (Optional Override)
+                      </label>
+                      <div className="api-key-input-row" style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                          type="password"
+                          value={apiKeyInput}
+                          onChange={(e) => setApiKeyInput(e.target.value)}
+                          placeholder={
+                            isObserver
+                              ? "API Key hidden for observers"
+                              : (llmProvider === 'gemini' && hasGeminiApiKey) ||
+                                (llmProvider === 'openai' && hasOpenaiApiKey) ||
+                                (llmProvider === 'anthropic' && hasAnthropicApiKey)
+                              ? "API Key is set (Enter new key to change)"
+                              : "Leave blank to use server environment key"
+                          }
+                          disabled={isObserver}
+                          style={{ flexGrow: 1 }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyKey}
+                          className="btn btn-secondary"
+                          disabled={isObserver || verifyingKey || !apiKeyInput.trim()}
+                          style={{ whiteSpace: 'nowrap' }}
+                        >
+                          {verifyingKey ? (
+                            <>
+                              <Loader2 size={14} className="animate-spin inline" style={{ marginRight: '4px' }} />
+                              {t('admin.verifying')}
+                            </>
+                          ) : t('admin.verify_save_key')}
                         </button>
                       </div>
-                    ))}
+                      
+                      {/* Key Configured Badge */}
+                      {((llmProvider === 'gemini' && hasGeminiApiKey) ||
+                        (llmProvider === 'openai' && hasOpenaiApiKey) ||
+                        (llmProvider === 'anthropic' && hasAnthropicApiKey)) && (
+                        <p className="text-xs text-success mt-1" style={{ color: 'var(--success)', marginTop: '4px' }}>
+                          {t('admin.key_configured', { provider: llmProvider.toUpperCase() })}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Model Selector */}
+                    <div className="form-group mt-2">
+                      <label>{t('admin.model_label', { provider: llmProvider.toUpperCase() })}</label>
+                      <select
+                        value={
+                          llmProvider === 'gemini'
+                            ? geminiModel
+                            : llmProvider === 'openai'
+                            ? openaiModel
+                            : anthropicModel
+                        }
+                        onChange={(e) => handleModelChange(e.target.value)}
+                        disabled={
+                          isObserver ||
+                          (llmProvider === 'gemini' && !hasGeminiApiKey && geminiAvailableModels.length === 0) ||
+                          (llmProvider === 'openai' && !hasOpenaiApiKey && openaiAvailableModels.length === 0) ||
+                          (llmProvider === 'anthropic' && !hasAnthropicApiKey && anthropicAvailableModels.length === 0)
+                        }
+                      >
+                        {llmProvider === 'gemini' ? (
+                          geminiAvailableModels.length === 0 ? (
+                            <option value="">— Verify API Key First —</option>
+                          ) : (
+                            geminiAvailableModels.map((m) => <option key={m} value={m}>{m}</option>)
+                          )
+                        ) : llmProvider === 'openai' ? (
+                          openaiAvailableModels.length === 0 ? (
+                            <option value="">— Verify API Key First —</option>
+                          ) : (
+                            openaiAvailableModels.map((m) => <option key={m} value={m}>{m}</option>)
+                          )
+                        ) : (
+                          anthropicAvailableModels.length === 0 ? (
+                            <option value="">— Verify API Key First —</option>
+                          ) : (
+                            anthropicAvailableModels.map((m) => <option key={m} value={m}>{m}</option>)
+                          )
+                        )}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Configured AI Output Languages */}
+                <div className="card">
+                  <h4>Configured AI Output Languages</h4>
+                  <p className="dim-text text-sm">
+                    Add language formats in which the AI judges will respond. English and Japanese are built-in.
+                  </p>
+
+                  <div className="languages-setup mt-4">
+                    <div className="languages-list">
+                      {languages.map((l) => (
+                        <div key={l} className="lang-tag">
+                          <span>{l}</span>
+                          <button onClick={() => handleRemoveLanguage(l)} className="btn-remove" disabled={isObserver}>
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="add-language-form mt-4">
+                      <div className="form-group inline-flex">
+                        <input
+                          type="text"
+                          value={newLang}
+                          onChange={(e) => setNewLang(e.target.value)}
+                          placeholder="e.g. Thai, French, Spanish"
+                          disabled={isObserver}
+                        />
+                        <button onClick={handleAddLanguage} className="btn btn-secondary" disabled={isObserver}>
+                          Add Language
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="add-language-form mt-4">
-                    <div className="form-group inline-flex">
-                      <input
-                        type="text"
-                        value={newLang}
-                        onChange={(e) => setNewLang(e.target.value)}
-                        placeholder="e.g. Thai, French, Spanish"
-                        disabled={isObserver}
-                      />
-                      <button onClick={handleAddLanguage} className="btn btn-secondary" disabled={isObserver}>
-                        Add Language
+                  <div className="panel-actions mt-6">
+                    <button onClick={handleSaveLanguages} className="btn btn-primary" disabled={isObserver}>
+                      <Save size={16} /> Save Languages Settings
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* 右カラム (Rules & Security Group) */}
+              <div className="settings-col-right" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                
+                {/* ⚖️ Project Templates & Rules */}
+                <div className="card">
+                  <h4>{t('admin.rules_security_title')}</h4>
+                  
+                  {/* Configuration Template (Top) */}
+                  <div className="template-import-section" style={{ marginTop: '16px', marginBottom: '24px' }}>
+                    <h5 style={{ fontSize: '1em', fontWeight: '600', marginBottom: '8px' }}>{t('admin.import_template_title')}</h5>
+                    <p className="dim-text text-xs" style={{ marginBottom: '12px' }}>{t('admin.import_template_desc')}</p>
+                    
+                    {/* Preset Templates */}
+                    <form onSubmit={handleApplyPresetTemplate} className="vertical-form">
+                      <div className="form-group">
+                        <label>{t('admin.preset_template_label')}</label>
+                        <select
+                          value={selectedTemplate}
+                          onChange={(e) => setSelectedTemplate(e.target.value)}
+                          disabled={isObserver}
+                        >
+                          <option value="">{t('admin.select_preset_placeholder')}</option>
+                          {Object.entries(templates).map(([key, tpl]) => (
+                            <option key={key} value={key}>
+                              {tpl.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {selectedTemplate && templates[selectedTemplate] && (
+                        <p className="template-desc dim-text text-xs mt-1">
+                          {templates[selectedTemplate].description}
+                        </p>
+                      )}
+                      <button type="submit" className="btn btn-secondary mt-2" disabled={isObserver || !selectedTemplate}>
+                        {t('admin.apply_preset_btn')}
+                      </button>
+                    </form>
+
+                    <hr className="my-4" style={{ margin: '16px 0', border: 'none', borderTop: '1px solid var(--border-color)' }} />
+
+                    {/* Custom Template URL */}
+                    <form onSubmit={handleImportTemplate} className="vertical-form">
+                      <div className="form-group">
+                        <label>{t('admin.custom_url_label')}</label>
+                        <input
+                          type="url"
+                          value={importUrl}
+                          onChange={(e) => setImportUrl(e.target.value)}
+                          placeholder="https://example.com/judgie-template.json"
+                          disabled={isObserver}
+                          required
+                        />
+                      </div>
+                      <button type="submit" className="btn btn-primary mt-2" disabled={isObserver}>
+                        {t('admin.import_url_btn')}
+                      </button>
+                    </form>
+                  </div>
+
+                  <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--border-color)' }} />
+
+                  {/* Project Rules & Rulesets (Bottom) */}
+                  <div className="rulesets-section">
+                    <h5 style={{ fontSize: '1em', fontWeight: '600', marginBottom: '8px' }}>Hackathon Rules & Rulesets</h5>
+                    
+                    <div className="vertical-form mt-2">
+                      <div className="form-group">
+                        <label>Re-Evaluation Context Mode</label>
+                        <select
+                          value={projectSettings.re_evaluation_context_mode}
+                          onChange={(e) =>
+                            setProjectSettings({
+                              ...projectSettings,
+                              re_evaluation_context_mode: e.target.value,
+                            })
+                          }
+                          disabled={isObserver}
+                        >
+                          <option value="cumulative">Cumulative (AI remembers previous uploads)</option>
+                          <option value="single">Single (Each upload is evaluated independently)</option>
+                        </select>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Max Q&A Discussion Turns per Evaluation</label>
+                        <input
+                          type="number"
+                          value={projectSettings.max_qa_turns}
+                          onChange={(e) =>
+                            setProjectSettings({
+                              ...projectSettings,
+                              max_qa_turns: parseInt(e.target.value) || 1,
+                            })
+                          }
+                          disabled={isObserver}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Max Consultations allowed per Team</label>
+                        <input
+                          type="number"
+                          value={projectSettings.max_consultations}
+                          onChange={(e) =>
+                            setProjectSettings({
+                              ...projectSettings,
+                              max_consultations: parseInt(e.target.value) || 3,
+                            })
+                          }
+                          disabled={isObserver}
+                        />
+                      </div>
+
+                      <div className="form-checkbox">
+                        <input
+                          type="checkbox"
+                          id="video-upload-chk"
+                          checked={projectSettings.video_upload_enabled}
+                          onChange={(e) =>
+                            setProjectSettings({
+                              ...projectSettings,
+                              video_upload_enabled: e.target.checked,
+                            })
+                          }
+                          disabled={isObserver}
+                        />
+                        <label htmlFor="video-upload-chk">Enable Video Upload (MP4/MOV)</label>
+                      </div>
+                    </div>
+
+                    <div className="panel-actions mt-6">
+                      <button onClick={handleSaveSettings} className="btn btn-primary" disabled={isObserver}>
+                        <Save size={16} /> Save Rules Configurations
                       </button>
                     </div>
                   </div>
                 </div>
 
-                <div className="panel-actions mt-6">
-                  <button onClick={handleSaveLanguages} className="btn btn-primary" disabled={isObserver}>
-                    <Save size={16} /> Save Languages Settings
-                  </button>
+                {/* 🔐 Security & Authentication */}
+                <div className="card">
+                  <h4>{t('admin.security_auth_title')}</h4>
+                  
+                  {/* OIDC Settings */}
+                  <div className="oidc-section" style={{ marginBottom: '24px' }}>
+                    <h5 style={{ fontSize: '1em', fontWeight: '600', marginBottom: '8px' }}>OIDC Authentication Settings (SSO)</h5>
+                    <p className="dim-text text-xs" style={{ marginBottom: '12px' }}>
+                      Configure Single Sign-On (SSO) for participants and admins. When enabled, local password login is disabled for teams (Initial admins can still log in using the password screen).
+                    </p>
+                    <form onSubmit={handleSaveOidc} className="vertical-form">
+                      <div className="form-checkbox">
+                        <input
+                          type="checkbox"
+                          id="oidc-enabled-chk"
+                          checked={oidcConfig.oidc_enabled}
+                          onChange={(e) =>
+                            setOidcConfig({
+                              ...oidcConfig,
+                              oidc_enabled: e.target.checked,
+                            })
+                          }
+                          disabled={isObserver}
+                        />
+                        <label htmlFor="oidc-enabled-chk">Enable OIDC (SSO) Authentication</label>
+                      </div>
+
+                      <div className="form-group">
+                        <label>Issuer URL</label>
+                        <input
+                          type="url"
+                          value={oidcConfig.oidc_issuer}
+                          onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_issuer: e.target.value })}
+                          placeholder="https://accounts.google.com"
+                          disabled={isObserver}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Client ID</label>
+                        <input
+                          type="text"
+                          value={oidcConfig.oidc_client_id}
+                          onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_client_id: e.target.value })}
+                          placeholder="Enter OIDC Client ID"
+                          disabled={isObserver}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Client Secret</label>
+                        <input
+                          type="password"
+                          value={oidcConfig.oidc_client_secret}
+                          onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_client_secret: e.target.value })}
+                          placeholder={oidcConfig.has_client_secret ? "•••••••• (Saved. Enter new secret to change)" : "Enter OIDC Client Secret"}
+                          disabled={isObserver}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Redirect URI (Callback)</label>
+                        <input
+                          type="text"
+                          value={oidcConfig.oidc_redirect_uri}
+                          onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_redirect_uri: e.target.value })}
+                          placeholder="Leave blank to use default (e.g. http://localhost:5173/login/callback)"
+                          disabled={isObserver}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Allowed Email Domains (Comma-separated)</label>
+                        <input
+                          type="text"
+                          value={oidcConfig.oidc_allowed_domains}
+                          onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_allowed_domains: e.target.value })}
+                          placeholder="e.g. company.com, school.edu"
+                          disabled={isObserver}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>Allowed Individual Emails (Comma-separated)</label>
+                        <input
+                          type="text"
+                          value={oidcConfig.oidc_allowed_emails}
+                          onChange={(e) => setOidcConfig({ ...oidcConfig, oidc_allowed_emails: e.target.value })}
+                          placeholder="e.g. admin@gmail.com, guest@company.com"
+                          disabled={isObserver}
+                        />
+                      </div>
+
+                      <button type="submit" className="btn btn-primary" disabled={isObserver || savingOidc}>
+                        {savingOidc ? 'Saving...' : 'Save OIDC Settings'}
+                      </button>
+                    </form>
+                  </div>
+
+                  <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--border-color)' }} />
+
+                  {/* Change Admin Password */}
+                  <div className="change-admin-pass-section">
+                    <h5 style={{ fontSize: '1em', fontWeight: '600', marginBottom: '8px' }}>Change Admin Password</h5>
+                    <form onSubmit={handleChangeAdminPass} className="vertical-form mt-2">
+                      <div className="form-group">
+                        <label>New Password</label>
+                        <input
+                          type="password"
+                          value={newAdminPass}
+                          onChange={(e) => setNewAdminPass(e.target.value)}
+                          disabled={isObserver}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Confirm New Password</label>
+                        <input
+                          type="password"
+                          value={confirmAdminPass}
+                          onChange={(e) => setConfirmAdminPass(e.target.value)}
+                          disabled={isObserver}
+                          required
+                        />
+                      </div>
+                      <button type="submit" className="btn btn-primary" disabled={isObserver}>
+                        Change Password
+                      </button>
+                    </form>
+                  </div>
                 </div>
+
               </div>
 
-              {/* Change Admin Password */}
-              <div className="card">
-                <h4>Change Admin Passcode</h4>
-                <form onSubmit={handleChangeAdminPass} className="vertical-form mt-4">
-                  <div className="form-group">
-                    <label>New Passcode</label>
-                    <input
-                      type="password"
-                      value={newAdminPass}
-                      onChange={(e) => setNewAdminPass(e.target.value)}
-                      disabled={isObserver}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Confirm New Passcode</label>
-                    <input
-                      type="password"
-                      value={confirmAdminPass}
-                      onChange={(e) => setConfirmAdminPass(e.target.value)}
-                      disabled={isObserver}
-                      required
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary" disabled={isObserver}>
-                    Change Passcode
-                  </button>
-                </form>
-              </div>
             </div>
           </div>
         )}

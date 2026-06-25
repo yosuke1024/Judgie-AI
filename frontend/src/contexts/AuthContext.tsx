@@ -2,8 +2,11 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { authApi } from '@/api/client';
 
 interface User {
-  team_id: string;
+  user_id: number;
+  email: string;
   role: string;
+  team_id?: string;
+  display_name?: string;
   product_name?: string;
   team_name?: string;
   one_liner?: string;
@@ -15,7 +18,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (teamId: string, passcode: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -39,10 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser().finally(() => setLoading(false));
   }, []);
 
-  const login = async (teamId: string, passcode: string) => {
+  const login = async (email: string, password: string) => {
     await authApi.login({
-      team_id: teamId,
-      passcode,
+      email,
+      password,
     });
     await refreshUser();
   };

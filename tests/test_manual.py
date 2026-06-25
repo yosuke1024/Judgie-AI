@@ -13,7 +13,7 @@ def client():
 
 def test_get_manual_japanese(client):
     # Simulate logged in user (team role)
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(team_id="test_team", role="team")
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=1, email="test@test.com", role="team", team_id="test_team")
 
     res = client.get("/api/manual?lang=ja")
     assert res.status_code == 200
@@ -24,7 +24,7 @@ def test_get_manual_japanese(client):
 
 def test_get_manual_english(client):
     # Simulate logged in user (admin role)
-    app.dependency_overrides[get_current_user] = lambda: CurrentUser(team_id="admin1", role="admin")
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=1, email="admin@test.com", role="admin")
 
     res = client.get("/api/manual?lang=en")
     assert res.status_code == 200

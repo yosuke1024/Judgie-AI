@@ -3,9 +3,11 @@ import json
 from app.models.db import (
     AdminChat,
     Evaluation,
+    Team,
     TeamChat,
+    TeamMembership,
     User,
-    change_my_passcode,
+    change_my_password,
     create_session,
     delete_evaluation,
     delete_session,
@@ -31,9 +33,9 @@ from app.models.db import (
     set_personas,
     set_setting,
     set_video_upload_enabled,
-    update_admin_passcode,
-    update_team_passcode,
+    update_admin_password,
     update_team_profile,
+    update_user_password,
     verify_user,
 )
 from app.security import hash_passcode, verify_passcode
@@ -44,23 +46,36 @@ def test_init_db(db_session_fixture):
     init_db()
     admin = db_session_fixture.query(User).filter(User.role == "admin").first()
     assert admin is not None
-    assert admin.team_id == "admin"
+    assert admin.email == "admin@example.com"
 
 
 def test_verify_user(db_session_fixture):
     init_db()
 
     # 1. Admin authentication
-    assert verify_user("admin", "admin123") == {"role": "admin", "email": None}
-    assert verify_user("admin", "wrongpass") is None
+    result = verify_user("admin@example.com", "admin123")
+    assert result is not None
+    assert result["role"] == "admin"
+    assert verify_user("admin@example.com", "wrongpass") is None
 
     # 2. Team user authentication
-    team_user = User(team_id="teamA", passcode=hash_passcode("teampass"), role="team")
+    team = Team(team_id="teamA")
+    db_session_fixture.add(team)
+    db_session_fixture.flush()
+
+    team_user = User(email="user@teamA.com", password_hash=hash_passcode("teampass"), role="team")
     db_session_fixture.add(team_user)
+    db_session_fixture.flush()
+
+    membership = TeamMembership(user_id=team_user.id, team_id="teamA")
+    db_session_fixture.add(membership)
     db_session_fixture.commit()
 
-    assert verify_user("teamA", "teampass") == {"role": "team", "email": None}
-    assert verify_user("teamA", "wrongpass") is None
+    result = verify_user("user@teamA.com", "teampass")
+    assert result is not None
+    assert result["role"] == "team"
+    assert result["team_id"] == "teamA"
+    assert verify_user("user@teamA.com", "wrongpass") is None
 
 
 def test_settings(db_session_fixture):
@@ -139,50 +154,56 @@ def test_evaluation_flow(db_session_fixture):
     assert get_consultation_count("teamB") == 0
 
 
-def test_update_admin_passcode(db_session_fixture):
+def test_update_admin_password(db_session_fixture):
     # Seed admin user
-    admin_user = User(team_id="admin1", passcode=hash_passcode("pass123"), role="admin")
+    admin_user = User(email="admin1@test.com", password_hash=hash_passcode("pass123"), role="admin")
     db_session_fixture.add(admin_user)
     db_session_fixture.commit()
 
-    update_admin_passcode("newpass")
-    assert verify_user("admin1", "newpass") is not None
-    assert verify_user("admin1", "pass123") is None
+    update_admin_password("newpass")
+    assert verify_user("admin1@test.com", "newpass") is not None
+    assert verify_user("admin1@test.com", "pass123") is None
 
 
-def test_update_team_passcode(db_session_fixture):
+def test_update_user_password(db_session_fixture):
     # Create a registered team user
-    team_user = User(team_id="teamA", passcode=hash_passcode("teampass"), role="team")
+    team = Team(team_id="teamA")
+    db_session_fixture.add(team)
+    db_session_fixture.flush()
+
+    team_user = User(email="user@teamA.com", password_hash=hash_passcode("teampass"), role="team")
     db_session_fixture.add(team_user)
+    db_session_fixture.flush()
+    db_session_fixture.add(TeamMembership(user_id=team_user.id, team_id="teamA"))
     db_session_fixture.commit()
 
     # Verify that the update succeeds
-    assert update_team_passcode("teamA", "newteampass") is True
-    assert verify_user("teamA", "newteampass") is not None
-    assert verify_user("teamA", "teampass") is None
+    assert update_user_password(team_user.id, "newteampass") is True
+    assert verify_user("user@teamA.com", "newteampass") is not None
+    assert verify_user("user@teamA.com", "teampass") is None
 
-    # Verify that the update fails for a non-existent team ID
-    assert update_team_passcode("nonexistent", "somepass") is False
+    # Verify that the update fails for a non-existent user ID
+    assert update_user_password(99999, "somepass") is False
 
 
-def test_change_my_passcode(db_session_fixture):
+def test_change_my_password(db_session_fixture):
     init_db()
-    admin_user = User(team_id="admin1", passcode=hash_passcode("pass123"), role="admin")
+    admin_user = User(email="admin1@test.com", password_hash=hash_passcode("pass123"), role="admin")
     db_session_fixture.add(admin_user)
     db_session_fixture.commit()
 
-    # 1. Update admin passcode
-    assert change_my_passcode(team_id="admin1", current_passcode="pass123", new_passcode="changedpass") is True
-    assert verify_user("admin1", "changedpass") is not None
+    # 1. Update admin password
+    assert change_my_password(email="admin1@test.com", current_password="pass123", new_password="changedpass") is True
+    assert verify_user("admin1@test.com", "changedpass") is not None
 
-    # 2. Mismatched passcode error
-    assert change_my_passcode(team_id="admin1", current_passcode="wrong", new_passcode="another") is False
+    # 2. Mismatched password error
+    assert change_my_password(email="admin1@test.com", current_password="wrong", new_password="another") is False
 
 
 def test_team_profile(db_session_fixture):
-    # Set up team user
-    team_user = User(team_id="teamA", passcode="teampass", role="team")
-    db_session_fixture.add(team_user)
+    # Set up team
+    team = Team(team_id="teamA")
+    db_session_fixture.add(team)
     db_session_fixture.commit()
 
     profile = get_team_profile("teamA")
@@ -243,8 +264,8 @@ def test_ai_response_languages(db_session_fixture):
 
 def test_single_project_seeding(db_session_fixture, monkeypatch):
     # Mock environment variables
-    monkeypatch.setenv("DEFAULT_ADMIN_ID", "railway_admin")
-    monkeypatch.setenv("DEFAULT_ADMIN_PASSCODE", "railway_pass123")
+    monkeypatch.setenv("DEFAULT_ADMIN_EMAIL", "railway_admin@test.com")
+    monkeypatch.setenv("DEFAULT_ADMIN_PASSWORD", "railway_pass123")
     monkeypatch.setenv("DEFAULT_HACKATHON_NAME", "Railway Hackathon")
 
     # Run init_db
@@ -253,10 +274,10 @@ def test_single_project_seeding(db_session_fixture, monkeypatch):
     # Verify default project and admin user are created
     assert get_setting("project_name") == "Railway Hackathon"
 
-    admin_user = db_session_fixture.query(User).filter(User.team_id == "railway_admin").first()
+    admin_user = db_session_fixture.query(User).filter(User.email == "railway_admin@test.com").first()
     assert admin_user is not None
     assert admin_user.role == "admin"
-    assert verify_passcode("railway_pass123", admin_user.passcode) is True
+    assert verify_passcode("railway_pass123", admin_user.password_hash) is True
 
 
 def test_initialize_project_template(db_session_fixture):
@@ -307,11 +328,18 @@ def test_video_upload_enabled(db_session_fixture):
 def test_delete_team_cascades(db_session_fixture):
     init_db()
 
-    # Create two team users
-    team1 = User(team_id="team1", passcode="pass1", role="team")
-    team2 = User(team_id="team2", passcode="pass2", role="team")
+    # Create two teams
+    team1 = Team(team_id="team1")
+    team2 = Team(team_id="team2")
     db_session_fixture.add(team1)
     db_session_fixture.add(team2)
+    db_session_fixture.flush()
+
+    # Create users for teams
+    user1 = User(email="user1@test.com", password_hash="hash1", role="team")
+    db_session_fixture.add(user1)
+    db_session_fixture.flush()
+    db_session_fixture.add(TeamMembership(user_id=user1.id, team_id="team1"))
     db_session_fixture.commit()
 
     # Submission for team1
@@ -344,26 +372,26 @@ def test_delete_team_cascades(db_session_fixture):
     create_session("team1", "team")
 
     # Verify everything exists before deletion
-    assert db_session_fixture.query(User).filter(User.team_id == "team1").first() is not None
-    assert db_session_fixture.query(User).filter(User.team_id == "team2").first() is not None
+    assert db_session_fixture.query(Team).filter(Team.team_id == "team1").first() is not None
+    assert db_session_fixture.query(Team).filter(Team.team_id == "team2").first() is not None
     assert db_session_fixture.query(Submission).filter(Submission.team_id == "team1").first() is not None
     assert db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "team1").first() is not None
-    assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is not None
-    assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).first() is not None
 
     # Delete team1
     delete_team("team1")
 
     # Verify team1 data is gone
     db_session_fixture.expire_all()
-    assert db_session_fixture.query(User).filter(User.team_id == "team1").first() is None
+    assert db_session_fixture.query(Team).filter(Team.team_id == "team1").first() is None
     assert db_session_fixture.query(Submission).filter(Submission.team_id == "team1").first() is None
     assert db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "team1").first() is None
     assert db_session_fixture.query(AdminChat).filter(AdminChat.evaluation_id == eval_id).first() is None
     assert db_session_fixture.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).first() is None
+    # Team membership should be deleted
+    assert db_session_fixture.query(TeamMembership).filter(TeamMembership.team_id == "team1").first() is None
 
     # Verify team2 is NOT deleted
-    assert db_session_fixture.query(User).filter(User.team_id == "team2").first() is not None
+    assert db_session_fixture.query(Team).filter(Team.team_id == "team2").first() is not None
 
 
 def test_delete_evaluation_cascades(db_session_fixture):
@@ -410,60 +438,57 @@ def test_delete_evaluation_cascades(db_session_fixture):
     assert db_session_fixture.query(Evaluation).filter(Evaluation.id == eval2_id).first() is not None
 
 
-def test_update_user_active(db_session_fixture):
-    from app.models.db import update_user_active
+def test_update_team_active(db_session_fixture):
+    from app.models.db import update_team_active
 
     init_db()
 
     # Register a team
-    team_user = User(
-        team_id="active_team",
-        passcode=hash_passcode("teampass"),
-        role="team",
-    )
-    db_session_fixture.add(team_user)
+    team = Team(team_id="active_team")
+    db_session_fixture.add(team)
     db_session_fixture.commit()
 
     # Initial state should be active (default True)
-    assert team_user.is_active is True
+    assert team.is_active is True
 
     # Disable team
-    success = update_user_active("active_team", False)
+    success = update_team_active("active_team", False)
     assert success is True
     db_session_fixture.expire_all()
 
-    user_in_db = db_session_fixture.query(User).filter(User.team_id == "active_team").first()
-    assert user_in_db.is_active is False
+    team_in_db = db_session_fixture.query(Team).filter(Team.team_id == "active_team").first()
+    assert team_in_db.is_active is False
 
     # Enable team again
-    success = update_user_active("active_team", True)
+    success = update_team_active("active_team", True)
     assert success is True
     db_session_fixture.expire_all()
-    user_in_db = db_session_fixture.query(User).filter(User.team_id == "active_team").first()
-    assert user_in_db.is_active is True
+    team_in_db = db_session_fixture.query(Team).filter(Team.team_id == "active_team").first()
+    assert team_in_db.is_active is True
 
 
 def test_verify_user_inactive(db_session_fixture):
-    from app.models.db import update_user_active, verify_user
+    from app.models.db import verify_user
 
     init_db()
 
     team_user = User(
-        team_id="verify_team",
-        passcode=hash_passcode("teampass"),
+        email="verify@test.com",
+        password_hash=hash_passcode("teampass"),
         role="team",
     )
     db_session_fixture.add(team_user)
     db_session_fixture.commit()
 
     # Should succeed when active
-    verified = verify_user("verify_team", "teampass")
+    verified = verify_user("verify@test.com", "teampass")
     assert verified is not None
     assert verified["role"] == "team"
 
-    # Disable team
-    update_user_active("verify_team", False)
+    # Disable user
+    team_user.is_active = False
+    db_session_fixture.commit()
 
     # Should fail when inactive
-    verified_inactive = verify_user("verify_team", "teampass")
+    verified_inactive = verify_user("verify@test.com", "teampass")
     assert verified_inactive is None

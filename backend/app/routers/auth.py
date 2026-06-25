@@ -92,8 +92,8 @@ def oidc_callback(req: OIDCCallbackRequest, response: Response, oidc_state: str 
             detail=err_msg,
         )
 
-    # Query matching user in database
-    from app.models.db import User, db_session
+    # Look up user by email
+    from app.models.db import TeamMembership, User, db_session
 
     with db_session() as db:
         user = db.query(User).filter(User.email == email, User.is_active).first()
@@ -104,10 +104,15 @@ def oidc_callback(req: OIDCCallbackRequest, response: Response, oidc_state: str 
                 detail="Your email is not registered in this system. Please contact the administrator.",
             )
 
+        # Get team membership
+        membership = db.query(TeamMembership).filter(TeamMembership.user_id == user.id).first()
+        team_id = membership.team_id if membership else None
+
         token_data = {
-            "team_id": user.team_id,
-            "role": user.role,
+            "user_id": user.id,
             "email": user.email,
+            "role": user.role,
+            "team_id": team_id,
         }
         token = create_access_token(token_data)
 
@@ -122,15 +127,15 @@ def oidc_callback(req: OIDCCallbackRequest, response: Response, oidc_state: str 
         response.delete_cookie("oidc_state")
         return OIDCCallbackResponse(
             status="success",
-            team_id=user.team_id,
+            team_id=team_id,
             role=user.role,
         )
 
 
 @router.post("/login", response_model=LoginResponse)
 def login(req: LoginRequest, response: Response):
-    """Authenticate user and set JWT HTTPOnly cookie."""
-    user_info = verify_user(req.team_id, req.passcode)
+    """Authenticate user with email + password and set JWT HTTPOnly cookie."""
+    user_info = verify_user(req.email, req.password)
     if not user_info:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -138,9 +143,10 @@ def login(req: LoginRequest, response: Response):
         )
 
     token_data = {
-        "team_id": req.team_id,
+        "user_id": user_info["user_id"],
+        "email": user_info["email"],
         "role": user_info["role"],
-        "email": user_info.get("email"),
+        "team_id": user_info.get("team_id"),
     }
     token = create_access_token(token_data)
 
@@ -154,8 +160,9 @@ def login(req: LoginRequest, response: Response):
     )
 
     return LoginResponse(
-        team_id=req.team_id,
+        email=user_info["email"],
         role=user_info["role"],
+        team_id=user_info.get("team_id"),
     )
 
 
@@ -175,15 +182,27 @@ def get_me(user: CurrentUser = Depends(get_current_user)):
     max_consultations = -1
     consultation_count = 0
     max_qa_turns = 1
-    if user.role in ("team", "observer"):
+    if user.team_id:
         profile = get_team_profile(user.team_id)
         max_consultations = get_max_consultations()
         consultation_count = get_consultation_count(user.team_id)
         max_qa_turns = get_max_qa_turns()
 
+    # Get display name from DB
+    from app.models.db import User as DBUser, db_session
+
+    display_name = None
+    with db_session() as db:
+        db_user = db.query(DBUser).filter(DBUser.id == user.user_id).first()
+        if db_user:
+            display_name = db_user.display_name
+
     return UserInfo(
-        team_id=user.team_id,
+        user_id=user.user_id,
+        email=user.email,
         role=user.role,
+        team_id=user.team_id,
+        display_name=display_name,
         product_name=profile.get("product_name"),
         team_name=profile.get("team_name"),
         one_liner=profile.get("one_liner"),
