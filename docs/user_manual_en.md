@@ -107,23 +107,25 @@ Choose one of the pre-built templates or import a custom one:
 - **Custom Avatar Images**: You can upload a custom avatar image (PNG/JPG, max 500KB) for each judge. If configured, it will be rendered as a circular profile photo in the team dashboard and chat bubble instead of the default emoji.
 - **Active / Inactive Toggle**: Temporarily disable a judge. Inactive judges will not participate in evaluations or Q&A threads.
 
-#### Step 5: Manage Members and Register Teams (Members / Teams)
-The Admin Command Center contains two tabs for managing users and teams: **"Teams"** and **"Members"**.
+#### Step 5: Manage Teams & Members (Teams / Members)
+The **"Teams / Members"** tab in the Admin Command Center lets you manage team registration and user assignment in one unified view.
 
-* **"Members" Tab**:
+* **Teams Section** (top):
+  - Register, delete, and activate/deactivate hackathon "teams."
+  - Each team row displays a badge showing the number of active members in that team.
+  - **Inline Product Name Editing**: Edit a team's Product Name directly in the table. Changes are auto-saved when you click away or press Enter.
+
+* **Members Section** (bottom):
   - Displays all users (administrators, observers, and team members) with search and role filtering capability.
   - **Add Individually**:
     - **Default Mode**: Enter the member's `Email`, `Username` (optional, 3-30 chars, alphanumeric, -, _), `Display Name` (optional), `Password` (optional, auto-generated if empty), `Role` (team/observer/admin), and `Team ID` if the role is 'team'.
     - **OIDC Mode**: Enter the `Email`, `Username`, `Display Name`, and `Role` (passwords are generated randomly).
+  - **Inline Editing**: Edit `Username` and `Display Name` directly in the table. Changes are auto-saved when you click away or press Enter.
   - **Change Roles & Teams**: You can change a user's role directly in the table via a dropdown. If the role is `team`, you can also assign their team via a dropdown. Changing a user's role to something other than `team` automatically cleans up their team membership.
   - **Password Reset & Delete**: Click the "Key icon" to force reset a member's password, or click the "Trash icon" to delete their account completely (Note: deactivating, changing the role, or deleting the only active administrator is blocked).
-  - **CSV Bulk Import**: Upload a CSV file to register multiple users at once.
-    - CSV Format: Use `email,team_id,role[,display_name][,password][,username]` columns in order.
-    - Header rows containing 'email' are automatically skipped.
-
-* **"Teams" Tab**:
-  - Simplified for registering, deleting, and activating/deactivating hackathon "teams" themselves.
-  - Each team row displays a badge showing the number of active members in that team.
+  - **CSV Bulk Import**: Paste CSV content to register multiple users at once.
+    - **Header row is required.** Required column: `email`. Optional columns: `team_id`, `role`, `display_name`, `password`, `username`.
+    - Column order is flexible, and you can omit columns you don't need.
 
 #### Step 6: AI Language Settings
 - Go to the **"AI Languages"** tab. Save up to 5 languages for AI evaluation feedback and chats. Teams can switch between these languages via tabs on their dashboards.

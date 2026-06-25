@@ -248,9 +248,11 @@ def bulk_create_users(
     req: UserBulkCreate,
     admin: CurrentUser = Depends(require_role("admin")),
 ):
-    """Bulk import users from CSV.
+    """Bulk import users from CSV with header row.
 
-    CSV format: email,team_id,role[,display_name][,password][,username]
+    Required columns: email
+    Optional columns: team_id, role, display_name, password, username
+    Column order is flexible — determined by header row.
     """
     import secrets as _secrets
     import re
@@ -259,26 +261,37 @@ def bulk_create_users(
     if not lines:
         return {"created": 0, "skipped": 0}
 
-    reader = csv.reader(lines)
+    # Validate header row exists
+    first_line_lower = lines[0].lower().strip()
+    if "email" not in first_line_lower:
+        raise HTTPException(
+            status_code=400,
+            detail="CSV must include a header row with at least an 'email' column. "
+                   "Example: email,team_id,role,display_name,password,username"
+        )
+
+    # Normalize header names (strip whitespace, lowercase)
+    reader = csv.DictReader(lines)
+    # Clean up fieldnames
+    if reader.fieldnames:
+        reader.fieldnames = [f.strip().lower() for f in reader.fieldnames]
+
     created = 0
     skipped = 0
 
     with db_session() as db:
-        for i, row in enumerate(reader):
-            if not row or not str(row[0]).strip():
+        for row in reader:
+            # Skip empty rows
+            email = (row.get("email") or "").strip().lower()
+            if not email:
                 skipped += 1
                 continue
 
-            # Skip header row
-            if i == 0 and any(h in str(row[0]).lower() for h in ["email", "user", "mail"]):
-                continue
-
-            email = str(row[0]).strip().lower()
-            team_id = str(row[1]).strip() if len(row) >= 2 and str(row[1]).strip() else None
-            role_val = str(row[2]).strip().lower() if len(row) >= 3 and str(row[2]).strip() else "team"
-            display_name = str(row[3]).strip() if len(row) >= 4 and str(row[3]).strip() else None
-            password = str(row[4]).strip() if len(row) >= 5 and str(row[4]).strip() else None
-            username = str(row[5]).strip() if len(row) >= 6 and str(row[5]).strip() else None
+            team_id = (row.get("team_id") or "").strip() or None
+            role_val = (row.get("role") or "").strip().lower() or "team"
+            display_name = (row.get("display_name") or "").strip() or None
+            password = (row.get("password") or "").strip() or None
+            username = (row.get("username") or "").strip() or None
 
             if role_val not in ("team", "observer", "admin"):
                 role_val = "team"

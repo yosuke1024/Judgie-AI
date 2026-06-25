@@ -80,8 +80,7 @@
   },
   "admin": {
     "title": "⚡ コマンドセンター",
-    "teams_tab": "チーム管理",
-    "members_tab": "メンバー管理",
+    "teams_tab": "チーム / メンバー",
     "criteria_tab": "評価基準",
     "personas_tab": "AI審査員",
     "deep_dive_tab": "ディープダイブ",
@@ -134,7 +133,7 @@
       "reset_password": "パスワードリセット",
       "delete_confirm": "本当にこのユーザーを削除しますか？該当ユーザーのチーム所属情報もすべて削除されます。",
       "bulk_import": "CSV一括インポート",
-      "csv_help": "CSVフォーマット: email,team_id,role[,display_name][,password][,username] (※roleは 'team'、'observer'、または 'admin'。team_idはロールが 'team' の場合に必須)。1行目のヘッダー行（'email'等を含む行）は自動でスキップされます。",
+      "csv_help": "ヘッダー行が必須です。必須カラム: email。任意カラム: team_id, role, display_name, password, username。カラムの順序は自由で、不要なカラムは省略できます。",
       "csv_content_label": "CSV内容を貼り付け",
       "import_btn": "ユーザーをインポート",
       "import_success": "インポート完了: {{created}}件作成、{{skipped}}件スキップされました。",

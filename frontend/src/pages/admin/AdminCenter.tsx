@@ -12,7 +12,6 @@ import {
 } from '@/api/client';
 import {
   Users,
-  User as UserIcon,
   Key,
   Sliders,
   Shield,
@@ -336,10 +335,9 @@ export default function AdminCenter() {
   // Fetch initial tab data on mount or tab change
   useEffect(() => {
     setError('');
-    if (activeTab === 'teams') loadTeams();
-    else if (activeTab === 'members') {
-      loadMembers();
+    if (activeTab === 'teams') {
       loadTeams();
+      loadMembers();
     }
     else if (activeTab === 'criteria') loadCriteria();
     else if (activeTab === 'personas') loadPersonas();
@@ -509,6 +507,28 @@ export default function AdminCenter() {
       loadTeams();
     } catch (err: any) {
       setError(err.message || 'Failed to update team status.');
+    }
+  };
+
+  const handleUpdateTeamProductName = async (teamId: string, productName: string) => {
+    try {
+      setError('');
+      await teamsApi.updateProfile(teamId, { product_name: productName || null });
+      showSuccess(`Product name updated for team '${teamId}'`);
+      loadTeams();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update product name.');
+    }
+  };
+
+  const handleUpdateMemberField = async (userId: number, field: 'username' | 'display_name', value: string) => {
+    try {
+      setError('');
+      await usersApi.update(userId, { [field]: value || null });
+      showSuccess(t('admin.members.update_success'));
+      loadMembers();
+    } catch (err: any) {
+      setError(err.message || `Failed to update ${field}.`);
     }
   };
 
@@ -837,13 +857,6 @@ export default function AdminCenter() {
           {t('admin.teams_tab')}
         </button>
         <button
-          className={`tab-btn ${activeTab === 'members' ? 'active' : ''}`}
-          onClick={() => setActiveTab('members')}
-        >
-          <UserIcon size={16} />
-          {t('admin.members_tab')}
-        </button>
-        <button
           className={`tab-btn ${activeTab === 'criteria' ? 'active' : ''}`}
           onClick={() => setActiveTab('criteria')}
         >
@@ -882,12 +895,13 @@ export default function AdminCenter() {
 
       <div className="tab-content-panel">
         {/* ================================================================= */}
-        {/* TAB: TEAMS */}
+        {/* TAB: TEAMS / MEMBERS (merged) */}
         {/* ================================================================= */}
         {activeTab === 'teams' && (
           <div className="tab-pane teams-pane">
+            {/* ---- SECTION 1: Teams ---- */}
             <div className="teams-grid">
-              {/* Team Registration Forms */}
+              {/* Team Registration Form */}
               <div className="pane-form-column">
                 <div className="card">
                   <h4>Register Single Team</h4>
@@ -934,7 +948,22 @@ export default function AdminCenter() {
                         {teams.map((t) => (
                           <tr key={t.team_id}>
                             <td><strong>{t.team_id}</strong></td>
-                            <td>{t.product_name || <span className="dim-text">—</span>}</td>
+                            <td>
+                              <input
+                                type="text"
+                                defaultValue={t.product_name || ''}
+                                onBlur={(e) => {
+                                  const newVal = e.target.value.trim();
+                                  if (newVal !== (t.product_name || '')) {
+                                    handleUpdateTeamProductName(t.team_id, newVal);
+                                  }
+                                }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                                placeholder="—"
+                                disabled={isObserver}
+                                style={{ fontSize: '0.9em', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', width: '100%', minWidth: '100px' }}
+                              />
+                            </td>
                             <td>
                               <span style={{ fontSize: '0.9em', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'var(--bg-accent)', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
                                 {t.members ? t.members.length : 0}
@@ -981,14 +1010,11 @@ export default function AdminCenter() {
                 </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {/* ================================================================= */}
-        {/* TAB: MEMBERS */}
-        {/* ================================================================= */}
-        {activeTab === 'members' && (
-          <div className="tab-pane members-pane">
+            {/* ---- Divider ---- */}
+            <hr style={{ margin: '32px 0', borderColor: 'var(--border-color)', opacity: 0.5 }} />
+
+            {/* ---- SECTION 2: Members ---- */}
             <div className="members-grid" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px', alignItems: 'start' }}>
               {/* Member Registration Forms */}
               <div className="pane-form-column" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -1083,7 +1109,7 @@ export default function AdminCenter() {
                       <textarea
                         value={memberBulkCsv}
                         onChange={(e) => setMemberBulkCsv(e.target.value)}
-                        placeholder="user1@example.com,team-alpha,team,User One,pass123,user_one"
+                        placeholder={"email,team_id,role,display_name\nuser1@example.com,team-alpha,team,User One\nuser2@example.com,team-beta,observer"}
                         rows={6}
                         disabled={isObserver}
                         required
@@ -1163,11 +1189,37 @@ export default function AdminCenter() {
                               <td style={{ fontSize: '0.9em' }}>
                                 <strong>{m.email}</strong>
                               </td>
-                              <td style={{ fontSize: '0.9em' }}>
-                                {m.username || <span className="dim-text">—</span>}
+                              <td>
+                                <input
+                                  type="text"
+                                  defaultValue={m.username || ''}
+                                  onBlur={(e) => {
+                                    const newVal = e.target.value.trim();
+                                    if (newVal !== (m.username || '')) {
+                                      handleUpdateMemberField(m.user_id, 'username', newVal);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                                  placeholder="—"
+                                  disabled={isObserver}
+                                  style={{ fontSize: '0.9em', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', width: '100%', minWidth: '80px' }}
+                                />
                               </td>
-                              <td style={{ fontSize: '0.9em' }}>
-                                {m.display_name || <span className="dim-text">—</span>}
+                              <td>
+                                <input
+                                  type="text"
+                                  defaultValue={m.display_name || ''}
+                                  onBlur={(e) => {
+                                    const newVal = e.target.value.trim();
+                                    if (newVal !== (m.display_name || '')) {
+                                      handleUpdateMemberField(m.user_id, 'display_name', newVal);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                                  placeholder="—"
+                                  disabled={isObserver}
+                                  style={{ fontSize: '0.9em', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', width: '100%', minWidth: '80px' }}
+                                />
                               </td>
                               <td>
                                 <select

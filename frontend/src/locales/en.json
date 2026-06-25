@@ -80,8 +80,7 @@
   },
   "admin": {
     "title": "⚡ Command Center",
-    "teams_tab": "Teams",
-    "members_tab": "Members",
+    "teams_tab": "Teams / Members",
     "criteria_tab": "Criteria",
     "personas_tab": "AI Judges",
     "deep_dive_tab": "Deep Dive",
@@ -134,7 +133,7 @@
       "reset_password": "Reset Password",
       "delete_confirm": "Are you sure you want to delete this user? This will also remove any team memberships.",
       "bulk_import": "CSV Bulk Import",
-      "csv_help": "CSV format: email,team_id,role[,display_name][,password][,username]. (Note: role must be 'team', 'observer', or 'admin'. team_id is required for 'team' role). Header row containing 'email' will be skipped automatically.",
+      "csv_help": "Header row required. Required column: email. Optional columns: team_id, role, display_name, password, username. Column order is flexible. Columns you don't need can be omitted entirely.",
       "csv_content_label": "Paste CSV Content",
       "import_btn": "Import Users",
       "import_success": "Successfully imported: {{created}} created, {{skipped}} skipped.",
