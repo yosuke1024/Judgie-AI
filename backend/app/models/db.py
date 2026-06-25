@@ -326,7 +326,7 @@ def init_db():
     with db_session() as db:
         # Support both DEFAULT_ADMIN_ID and DEFAULT_ADMIN_EMAIL. Fallback to "admin@example.com".
         default_admin_id = os.environ.get("DEFAULT_ADMIN_ID") or os.environ.get("DEFAULT_ADMIN_EMAIL") or "admin@example.com"
-        
+
         # Support both DEFAULT_ADMIN_PASSCODE and DEFAULT_ADMIN_PASSWORD. Fallback to "admin123".
         default_admin_pass = os.environ.get("DEFAULT_ADMIN_PASSCODE") or os.environ.get("DEFAULT_ADMIN_PASSWORD") or "admin123"
 
