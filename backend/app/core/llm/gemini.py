@@ -41,7 +41,7 @@ class GeminiProvider(BaseLLMProvider):
                     if name.startswith("gemini-"):
                         name_lower = name.lower()
                         if ("flash" in name_lower or "pro" in name_lower) and not any(
-                            x in name_lower for x in ["embed", "vision", "aqa", "thinking"]
+                            x in name_lower for x in ["embed", "vision", "aqa", "thinking", "imagen", "image"]
                         ):
                             gemini_models.append(name)
             gemini_models.sort()

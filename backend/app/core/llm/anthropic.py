@@ -36,7 +36,7 @@ class AnthropicProvider(BaseLLMProvider):
             self._get_client(api_key_override)
             if not api_key_override.startswith("sk-ant-"):
                 raise ValueError("Invalid Anthropic API key format. Must start with 'sk-ant-'.")
-        return ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
+        return ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"]
 
     def upload_file(self, file_path: str, mime_type: Optional[str] = None) -> Any:
         logger.info(f"Anthropic: Skipping upload for {file_path}. Media files are not supported.")

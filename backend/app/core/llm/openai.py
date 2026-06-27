@@ -36,7 +36,7 @@ class OpenAIProvider(BaseLLMProvider):
         if api_key_override:
             client = self._get_client(api_key_override)
             client.models.list()
-        return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
+        return ["gpt-4o", "gpt-4o-mini"]
 
     def upload_file(self, file_path: str, mime_type: Optional[str] = None) -> Any:
         # OpenAI doesn't support Gemini's large File API. Text file inputs are read directly.
