@@ -104,30 +104,32 @@ def submit_team_objection(eval_id: int, prev_eval_json: str, objection_text: str
             lang_key = normalize_lang_to_key(lang)
             translated[f"user_objection_{lang_key}"] = objection_text
 
-    # 2. Insert user message to TeamChat table
+    # 2. Retrieve the entire chat history for this evaluation
     with db_session() as db:
-        user_msg = TeamChat(evaluation_id=eval_id, sender="team", message_json=json.dumps(translated))
-        db.add(user_msg)
-        db.flush()
-
-        # 3. Retrieve the entire chat history for this evaluation
         chats = db.query(TeamChat).filter(TeamChat.evaluation_id == eval_id).order_by(TeamChat.created_at.asc()).all()
         chat_history = []
         for c in chats:
             chat_history.append({"sender": c.sender, "message_json": c.message_json})
 
+    # Append the new user objection to the chat history in memory for the LLM context
+    chat_history.append({"sender": "team", "message_json": json.dumps(translated)})
+
     # Minimize previous evaluation context to protect against token overflow
     minimized_prev = minimize_evaluation_context(prev_eval_json)
     minimized_prev_json = json.dumps(minimized_prev) if minimized_prev else "{}"
 
-    # 4. Call Gemini with the full Q&A discussion history
+    # 3. Call Gemini with the full Q&A discussion history
     qa_result = object_to_judges("", None, minimized_prev_json, chat_history)
 
     # Defensive programming: sanitize Gemini responses
     qa_result = sanitize_objection_response(qa_result)
 
-    # 5. Insert AI response to TeamChat table
+    # 4. Insert both user message and AI response to TeamChat table in a single transaction
     with db_session() as db:
+        user_msg = TeamChat(evaluation_id=eval_id, sender="team", message_json=json.dumps(translated))
+        db.add(user_msg)
+        db.flush()
+
         ai_msg = TeamChat(evaluation_id=eval_id, sender="judges", message_json=json.dumps(qa_result))
         db.add(ai_msg)
 
