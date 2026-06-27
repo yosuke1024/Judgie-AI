@@ -178,3 +178,35 @@ def test_minimize_evaluation_context():
     # Check summaries are preserved
     assert minimized["summary_ja"] == "プロダクトサマリー日本語"
     assert minimized["summary_en"] == "Product summary English"
+
+
+def test_submit_team_objection_error_does_not_consume_turn(mocker, db_session_fixture):
+    # Pre-save target evaluation records
+    result_data = {
+        "scores": {},
+        "impact_score": 3.0,
+        "three_line_summary_en": "summary",
+        "three_line_summary_ja": "サマリー",
+        "judges_feedback": [],
+    }
+    save_evaluation("teamB", result_data, is_final=False)
+    eval_rec = db_session_fixture.query(Evaluation).filter(Evaluation.team_id == "teamB").first()
+    eval_id = eval_rec.id
+
+    # Mock object_to_judges API to raise an exception
+    mocker.patch(
+        "app.services.evaluation_service.object_to_judges",
+        side_effect=Exception("API connection failed (503 Unavailable)"),
+    )
+
+    # Execute and assert Exception is raised
+    import pytest
+    with pytest.raises(Exception, match="API connection failed"):
+        submit_team_objection(eval_id=eval_id, prev_eval_json='{"scores": {}}', objection_text="Please reconsider")
+
+    # Verify DB update in TeamChat table: no messages should be saved
+    db_session_fixture.expire_all()
+    from app.services.evaluation_service import get_team_chats
+
+    chats = get_team_chats(eval_id)
+    assert len(chats) == 0
