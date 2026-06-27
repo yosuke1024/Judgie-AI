@@ -91,7 +91,7 @@ Whether it's auditing software system architectures, screening startup pitches, 
 - **Frontend**: React (TypeScript), Vite, TailwindCSS & Vanilla CSS
 - **Backend**: FastAPI (Python)
 - **Database**: SQLite3 / PostgreSQL (Cloud SQL)
-- **AI Core**: Google Gemini API (Supports dynamic model selection: `gemini-3.5-flash`, `gemini-3.1-pro`, etc.) - Utilizes the File API for asynchronous parsing of large contexts (Code ZIPs, Videos, etc.)
+- **AI Core**: Google Gemini API (**Recommended** - Supports dynamic model selection: `gemini-3.5-flash`, `gemini-3.1-pro`, etc.) - Crucial for large context handling (Code ZIPs, PDFs) and native video evaluation via the Gemini File API.
 
 ---
 
