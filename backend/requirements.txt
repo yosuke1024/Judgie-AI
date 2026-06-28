@@ -18,7 +18,7 @@ bcrypt>=4.2.0
 requests>=2.34.2
 
 # Data (used by export service)
-pandas>=2.2.0
+pandas>=3.0.3
 
 # OpenAI and Anthropic SDKs
 openai>=1.0.0
