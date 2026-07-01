@@ -167,8 +167,8 @@ Judgie-AI が正常に起動されると、フロントエンド（React/Vite）
 提出物は以下の形式に対応しており、**任意の組み合わせで提出可能** です。
 
 1. **ソースコード等の圧縮ファイル (ZIP):**
-   - `node_modules` や `.git`、`venv` などの巨大な不要フォルダは必ず除外してZIP化してください。
-   - Mac/Linuxでの除外ZIP作成コマンド例: `zip -r submission.zip . -x "node_modules/*" -x ".git/*" -x "venv/*" -x ".next/*"`
+   - `node_modules` や `.git`、`venv` などの巨大な不要フォルダは必ず除外してZIP化してください（Git管理下の場合は `git archive` コマンドの使用を推奨します）。
+   - 推奨コマンド（Gitを使用する場合）: `git archive -o submission.zip HEAD`
 2. **プレゼンテーション資料 (PDF)**
 3. **デモ動画 (MP4 / MOV):**
    - > [!WARNING]
