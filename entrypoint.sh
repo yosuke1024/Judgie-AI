@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
 
+# Redirect stderr to stdout so that standard logs (like Uvicorn/FastAPI startup messages)
+# are not colored as red "errors" in cloud platforms like Railway.
+exec 2>&1
+
 # Default configuration for PORT
 PORT=${PORT:-8080}
 
