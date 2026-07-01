@@ -21,6 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
     create_engine,
     func,
+    inspect,
     text,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
@@ -205,14 +206,16 @@ def get_db():
 
 def _table_exists(conn, table_name: str) -> bool:
     """Check if a table exists in the database."""
-    result = conn.execute(text(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';"))
-    return result.fetchone() is not None
+    inspector = inspect(conn)
+    return inspector.has_table(table_name)
 
 
 def _column_exists(conn, table_name: str, column_name: str) -> bool:
     """Check if a column exists in a table."""
-    result = conn.execute(text(f"PRAGMA table_info({table_name});"))
-    columns = [row[1] for row in result.fetchall()]
+    inspector = inspect(conn)
+    if not inspector.has_table(table_name):
+        return False
+    columns = [col["name"] for col in inspector.get_columns(table_name)]
     return column_name in columns
 
 
