@@ -57,6 +57,10 @@ A framework that coordinates multiple expert AI personas, evaluates multimodal i
 
 Whether it's auditing software system architectures, screening startup pitches, running technical interviews, or reviewing product proposals, Judgie-AI has evolved into a general-purpose **AI Evaluation Platform**. Hackathons are now just one template among many.
 
+### 📝 Blog Posts
+- 🇯🇵 [ハッカソンの審査員が、ハッカソンをハックした話](https://moneyforward-dev.jp/entry/2026/07/01/171847) - Money Forward Developers Blog
+- 🇬🇧 [How a Hackathon Judge Hacked the Hackathon](https://global.moneyforward-dev.jp/2026/07/02/how-a-hackathon-judge-hacked-the-hackathon/) - Money Forward Developers Blog (Global)
+
 ---
 
 ## ✨ Core Features
