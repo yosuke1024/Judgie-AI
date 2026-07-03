@@ -167,8 +167,8 @@ Before final submission, you can request AI evaluations. The remaining attempts 
 You can submit any combination of the following formats:
 
 1. **Source Code ZIP Archive:**
-   - Exclude large folders like `node_modules`, `.git`, or `venv` to avoid the 200MB size limit (using `git archive` is recommended for Git repositories).
-   - Recommended Command (using Git): `git archive -o submission.zip HEAD`
+   - Exclude large folders like `node_modules`, `.git`, or `venv` to avoid the 200MB size limit (using `git archive` after committing your changes is recommended for Git repositories).
+   - Recommended Command (run AFTER committing with `git commit`): `git archive -o submission.zip HEAD`
 2. **Presentation Slides (PDF)**
 3. **Demo Video (MP4 / MOV):**
    - > [!WARNING]
