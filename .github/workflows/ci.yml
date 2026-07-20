@@ -36,6 +36,9 @@ jobs:
 
     - name: Run tests with coverage
       run: |
+        # pipefail is required: without it the exit status of `| tee` is tee's,
+        # so a failing pytest run would silently pass this step.
+        set -o pipefail
         pytest --cov=backend/app --cov-report=term-missing | tee pytest-coverage.txt
         echo "### 📊 Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
         echo '```text' >> $GITHUB_STEP_SUMMARY
@@ -76,7 +79,9 @@ jobs:
     - name: Lint (non-blocking)
       id: lint
       continue-on-error: true
-      run: npm run lint 2>&1 | tee eslint.log
+      run: |
+        set -o pipefail
+        npm run lint 2>&1 | tee eslint.log
 
     - name: Report lint results
       if: always()
