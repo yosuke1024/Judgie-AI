@@ -22,8 +22,9 @@
     "noFallthroughCasesInSwitch": true,
     
     /* Path mapping */
-    "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
+    // No baseUrl: TypeScript 7 removed the option (TS5102). Without it, "paths"
+    // entries resolve relative to this file, which is what "./src/*" already
+    // assumed — so this stays correct on both TS 6 and TS 7.
     "paths": {
       "@/*": ["./src/*"]
     }
