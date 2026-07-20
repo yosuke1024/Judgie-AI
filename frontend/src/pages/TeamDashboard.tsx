@@ -216,19 +216,26 @@ export default function TeamDashboard() {
         console.error('Failed to fetch personas config:', err);
       }
 
-      try {
-        const project = await settingsApi.getProject();
-        setProjectSettings({
-          max_consultations: Number(project.max_consultations),
-          max_qa_turns: Number(project.max_qa_turns),
-        });
-      } catch (err) {
-        console.error('Failed to fetch project settings:', err);
+      // Only the read-only view (an admin or observer inspecting a specific
+      // team) reads these limits from the project settings — see maxConsultations
+      // / maxQaTurns below. A team member gets their own limits from /auth/me,
+      // and GET /settings/project is admin+observer only, so calling it here as
+      // a team member only produced a guaranteed 403 on every dashboard load.
+      if (isReadOnly) {
+        try {
+          const project = await settingsApi.getProject();
+          setProjectSettings({
+            max_consultations: Number(project.max_consultations),
+            max_qa_turns: Number(project.max_qa_turns),
+          });
+        } catch (err) {
+          console.error('Failed to fetch project settings:', err);
+        }
       }
     };
 
     fetchConfig();
-  }, [user, i18n.language]);
+  }, [user, i18n.language, isReadOnly]);
 
   // Local state update when user profile loads
   useEffect(() => {
