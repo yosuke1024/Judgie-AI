@@ -13,3 +13,18 @@ updates:
       interval: "weekly"
       day: "sunday"
     open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+    open-pull-requests-limit: 5
+    groups:
+      # The frontend has no test suite yet, so review effort is the limiting
+      # factor rather than CI time. Grouping patch and minor bumps keeps that
+      # to one PR a week; majors stay separate so they get read individually.
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
