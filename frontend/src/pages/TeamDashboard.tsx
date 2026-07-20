@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -237,13 +237,28 @@ export default function TeamDashboard() {
     fetchConfig();
   }, [user, i18n.language, isReadOnly]);
 
-  // Local state update when user profile loads
+  // Seed the editable profile fields from the server, once per team.
+  //
+  // Why the ref: refreshUser() replaces the `user` object identity, and it is
+  // called on evaluation completion (see the task monitor effect below), not
+  // only after a profile save. Re-seeding on every `user` change therefore
+  // discarded whatever the member had typed but not yet saved whenever a
+  // background evaluation finished. Keyed on team_id so switching team still
+  // re-seeds, while later refreshes leave in-progress edits alone.
+  // `undefined` means "not seeded yet". A team id — or null for a user with no
+  // team — means already seeded, so null cannot double as the initial sentinel.
+  const seededProfileTeamRef = useRef<string | null | undefined>(undefined);
+
   useEffect(() => {
-    if (!isReadOnly && user) {
-      setProductName(user.product_name || '');
-      setTeamName(user.team_name || '');
-      setOneLiner(user.one_liner || '');
-    }
+    if (isReadOnly || !user) return;
+
+    const teamKey = user.team_id ?? null;
+    if (seededProfileTeamRef.current === teamKey) return;
+    seededProfileTeamRef.current = teamKey;
+
+    setProductName(user.product_name || '');
+    setTeamName(user.team_name || '');
+    setOneLiner(user.one_liner || '');
   }, [user, isReadOnly]);
 
   // Load team profile if in read-only mode for a specific teamId
