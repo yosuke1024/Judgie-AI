@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { teamsApi, evaluationsApi, submissionsApi, chatApi, settingsApi, authApi } from '@/api/client';
 import { useTask } from '@/contexts/TaskContext';
