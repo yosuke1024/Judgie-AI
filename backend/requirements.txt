@@ -9,7 +9,7 @@ SQLAlchemy>=2.0.51
 psycopg2-binary>=2.9.12
 
 # AI
-google-genai>=0.1.1
+google-genai>=2.14.0
 
 # Security
 bcrypt>=5.0.0
