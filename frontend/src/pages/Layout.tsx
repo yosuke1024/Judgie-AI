@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTask } from '@/contexts/TaskContext';
 import { useTranslation } from 'react-i18next';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router';
 import { LayoutDashboard, Trophy, Settings, LogOut, Zap, Globe, BookOpen, CheckCircle2, AlertCircle, X } from 'lucide-react';
 
 const GithubIcon = ({ size = 16 }: { size?: number }) => (
